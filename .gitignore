@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Next.js
+app/.next/
+app/out/
+*.tsbuildinfo
+
+# Env / secrets (never commit)
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+
+# Stellar / Soroban keys & build artifacts
+.stellar/
+**/*.wasm
+contracts/**/target/
+
+# Vercel / deploy
+.vercel/
+
+# Runtime data
+app/.agent-registry/
+logs/
+
+# OS / editor
+.DS_Store
+*.log

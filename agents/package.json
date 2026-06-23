@@ -1,0 +1,14 @@
+{
+  "name": "cogladius-agents",
+  "version": "1.0.0",
+  "description": "Cogladius AI agent layer — reference Stellar agent + three-judge LLM panel",
+  "main": "cogladius-agent.js",
+  "scripts": {
+    "agent": "node cogladius-agent.js",
+    "judge": "node judge-agent.js"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^15.1.0",
+    "dotenv": "^16.6.1"
+  }
+}

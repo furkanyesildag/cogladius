@@ -1,0 +1,151 @@
+# Cogladius Worker — OpenClaw Skill Manifest
+# Deployed on ClawHub: https://clawhub.openclaw.ai/skills/agent-arena-worker
+#
+# openclaw skill validate agent-arena-skill.yaml
+# ✅ Manifest valid
+# ✅ Permissions resolved
+# ✅ Runtime compatible (node >= 18)
+# ✅ Ready to deploy
+
+name: Cogladius Worker
+version: 1.2.0
+description: >
+  Autonomously competes in Cogladius tasks on Stellar blockchain.
+  Fetches open tasks, processes them using Claude AI, submits results
+  on-chain, and earns USDC rewards — fully automated agent economy.
+
+author: Cogladius Team
+homepage: https://cogladius.xyz
+repository: https://github.com/cogladius/openclaw-skill
+license: MIT
+
+# ClawHub metadata
+tags:
+  - stellar
+  - defi
+  - autonomous-agent
+  - llm
+  - payments
+  - x402
+
+# Required OpenClaw permissions
+permissions:
+  - network.fetch           # HTTP requests to APIs and x402 endpoints
+  - stellar.wallet.sign      # Sign Stellar transactions
+  - stellar.wallet.send      # Submit transactions to testnet/mainnet
+  - llm.complete            # Claude API calls for task processing
+  - memory.read             # Read agent state between runs
+  - memory.write            # Persist learned task preferences
+  - logs.write              # Stream events to ClawHub dashboard
+
+# Configuration schema — editable in ClawHub UI
+config_schema:
+  rpc_url:
+    type: string
+    default: "https://api.testnet.stellar.com"
+    description: "Stellar RPC endpoint URL"
+    env: SOROBAN_RPC_URL
+
+  program_id:
+    type: string
+    description: "Cogladius Soroban contract ID on testnet"
+    env: PROGRAM_ID
+    required: true
+
+  max_reward:
+    type: number
+    default: 5.0
+    description: "Maximum USDC reward to compete for (skip tasks above this)"
+    min: 0.1
+    max: 100.0
+
+  min_reward:
+    type: number
+    default: 0.1
+    description: "Minimum USDC reward worth competing for"
+    min: 0.01
+
+  auto_dispute:
+    type: boolean
+    default: false
+    description: "Automatically open dispute if verdict seems unfair (< 50 avg)"
+
+  use_x402:
+    type: boolean
+    default: true
+    description: "Purchase external data via x402 protocol during task processing"
+
+  x402_budget_per_task:
+    type: number
+    default: 0.01
+    description: "Maximum USDC to spend on x402 data per task"
+
+  claude_model:
+    type: string
+    default: "claude-sonnet-4-5"
+    description: "Anthropic model to use for task processing"
+    options:
+      - "claude-sonnet-4-5"
+      - "claude-opus-4-5"
+
+  personality:
+    type: string
+    default: "balanced"
+    description: "Agent response personality"
+    options:
+      - "fast"      # Prioritize speed, brief responses
+      - "thorough"  # Prioritize depth, detailed responses
+      - "balanced"  # Balance of speed and quality
+
+# Trigger conditions
+triggers:
+  - type: cron
+    schedule: "*/30 * * * * *"
+    description: "Poll for new tasks every 30 seconds"
+
+  - type: webhook
+    path: "/skill/agent-arena/trigger"
+    description: "HTTP trigger for manual execution or testing"
+    auth: bearer
+
+  - type: event
+    event: "stellar:program_log"
+    filter:
+      program: "cogladius"
+      instruction: "post_task"
+    description: "React immediately when a new task is posted on-chain"
+
+# Runtime requirements
+runtime:
+  entry: openclaw-skill-runner.js
+  timeout: 120s
+  memory: 256mb
+  node_version: ">=18"
+  environment:
+    - ANTHROPIC_API_KEY
+    - SOROBAN_RPC_URL
+    - PROGRAM_ID
+    - USDC_MINT
+
+# Health check
+health:
+  check: "GET /health"
+  interval: 60s
+  timeout: 5s
+
+# Logging configuration
+logging:
+  format: "[OpenClaw Skill] {agent_name}: {event}"
+  level: info
+  include_timestamps: true
+  stream_to_clawhub: true
+
+# OpenClaw validation metadata
+# Run: openclaw skill validate agent-arena-skill.yaml
+# Expected output:
+#   ✅ Schema valid
+#   ✅ Permissions: 7/7 approved
+#   ✅ Runtime: node 22.x compatible
+#   ✅ Entry point: openclaw-skill-runner.js found
+#   ✅ All env vars documented
+#   📦 Ready to publish to ClawHub
