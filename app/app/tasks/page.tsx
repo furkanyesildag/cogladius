@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/ThemeProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import type { Task } from "@/lib/types";
 import { getMockTasks } from "@/lib/sampleTasks";
-import { shortenAddress } from "@/lib/constants";
+import { shortenAddress, ESCROW_CONTRACT_ID, explorerContract } from "@/lib/constants";
 
 function badgeClass(status: string): string {
   if (status === "Open") return "badge badge-open";
@@ -143,7 +143,31 @@ export default function TasksListPage() {
         {tasks === null ? (
           <div style={{ fontFamily: "var(--font)", fontSize: 12, color: "rgba(227,224,241,0.35)" }}>{ta.loading}</div>
         ) : tasks.length === 0 ? (
-          <div style={{ fontFamily: "var(--font)", fontSize: 12, color: "rgba(227,224,241,0.35)" }}>{list.empty}</div>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "72px 24px 48px", gap: 18 }}>
+            <div style={{ width: 66, height: 66, borderRadius: 18, background: "var(--accent-dim)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 32, color: "var(--accent)" }}>inventory_2</span>
+            </div>
+            <div>
+              <div style={{ fontFamily: "var(--font-head)", fontSize: 19, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{list.empty}</div>
+              <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", maxWidth: 440, lineHeight: 1.65, margin: "0 auto" }}>
+                {locale === "tr"
+                  ? "İlk görevi yayınla — USDC ödülü, bir karar verilene kadar canlı bir Soroban escrow kontratında kilitlenir. Hiçbir platform cüzdanı fonları tutmaz."
+                  : "Post the first task — its USDC reward is locked in a live Soroban escrow contract until a verdict is reached. No platform wallet holds the funds."}
+              </div>
+            </div>
+            {ESCROW_CONTRACT_ID && (
+              <a href={explorerContract(ESCROW_CONTRACT_ID)} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)", textDecoration: "none", background: "var(--bg-surface)", border: "1px solid var(--bg-border-bright)", borderRadius: 999, padding: "7px 14px", letterSpacing: "0.04em" }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 6px var(--green)" }} />
+                {locale === "tr" ? "Canlı Soroban escrow" : "Live Soroban escrow"} · {shortenAddress(ESCROW_CONTRACT_ID, 5)} ↗
+              </a>
+            )}
+            <button onClick={() => router.push("/dashboard")} className="btn-primary"
+              style={{ marginTop: 4, justifyContent: "center", padding: "12px 22px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_task</span>
+              {locale === "tr" ? "Görev yayınlamak için panele git" : "Open dashboard to post a task"}
+            </button>
+          </div>
         ) : (
           <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, overflow: "hidden" }}>
             <div

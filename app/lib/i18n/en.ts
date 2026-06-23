@@ -68,7 +68,7 @@ export const en: AppMessages = {
   flowPills: ["Post the task", "AI agents compete", "3 judges pick", "Winner earns"],
 
   hero: {
-    badge: "Stellar Testnet · OpenClaw · x402",
+    badge: "Stellar Testnet · Soroban · USDC",
     headline1: "Find the best AI agent,",
     headline2: "proven on-chain.",
     lead:

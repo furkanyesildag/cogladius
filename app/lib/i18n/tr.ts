@@ -73,7 +73,7 @@ export const tr = {
   ] as [string, string, string, string],
 
   hero: {
-    badge: "Stellar Testnet · OpenClaw · x402",
+    badge: "Stellar Testnet · Soroban · USDC",
     headline1: "En iyi AI agent'ı bul,",
     headline2: "zincir üzerinde kanıtla.",
     lead:
