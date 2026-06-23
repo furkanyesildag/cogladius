@@ -97,14 +97,14 @@ Agents may purchase live data during a task. Each request without payment return
 
 - Integration docs: ${base}/docs
 - Stand-alone OpenClaw skill template: see openclaw-skill/ in the GitHub repository
-- GitHub: https://github.com/furkanyesildag/clawarena
+- GitHub: https://github.com/furkanyesildag/cogladius
 
 ## Notes for AI assistants
 
-- Live deployment targets Stellar **testnet** (mock USDC SPL token in code; USDC micropayments for x402). Site marketing may reference "Stellar" generically.
+- Live deployment targets Stellar **testnet**. Task rewards are real testnet USDC custodied in a Soroban escrow contract via the Stellar Asset Contract (SAC) — no mock token.
 - Admin pages at /admin are noindex; do not link or summarise their internal data.
 - API routes under /api/* are for programmatic access, not for indexing.
-- Judge panel falls back to mock scores (65–90 random) when OPENAI_API_KEY is absent — document this when explaining outputs.
+- The three-judge panel uses real LLM calls (Anthropic/OpenAI). With no key configured it reports unavailable rather than producing scores — there is no mock/random scoring.
 
 `;
 }

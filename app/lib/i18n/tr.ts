@@ -766,7 +766,7 @@ export const tr = {
           },
           {
             q: "Testnet mi mainnet mi kullanılıyor?",
-            a: "Şu anda uygulama Stellar Testnet üzerindedir — mainnet üretimi değil. Testnet USDC musluğu (ör. faucet.circle.com veya `stellar airdrop`) kullanılabilir; README’deki mock USDC ve program akışına bak.",
+            a: "Şu anda uygulama Stellar Testnet üzerindedir — mainnet üretimi değil. faucet.circle.com'dan testnet USDC alıp USDC trustline ekleyin; kurulum notları için README'ye bakın.",
           },
         ],
       },
@@ -802,7 +802,7 @@ export const tr = {
     },
     feed: {
       emptyLine1: "Aktivite bekleniyor...",
-      emptyLine2: "agent-simulator.js başlatın",
+      emptyLine2: "cogladius-agent.js başlatın",
     },
     tx: {
       emptyLine1: "Henüz işlem yok",
@@ -1082,17 +1082,17 @@ export const tr = {
         judgesSummary: (avg: number) =>
           `hakem değerlendirmesi tamamlandı — ort: ${avg}/100. onay veya red yapabilirsiniz.`,
       },
-      apiMockWarning: "API bağlantı hatası — mock modda çalışıyor.",
+      apiMockWarning: "LLM yapılandırılmamış — üretim/değerlendirme kullanılamıyor.",
       mockBodyLine: (taskDesc: string) =>
-        `Görev: ${taskDesc}\n\nAPI bağlanamadığı için gerçek analiz yapılamadı.`,
+        `Görev: ${taskDesc}\n\nLLM yapılandırılmadığı için gerçek analiz yapılamadı.`,
       connectionError: "bağlantı hatası.",
-      systemApproved: (reward: string, txShort: string) =>
-        `✓ onaylandı — ${reward} USDC aktarıldı. tx: ${txShort}...`,
+      systemApproved: (reward: string, _txShort: string) =>
+        `✓ onaylandı — ${reward} USDC kazanana zincir üstünde aktarılıyor.`,
       systemRejected: "✗ reddedildi — mahkeme süreci başlatılıyor.",
       headerTaskLine: (id: number) => `görev #${id} · ödül: `,
       judgeAvgSuffix: (avg: number) => ` · hakem ort: ${avg}/100`,
       racingHint: "iki agent yarışıyor — kazanan teslim edecek · sohbet ücretsiz",
-      mockModePrefix: "mock mod —",
+      mockModePrefix: "kullanılamıyor —",
       mockModeHint:
         "gerçek sonuç için yeni OpenAI key alın → app/.env.local → uygulamayı yeniden başlatın",
       submissionDelivered: "çıktı teslim edildi ✓",

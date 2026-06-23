@@ -17,10 +17,9 @@ import { Task, AgentState, JudgeState, FeedEntry, TxEntry } from "@/lib/types";
 import { AGENT_API_POLL_MS, POLL_INTERVAL_MS, shortenAddress, explorerAddress, explorerTx, usdcToStroops } from "@/lib/constants";
 import { fetchUsdcBalance, EXPLORER_TX } from "@/lib/stellar";
 
-const DEFAULT_AGENTS: AgentState[] = [
-  { name: "Agent-Alpha", pubkey: "7DQy8XZKCbsJuXP3m52Au8PeKLpaa64WKATFWbCYkuxo", status: "SCANNING", tasksCompleted: 12, totalScore: 1092, x402Spending: 0.023, currentTaskId: null, color: "#40e183" },
-  { name: "Agent-Beta",  pubkey: "8TKy9R4MnVtTBrFHzAGiKChbXr7jPj3k3NKedxNtLLpL", status: "SCANNING", tasksCompleted: 8,  totalScore: 696,  x402Spending: 0.015, currentTaskId: null, color: "#adc6ff" },
-];
+// Real registered agents are loaded from /api/agents/list; no demo agents.
+const DEFAULT_AGENTS: AgentState[] = [];
+const AGENT_COLORS = ["#40e183", "#adc6ff", "#FFD166", "#FF8C42", "#B97DFF", "#7C9EFF"];
 const DEFAULT_JUDGES: JudgeState = {
   TeknikHakem: "READY", KullanılabilirlikHakemi: "READY", KapsamHakemi: "READY",
 };
@@ -100,8 +99,7 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
       setBarPct((prev) => {
         const out: Record<string, number> = { ...prev };
         for (const a of agents) {
-          const w = a.status.startsWith("WORKING");
-          out[a.name] = w ? 45 + Math.floor(Math.random() * 40) : 15;
+          out[a.name] = a.status.startsWith("WORKING") ? 70 : 15;
         }
         return out;
       });
@@ -369,19 +367,32 @@ export default function Dashboard() {
     setDeleteConfirm(null);
   }
 
-  // Make demo feed
+  // Load real registered agents from the registry (no demo data). The feed
+  // stays empty until real platform events (task posted / settled) occur.
   useEffect(() => {
-    const iso = new Date(0).toISOString(); const t = "--:--:--";
-    setFeed([
-      { id: 1, time: iso, timeStr: t, message: "Validating consensus for Block #291,041,222", icon: "sys", agent: "sys" },
-      { id: 2, time: iso, timeStr: t, message: "Executing trade: 50.00 XLM → USDC (Price: 0.1132)", icon: "alpha", agent: "Agent-Alpha" },
-      { id: 3, time: iso, timeStr: t, message: "Propagation delay observed in EU-CENTRAL-1", icon: "net", agent: "network" },
-      { id: 4, time: iso, timeStr: t, message: "Hedge parameters updated. Risk threshold: 0.05%", icon: "beta", agent: "Agent-Beta" },
-      { id: 5, time: iso, timeStr: t, message: "Reward pool distribution finalized: 4.5 USDC to WINNER_POOL_A", icon: "tx", agent: "tx" },
-      { id: 6, time: iso, timeStr: t, message: "Awaiting signature for cross-program invocation...", icon: "alpha", agent: "Agent-Alpha" },
-      { id: 7, time: iso, timeStr: t, message: "Memory usage at 42%. Heap fragmented but stable.", icon: "debug", agent: "debug" },
-      { id: 8, time: iso, timeStr: t, message: "Epoch 542 finalized. Epoch 543 initialized.", icon: "sys", agent: "sys" },
-    ]);
+    let cancelled = false;
+    const loadAgents = async () => {
+      try {
+        const res = await fetch("/api/agents/list");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !Array.isArray(data.agents)) return;
+        const mapped: AgentState[] = data.agents.map((a: any, i: number) => ({
+          name: a.name,
+          pubkey: a.pubkey,
+          status: a.isOnline ? "SCANNING" : "IDLE",
+          tasksCompleted: a.stats?.tasksCompleted ?? 0,
+          totalScore: a.stats?.totalScore ?? 0,
+          x402Spending: a.stats?.x402Spent ?? 0,
+          currentTaskId: null,
+          color: AGENT_COLORS[i % AGENT_COLORS.length],
+        }));
+        setAgents(mapped);
+      } catch { /* registry empty / offline */ }
+    };
+    loadAgents();
+    const id = setInterval(loadAgents, 15000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   useEffect(() => {
@@ -1170,12 +1181,15 @@ export default function Dashboard() {
                     onClose={() => setCenterTab("detail")}
                     prefillAgentResult={courtData?.agentResult ?? agentPanelStates[selectedTask.id]?.agentResult}
                     prefillDisputeReason={courtData?.disputeReason}
-                    onVerdict={(ruling) => {
-                      const now = new Date(); const reward = (selectedTask.rewardUsdc ?? 0).toFixed(4); const taskId = selectedTask.id;
+                    onVerdict={() => {
+                      // Agent Court is an off-chain AI roleplay (on-chain resolution
+                      // is a deferred deliverable) — record the ruling in the feed,
+                      // never a fabricated on-chain transaction.
+                      const now = new Date(); const taskId = selectedTask.id;
+                      const tloc = locale === "tr" ? "tr-TR" : "en-US";
                       setTasks((p) => p.map((t) => t.id === taskId ? { ...t, status: "Resolved" } : t));
                       setSelectedTask((p) => p?.id === taskId ? { ...p, status: "Resolved" } : p);
-                      const hash = Array.from({ length: 44 }, () => "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789"[Math.floor(Math.random() * 58)]).join("");
-                      setTxLog((p) => [{ id: Date.now(), type: "resolve_dispute()", hash, taskId, amount: `${reward} USDC`, winner: ruling === "poster_wins" ? "poster" : "agent-alpha", time: now.toISOString(), explorerUrl: "", slot: Math.floor(280e6 + Math.random() * 5e6), ms: Math.floor(400 + Math.random() * 300), highlight: true }, ...p]);
+                      setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.court(taskId), icon: "judge", agent: "judge" }, ...p]);
                     }}
                   />
                 </div>

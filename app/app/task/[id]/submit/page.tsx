@@ -36,16 +36,16 @@ export default function SubmitPage() {
   const [notes, setNotes] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [txHash] = useState(() =>
-    Array.from({ length: 44 }, () =>
-      "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789"[Math.floor(Math.random() * 58)]
-    ).join("")
-  );
+  const [resultHash, setResultHash] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1800));
+    // Real SHA-256 of the submitted content (verifiable; this is not an on-chain tx).
+    try {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(result));
+      setResultHash(Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join(""));
+    } catch { setResultHash(""); }
     setSubmitted(true);
     setSubmitting(false);
   }
@@ -65,8 +65,8 @@ export default function SubmitPage() {
               {ts.successBodyLine2}
             </div>
             <div style={{ background: S.bg, border: `1px solid ${S.borderB}`, padding: "10px 12px", textAlign: "left" }}>
-              <div style={{ fontSize: 10, color: S.tm, marginBottom: 4, letterSpacing: "0.08em" }}>{ts.txHashSimulated}</div>
-              <span style={{ fontSize: 10, color: S.ts, wordBreak: "break-all", fontFamily: "var(--font)" }}>{txHash}</span>
+              <div style={{ fontSize: 10, color: S.tm, marginBottom: 4, letterSpacing: "0.08em" }}>SUBMISSION HASH (SHA-256)</div>
+              <span style={{ fontSize: 10, color: S.ts, wordBreak: "break-all", fontFamily: "var(--font)" }}>{resultHash}</span>
             </div>
             <Link href="/dashboard" style={{
               display: "block", textAlign: "center", textDecoration: "none",

@@ -46,15 +46,12 @@ Kullanıcı ek soru sorabilir. Yanıtların:
   ].filter((m) => typeof m.content === "string");
 
   if (!resolveOpenAiApiKey()) {
-    const mockResponses = [
-      `Görevi analiz ediyorum. "${String(taskDescription).slice(0, 40)}..." konusunda ilerliyorum.`,
-      "Veri kaynaklarını taradım — bir iki kritik nokta seçtim.",
-      "Şu blokta zor olan kısım için optimizasyon yapıyorum.",
-    ];
     return NextResponse.json({
-      reply: mockResponses[Math.floor(Math.random() * mockResponses.length)],
+      reply:
+        "Agent chat is unavailable — no LLM key configured. Set OPENAI_API_KEY (or ANTHROPIC_API_KEY) in app/.env.local.",
       isMock: true,
-      apiError: "OPENAI_API_KEY yok (`sk-`). app/.env.local veya kök `.env`'e yazın.",
+      unavailable: true,
+      apiError: "OPENAI_API_KEY missing.",
     });
   }
 

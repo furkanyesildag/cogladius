@@ -240,11 +240,6 @@ function ResultRenderer({
 
 function pad(n: number) { return n.toString().padStart(2, "0"); }
 function nowStr() { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
-function makeTxHash() {
-  return Array.from({ length: 44 }, () =>
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz123456789"[Math.floor(Math.random() * 58)]
-  ).join("");
-}
 
 export default function AgentWorkPanel({
   task, agentA, agentB, onClose, onApprove, onReject, onJudgesComplete, savedState, onSaveState,
@@ -353,20 +348,23 @@ export default function AgentWorkPanel({
       })
         .then((r) => r.json())
         .then((data) => {
-          const result: string = data.result || aw.defaultResult;
-          if (data.isMock && data.apiError) setApiWarning(data.apiError);
+          if (!data.success || !data.result) {
+            // No real LLM output available — be honest, do not fabricate.
+            setApiWarning(data.error || aw.apiMockWarning);
+            addMsg({ role: "system", content: data.error || aw.apiMockWarning, ts: nowStr() });
+            setPhase("submitted");
+            return;
+          }
+          const result: string = data.result;
           setAgentResult(result);
           addMsg({ role: "submission", content: result, ts: nowStr(), speaker: winnerAgent.name });
           setPhase("judging");
-          runJudges();
+          runJudges(result);
         })
         .catch(() => {
           setApiWarning(aw.apiMockWarning);
-          const fb = aw.mockBodyLine(task.description);
-          setAgentResult(fb);
-          addMsg({ role: "submission", content: fb, ts: nowStr(), speaker: winnerAgent.name });
-          setPhase("judging");
-          runJudges();
+          addMsg({ role: "system", content: aw.apiMockWarning, ts: nowStr() });
+          setPhase("submitted");
         });
     }, winnerSec * 1000);
 
@@ -376,13 +374,30 @@ export default function AgentWorkPanel({
 
   function addMsg(m: ChatMessage) { setMessages((prev) => [...prev, m]); }
 
-  function runJudges() {
-    const comments = aw.judgeComments;
-    const scores: JudgeScore[] = aw.judgeLabels.map((name) => ({
-      name,
-      score: 55 + Math.floor(Math.random() * 40),
-      comment: comments[Math.floor(Math.random() * comments.length)],
-    }));
+  async function runJudges(result: string) {
+    let scores: JudgeScore[];
+    try {
+      const res = await fetch("/api/judge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskDescription: task.description, criteria: task.criteria, agentResult: result }),
+      });
+      const data = await res.json();
+      if (!data.success || !Array.isArray(data.scores)) {
+        setApiWarning(data.error || aw.apiMockWarning);
+        addMsg({ role: "system", content: data.error || aw.apiMockWarning, ts: nowStr() });
+        setPhase("submitted");
+        onJudgesComplete?.();
+        return;
+      }
+      scores = data.scores as JudgeScore[];
+    } catch {
+      setApiWarning(aw.apiMockWarning);
+      setPhase("submitted");
+      onJudgesComplete?.();
+      return;
+    }
+    // Reveal the real judge scores one by one (display pacing only).
     scores.forEach((js, i) => {
       setTimeout(() => {
         setJudgeScores((prev) => [...prev, js]);
@@ -393,9 +408,9 @@ export default function AgentWorkPanel({
             addMsg({ role: "system", content: aw.chat.judgesSummary(avg), ts: nowStr() });
             setPhase("submitted");
             onJudgesComplete?.();
-          }, 600);
+          }, 400);
         }
-      }, (i + 1) * 1800);
+      }, (i + 1) * 900);
     });
   }
 
@@ -421,11 +436,10 @@ export default function AgentWorkPanel({
 
   async function handleApprove() {
     setApproving(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    const tx = makeTxHash();
+    // The reward is released by the real on-chain settle (dashboard → /api/stellar/settle).
     setPhase("approved");
-    addMsg({ role: "system", content: aw.systemApproved((task.rewardUsdc ?? 0).toFixed(4), tx.slice(0, 14)), ts: nowStr() });
-    onApprove(agentResult, tx);
+    addMsg({ role: "system", content: aw.systemApproved((task.rewardUsdc ?? 0).toFixed(4), "on-chain"), ts: nowStr() });
+    onApprove(agentResult, "");
     setApproving(false);
   }
 

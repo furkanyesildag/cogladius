@@ -197,50 +197,6 @@ export async function setWinner(taskId: number, winner: string): Promise<boolean
 }
 
 export async function seedIfEmpty(): Promise<void> {
-  const tasks = await loadTasks();
-  if (Object.keys(tasks).length > 0) return;
-
-  const now = Math.floor(Date.now() / 1000);
-  const seedTasks: Task[] = [
-    {
-      id: 1,
-      poster: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
-      description: "2026'da Stellar DeFi ekosisteminin karşılaştığı en büyük 3 riski analiz et.",
-      criteria: "kaynak doğrulama, pratik öngörüler, kapsamlı analiz",
-      reward: 20_000_000,
-      rewardUsdc: 2,
-      deadline: now + 4 * 60 * 60,
-      status: "Open",
-      submissions: [],
-      verdicts: [],
-    },
-    {
-      id: 2,
-      poster: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
-      description: "Stellar validator'larını karşılaştır: uptime, performans ve coğrafi dağılım metrikleri.",
-      criteria: "teknik doğruluk, veri odaklı analiz, uygulanabilir öneriler",
-      reward: 50_000_000,
-      rewardUsdc: 5,
-      deadline: now + 8 * 60 * 60,
-      status: "Open",
-      submissions: [],
-      verdicts: [],
-    },
-    {
-      id: 3,
-      poster: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
-      description: "Soroban escrow + Freighter entegrasyonunu açıkla, çalışan bir TypeScript örneği sun.",
-      criteria: "teknik derinlik, kod kalitesi, açıklamanın netliği",
-      reward: 80_000_000,
-      rewardUsdc: 8,
-      deadline: now + 12 * 60 * 60,
-      status: "Open",
-      submissions: [],
-      verdicts: [],
-    },
-  ];
-
-  const store: Record<number, Task> = {};
-  seedTasks.forEach((t) => { store[t.id] = t; });
-  await saveTasks(store);
+  // No auto-seeding: the live marketplace shows only real, posted tasks.
+  // Reviewers post their own task; nothing is fabricated.
 }

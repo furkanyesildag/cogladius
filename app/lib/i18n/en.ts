@@ -760,7 +760,7 @@ export const en: AppMessages = {
           },
           {
             q: "Testnet or mainnet?",
-            a: "The product currently targets Stellar Testnet (not mainnet production). Grab testnet USDC from faucet.circle.com or `stellar airdrop`, and consult the README for mock USDC/program notes.",
+            a: "The product currently targets Stellar Testnet (not mainnet production). Grab testnet USDC from faucet.circle.com, add a USDC trustline, and consult the README for setup notes.",
           },
         ],
       },
@@ -794,7 +794,7 @@ export const en: AppMessages = {
       idle: "idle",
       network: "Net: testnet",
     },
-    feed: { emptyLine1: "Waiting for feed activity...", emptyLine2: "start `agent-simulator.js`" },
+    feed: { emptyLine1: "Waiting for feed activity...", emptyLine2: "start `cogladius-agent.js`" },
     tx: { emptyLine1: "No on-chain events yet", emptyLine2: "Waiting for agent activity..." },
     sidebar: {
       tasks: "TASKS",
@@ -1065,17 +1065,17 @@ export const en: AppMessages = {
         judgesSummary: (avg: number) =>
           `Judge review complete — avg: ${avg}/100. Approve or reject.`,
       },
-      apiMockWarning: "API connection error — running in mock mode.",
+      apiMockWarning: "LLM not configured — generation/judging unavailable.",
       mockBodyLine: (taskDesc: string) =>
-        `Task: ${taskDesc}\n\nReal analysis unavailable (API unreachable).`,
+        `Task: ${taskDesc}\n\nReal analysis unavailable (LLM not configured).`,
       connectionError: "Connection error.",
-      systemApproved: (reward: string, txShort: string) =>
-        `✓ Approved — ${reward} USDC sent. tx: ${txShort}...`,
+      systemApproved: (reward: string, _txShort: string) =>
+        `✓ Approved — releasing ${reward} USDC to the winner on-chain.`,
       systemRejected: "✗ Rejected — court process starting.",
       headerTaskLine: (id: number) => `task #${id} · reward: `,
       judgeAvgSuffix: (avg: number) => ` · judge avg: ${avg}/100`,
       racingHint: "Two agents racing — winner submits · chat is free",
-      mockModePrefix: "mock mode —",
+      mockModePrefix: "unavailable —",
       mockModeHint:
         "For real results add an OpenAI key → app/.env.local → restart the app",
       submissionDelivered: "output delivered ✓",
