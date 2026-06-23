@@ -28,7 +28,7 @@
 //! genuine, unforgeable verdict, and only when the score clears the threshold.
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, token, xdr::ToXdr,
+    contract, contractevent, contracterror, contractimpl, contracttype, token, xdr::ToXdr,
     Address, Bytes, BytesN, Env,
 };
 
@@ -82,6 +82,40 @@ pub enum Error {
     InvalidAmount = 4,
     ScoreTooLow = 5,
     NotExpired = 6,
+}
+
+// ── Events (soroban-sdk 26 `#[contractevent]`) ──
+#[contractevent(topics = ["post"])]
+pub struct PostEvent {
+    pub task_id: u64,
+    pub poster: Address,
+    pub reward: i128,
+    pub deadline: u64,
+}
+
+#[contractevent(topics = ["activate"])]
+pub struct ActivateEvent {
+    pub task_id: u64,
+}
+
+#[contractevent(topics = ["settle"])]
+pub struct SettleEvent {
+    pub task_id: u64,
+    pub winner: Address,
+    pub reward: i128,
+    pub score: u32,
+}
+
+#[contractevent(topics = ["refund"])]
+pub struct RefundEvent {
+    pub task_id: u64,
+    pub poster: Address,
+    pub reward: i128,
+}
+
+#[contractevent(topics = ["dispute"])]
+pub struct DisputeEvent {
+    pub task_id: u64,
 }
 
 // Persistent task entries live ~30 days of ledgers before needing a bump.
@@ -168,8 +202,7 @@ impl EscrowContract {
         env.storage()
             .persistent()
             .extend_ttl(&key, TASK_TTL_THRESHOLD, TASK_TTL_EXTEND);
-        env.events()
-            .publish((symbol_short!("post"), task_id), (poster, reward, deadline));
+        PostEvent { task_id, poster, reward, deadline }.publish(&env);
         Ok(())
     }
 
@@ -184,7 +217,7 @@ impl EscrowContract {
         }
         task.status = Status::Active;
         env.storage().persistent().set(&key, &task);
-        env.events().publish((symbol_short!("activate"), task_id), ());
+        ActivateEvent { task_id }.publish(&env);
         Ok(())
     }
 
@@ -222,8 +255,7 @@ impl EscrowContract {
         task.status = Status::Completed;
         task.winner = Some(winner.clone());
         env.storage().persistent().set(&key, &task);
-        env.events()
-            .publish((symbol_short!("settle"), task_id), (winner, task.reward, score));
+        SettleEvent { task_id, winner, reward: task.reward, score }.publish(&env);
         Ok(())
     }
 
@@ -246,10 +278,7 @@ impl EscrowContract {
         );
         task.status = Status::Refunded;
         env.storage().persistent().set(&key, &task);
-        env.events().publish(
-            (symbol_short!("refund"), task_id),
-            (task.poster.clone(), task.reward),
-        );
+        RefundEvent { task_id, poster: task.poster.clone(), reward: task.reward }.publish(&env);
         Ok(())
     }
 
@@ -265,7 +294,7 @@ impl EscrowContract {
         }
         task.status = Status::Disputed;
         env.storage().persistent().set(&key, &task);
-        env.events().publish((symbol_short!("dispute"), task_id), ());
+        DisputeEvent { task_id }.publish(&env);
         Ok(())
     }
 

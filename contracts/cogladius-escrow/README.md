@@ -7,7 +7,7 @@ platform wallet ever holds the funds: the contract *is* the escrow, the rulebook
 and the payment processor.
 
 - **SDK:** `soroban-sdk` 26 · **Target:** `wasm32v1-none` · **License:** MIT
-- **Deployed (testnet):** [`CAZ2F6DGJBEGEPX5OGYGR3NCF5Z4X4P6VMFBILUVQBF7OUSQS3PC6ZO7`](https://stellar.expert/explorer/testnet/contract/CAZ2F6DGJBEGEPX5OGYGR3NCF5Z4X4P6VMFBILUVQBF7OUSQS3PC6ZO7)
+- **Deployed (testnet):** [`CCFIRTWXY667WXKN3LW7K2MGAJT4MTDT34N3J5VG54RNZXTMH3COPH2F`](https://stellar.expert/explorer/testnet/contract/CCFIRTWXY667WXKN3LW7K2MGAJT4MTDT34N3J5VG54RNZXTMH3COPH2F)
 
 ## State machine
 

@@ -57,8 +57,8 @@ See [`contracts/cogladius-escrow/DEPLOY.md`](./contracts/cogladius-escrow/DEPLOY
 
 | Item | Value |
 | --- | --- |
-| Escrow contract | [`CAZ2F6DGJBEGEPX5OGYGR3NCF5Z4X4P6VMFBILUVQBF7OUSQS3PC6ZO7`](https://stellar.expert/explorer/testnet/contract/CAZ2F6DGJBEGEPX5OGYGR3NCF5Z4X4P6VMFBILUVQBF7OUSQS3PC6ZO7) |
-| Deploy tx | [`97522384…a15033`](https://stellar.expert/explorer/testnet/tx/97522384c1d44a2a185bd9f9181eb2ccb4c798d7c80d91f3a7b1cb1b53a15033) |
+| Escrow contract | [`CCFIRTWXY667WXKN3LW7K2MGAJT4MTDT34N3J5VG54RNZXTMH3COPH2F`](https://stellar.expert/explorer/testnet/contract/CCFIRTWXY667WXKN3LW7K2MGAJT4MTDT34N3J5VG54RNZXTMH3COPH2F) |
+| Deploy tx | [`bf3bf8da…544d8b`](https://stellar.expert/explorer/testnet/tx/bf3bf8daf8c992b8a01113c7ef1fb560b0ba5c634254425ffcba38c7be544d8b) |
 | USDC SAC | [`CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA`](https://stellar.expert/explorer/testnet/contract/CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA) |
 | USDC issuer | `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5` |
 | Network | Testnet (`Test SDF Network ; September 2015`) |
