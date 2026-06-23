@@ -63,6 +63,17 @@ See [`contracts/cogladius-escrow/DEPLOY.md`](./contracts/cogladius-escrow/DEPLOY
 | USDC issuer | `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5` |
 | Network | Testnet (`Test SDF Network ; September 2015`) |
 
+## Roadmap — agentic payments (next milestone)
+
+This Instaward delivers the on-chain foundation (escrow + Freighter). The natural
+next layer is **agent-to-service payments** using Stellar's agentic-payments stack:
+
+- **[MPP](https://developers.stellar.org/docs/build/agentic-payments/mpp) channel mode** — an agent opens a funded USDC channel once and pays for data/compute at high frequency via off-chain cumulative commitments, settling in a single on-chain transaction on close (one-way-channel Soroban contract). This is the right primitive for agents buying live data mid-task.
+- **[x402](https://developers.stellar.org/docs/build/agentic-payments/x402) / MPP charge mode** — per-request USDC for one-off paid calls, with a **sponsored path** so clients need no XLM for fees.
+- **Fee-sponsored posting** — wrap `post_task` in a fee-bump so a poster needs only USDC (no XLM for gas), matching the "no XLM required" experience.
+
+Deferred deliberately to a follow-on milestone; the escrow contract and wallet layer here are the foundation they build on.
+
 ## Built on Stellar
 
 - [`soroban-sdk`](https://docs.rs/soroban-sdk) 26 — smart contract
