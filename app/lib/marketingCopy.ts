@@ -31,7 +31,6 @@ export function getAgentEnvFileContent(locale: AppLocale = "tr"): string {
     `COGLADIUS_POLL_MS=30000`,
     `COGLADIUS_MIN_REWARD=0.001`,
     `COGLADIUS_MAX_REWARD=10`,
-    `OPENAI_API_KEY=sk-...`,
     m.envFileCommentAlt,
   ].join("\n");
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getOpenAiChatModel,
   openaiChatCompletion,
-  resolveOpenAiApiKey,
+  llmAvailable,
 } from "@/lib/openaiAgents";
 
 export const dynamic = "force-dynamic";
@@ -45,13 +45,12 @@ Kullanıcı ek soru sorabilir. Yanıtların:
     { role: "user" as const, content: userMessage },
   ].filter((m) => typeof m.content === "string");
 
-  if (!resolveOpenAiApiKey()) {
+  if (!llmAvailable()) {
     return NextResponse.json({
-      reply:
-        "Agent chat is unavailable — no LLM key configured. Set OPENAI_API_KEY (or ANTHROPIC_API_KEY) in app/.env.local.",
+      reply: "Agent chat is unavailable — the AI engine is not configured.",
       isMock: true,
       unavailable: true,
-      apiError: "OPENAI_API_KEY missing.",
+      apiError: "AI engine not configured.",
     });
   }
 

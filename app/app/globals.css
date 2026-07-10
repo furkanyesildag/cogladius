@@ -2010,14 +2010,16 @@ input::placeholder, textarea::placeholder { color: rgba(227,224,241,0.2); }
   height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  scroll-snap-type: y mandatory;
+  /* Gentle proximity snap (never mandatory) so tall sections never trap the
+     scroll and the eye isn't forced/jerked between viewports. */
+  scroll-snap-type: y proximity;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
 }
 .landing-snap-section {
   scroll-snap-align: start;
-  scroll-snap-stop: always;
+  scroll-snap-stop: normal;
   min-height: 100%;
   box-sizing: border-box;
 }

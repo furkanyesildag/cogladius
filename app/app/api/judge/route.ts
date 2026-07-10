@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   if (!isLlmConfigured()) {
     return NextResponse.json(
-      { success: false, error: "Judge panel unavailable — configure DEEPSEEK_API_KEY or OPENAI_API_KEY." },
+      { success: false, error: "Judge panel unavailable — the AI engine is not configured." },
       { status: 503 }
     );
   }

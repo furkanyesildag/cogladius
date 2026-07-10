@@ -282,10 +282,10 @@ function ApiKeyModal({ onSave, onSkip }: { onSave: (key: string) => void; onSkip
       <div className="modal-box" style={{ maxWidth: 440 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--accent)" }}>key</span>
-          <span style={{ fontFamily: "var(--font-head)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>OpenAI API Key</span>
+          <span style={{ fontFamily: "var(--font-head)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>AI Engine Key</span>
         </div>
         <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.7, marginBottom: 16 }}>
-          Orkestratör Agent'i için OpenAI API key'ini gir. Key yalnızca tarayıcında saklanır, sunucuya gönderilmez.
+          Orkestratör Agent'i için yapay zeka motoru anahtarını gir. Anahtar yalnızca tarayıcında saklanır, sunucuya gönderilmez.
         </p>
         <input
           type="password"

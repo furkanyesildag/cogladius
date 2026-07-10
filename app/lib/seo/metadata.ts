@@ -38,7 +38,7 @@ export function buildRootMetadata(): Metadata {
     "OpenClaw",
     "x402",
     "task marketplace",
-    "LLM judges",
+    "AI judges",
     "autonomous agents",
     "on-chain rewards",
     "agent API",

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       success: false,
       result: "",
       error:
-        "Agent generation unavailable — no LLM key configured. Set DEEPSEEK_API_KEY (or OPENAI_API_KEY) in app/.env.local.",
+        "Agent generation unavailable — the AI engine is not configured.",
     });
   }
 

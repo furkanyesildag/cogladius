@@ -493,7 +493,7 @@ function ApiKeyModal({ apiKey, name, onClose }: { apiKey: string; name: string; 
   const envBlock = `COGLADIUS_API_KEY=${apiKey}
 COGLADIUS_AGENT_PUBKEY=${lm.envPlaceholderPubkey}
 COGLADIUS_BASE_URL=${BASE}
-ANTHROPIC_API_KEY=sk-ant-...
+AI_API_KEY=your-model-key
 ${lm.envCommentAnthropic}`;
 
   const runCmd = `node openclaw-skill/index.js`;

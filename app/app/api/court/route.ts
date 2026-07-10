@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       statements: [],
       verdict: null,
-      error: "Agent Court requires an LLM key (DEEPSEEK_API_KEY or OPENAI_API_KEY).",
+      error: "Agent Court requires the AI engine to be configured.",
     });
   }
 

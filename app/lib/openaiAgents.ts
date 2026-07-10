@@ -88,7 +88,7 @@ export async function openaiChatCompletion(payload: {
   if (!provider) {
     return {
       ok: false,
-      error: "No LLM key configured — set DEEPSEEK_API_KEY (or OPENAI_API_KEY) in app/.env.local / Vercel env.",
+      error: "The AI engine is not configured.",
     };
   }
 

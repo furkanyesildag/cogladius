@@ -69,7 +69,7 @@ export async function runJudgePanel(d: {
   if (!llmAvailable()) {
     return {
       ok: false,
-      error: "Judge panel unavailable — configure DEEPSEEK_API_KEY (or OPENAI_API_KEY).",
+      error: "Judge panel unavailable — the AI engine is not configured.",
     };
   }
   const threshold = d.passThreshold ?? PASS_THRESHOLD;

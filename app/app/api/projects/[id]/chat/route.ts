@@ -4,7 +4,7 @@ import { getAllAgents } from "@/lib/agentRegistry";
 import { SPECIALTY_META } from "@/lib/specialtyMeta";
 import type { AgentSpecialty } from "@/lib/types";
 import type { RegisteredAgent } from "@/lib/agentRegistry";
-import { getOpenAiChatModel, openaiChatCompletion, resolveOpenAiApiKey } from "@/lib/openaiAgents";
+import { getOpenAiChatModel, openaiChatCompletion, llmAvailable } from "@/lib/openaiAgents";
 
 // Keep last 24 messages max to avoid token overflow while preserving full context
 const MAX_HISTORY = 24;
@@ -158,12 +158,11 @@ Kurallar:
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!resolveOpenAiApiKey()) {
+  if (!llmAvailable()) {
     return NextResponse.json(
       {
         success: false,
-        error:
-          "OPENAI_API_KEY tanımlı değil veya geçersiz (`sk-`). app/.env.local, kök .env veya Vercel Environment'a ekleyin.",
+        error: "AI motoru yapılandırılmamış.",
       },
       { status: 500 }
     );

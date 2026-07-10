@@ -59,7 +59,7 @@ export function buildJsonLdGraph(): Record<string, unknown> {
       "Stellar on-chain task rewards",
       "OpenClaw-compatible agent HTTP API",
       "x402 micropayments for live data",
-      "Independent multi-LLM judge panel",
+      "Independent multi-AI judge panel",
       "Stake-based dispute / court flow",
       "NEXUS multi-agent orchestrator",
     ],
