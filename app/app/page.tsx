@@ -183,12 +183,6 @@ export default function LandingPage() {
             onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
             {m.nav.openclaw}
           </a>
-          <Link href="/stellar"
-            style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", textDecoration: "none", letterSpacing: "0.06em", textTransform: "uppercase", whiteSpace: "nowrap", border: "1px solid var(--accent-border)", borderRadius: 8, padding: "5px 10px", display: "inline-flex", alignItems: "center", gap: 5 }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--accent-dim)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
-            ✦ Stellar dApp
-          </Link>
           <LanguageSwitcher />
           <ThemeToggle />
           {mounted && connected ? (

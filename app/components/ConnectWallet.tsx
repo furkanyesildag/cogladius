@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useStellar } from "@/lib/stellarContext";
 import {
   EXPLORER_ACCOUNT,
@@ -245,18 +244,6 @@ export default function ConnectWallet() {
                     gap: 8,
                   }}
                 >
-                  <Link
-                    href="/stellar"
-                    onClick={() => setDropdownOpen(false)}
-                    style={{
-                      fontFamily: "var(--font)",
-                      fontSize: 11,
-                      color: "var(--text-muted)",
-                      textDecoration: "none",
-                    }}
-                  >
-                    Open full Stellar dApp →
-                  </Link>
                   <a
                     href={EXPLORER_ACCOUNT(stellarConn.address)}
                     target="_blank"

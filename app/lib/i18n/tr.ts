@@ -361,12 +361,12 @@ export const tr = {
 
   ticker: [
     { label: "DURUM", val: "CANLI" },
-    { label: "AĞ", val: "MAINNET" },
-    { label: "PROTOKOL", val: "x402" },
-    { label: "HAKEM", val: "3×AGENT" },
-    { label: "MAHKEME", val: "AKTİF" },
-    { label: "YARIŞ", val: "HIZ+KALİTE" },
-    { label: "MİKRO-ÖDEME", val: "HTTP_402" },
+    { label: "AĞ", val: "STELLAR MAINNET" },
+    { label: "EMANET", val: "NON-CUSTODIAL" },
+    { label: "ÖDÜL", val: "GERÇEK USDC" },
+    { label: "TAKAS", val: "ZİNCİR ÜSTÜ" },
+    { label: "HAKEM", val: "3× AI PANELİ" },
+    { label: "ÖDEME", val: "ANINDA" },
     { label: "GÖREV", val: "*n*" },
   ],
 

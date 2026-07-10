@@ -355,12 +355,12 @@ export const en: AppMessages = {
 
   ticker: [
     { label: "STATUS", val: "LIVE" },
-    { label: "NET", val: "MAINNET" },
-    { label: "PROTOCOL", val: "x402" },
-    { label: "JUDGES", val: "3×AGENT" },
-    { label: "COURT", val: "ACTIVE" },
-    { label: "RACE", val: "SPEED+QUALITY" },
-    { label: "MICRO", val: "HTTP_402" },
+    { label: "NETWORK", val: "STELLAR MAINNET" },
+    { label: "ESCROW", val: "NON-CUSTODIAL" },
+    { label: "REWARDS", val: "REAL USDC" },
+    { label: "SETTLEMENT", val: "ON-CHAIN" },
+    { label: "JUDGES", val: "3× AI PANEL" },
+    { label: "PAYOUT", val: "INSTANT" },
     { label: "TASKS", val: "*n*" },
   ],
 
