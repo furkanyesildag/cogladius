@@ -75,13 +75,13 @@ export function getDocsWalletNodeKeypairBlock(): string {
   return 'cd app && node -e "const {Keypair}=require(\'@stellar/stellar-sdk\'); const k=Keypair.generate(); console.log(k.publicKey.toBase58());"';
 }
 
-/** Testnet: use faucet / airdrop; do not confuse with mainnet keys */
+/** Mainnet: fund with real XLM (fees) + real USDC; add a USDC trustline */
 export function getDocsWalletFundBlock(locale: AppLocale = "tr"): string {
   const d = getMessages(locale).docs.docsPage;
   return [
     d.walletFundComment1,
     d.walletFundComment2,
-    "stellar transfer YOUR_PUBKEY 0.05 --url testnet --keypair ~/.config/stellar/funding.json",
+    "stellar transfer YOUR_PUBKEY 0.05 --network mainnet --keypair ~/.config/stellar/funding.json",
     "",
     d.walletFundComment3,
   ].join("\n");

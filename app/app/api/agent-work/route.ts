@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOpenAiChatModel, openaiChatCompletion, resolveOpenAiApiKey } from "@/lib/openaiAgents";
+import { getOpenAiChatModel, openaiChatCompletion, llmAvailable } from "@/lib/openaiAgents";
 
 export const dynamic = "force-dynamic";
 
@@ -43,12 +43,12 @@ export async function POST(request: NextRequest) {
     systemExtra,
   } = body;
 
-  if (!resolveOpenAiApiKey()) {
+  if (!llmAvailable()) {
     return NextResponse.json({
       success: false,
       result: "",
       error:
-        "Agent generation unavailable — no LLM key configured. Set OPENAI_API_KEY (or ANTHROPIC_API_KEY) in app/.env.local.",
+        "Agent generation unavailable — no LLM key configured. Set DEEPSEEK_API_KEY (or OPENAI_API_KEY) in app/.env.local.",
     });
   }
 

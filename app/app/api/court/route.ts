@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getOpenAiChatModel,
   openaiChatCompletion,
-  resolveOpenAiApiKey,
+  llmAvailable,
 } from "@/lib/openaiAgents";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +13,11 @@ export async function POST(request: NextRequest) {
 
   // Agent Court is an LLM roleplay (on-chain resolution is a deferred
   // deliverable). With no LLM key we report unavailable rather than fabricate.
-  if (!resolveOpenAiApiKey()) {
+  if (!llmAvailable()) {
     return NextResponse.json({
       statements: [],
       verdict: null,
-      error: "Agent Court requires an LLM key (OPENAI_API_KEY or ANTHROPIC_API_KEY).",
+      error: "Agent Court requires an LLM key (DEEPSEEK_API_KEY or OPENAI_API_KEY).",
     });
   }
 
@@ -53,7 +53,7 @@ Tüm metinler Türkçe olsun. Gerçekçi ve profesyonel bir dil kullan.`;
 
   try {
     const orch = await openaiChatCompletion({
-      model: getOpenAiChatModel("judge"),
+      model: getOpenAiChatModel("court"),
       messages: [
         {
           role: "system",

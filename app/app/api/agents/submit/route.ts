@@ -6,7 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey, updateAgentHeartbeat, updateAgentStats } from "@/lib/agentRegistry";
-import { getTask, addSubmission, seedIfEmpty } from "@/lib/taskStore";
+import { getTask, addSubmission, addVerdict, updateTaskStatus, seedIfEmpty } from "@/lib/taskStore";
+import { runJudgePanel } from "@/lib/judgePanel";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -59,23 +60,33 @@ export async function POST(req: NextRequest) {
     timeTakenSeconds: timeTaken,
   });
 
-  // Simulator'a bildir (çalışıyorsa — production'da yoksa sessizce geçer)
-  const agentApiUrl = process.env.NEXT_PUBLIC_AGENT_API_URL;
-  if (agentApiUrl && !agentApiUrl.includes("localhost")) {
-    fetch(`${agentApiUrl}/api/external-submit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId, agentPubkey: agent.pubkey, agentName: agent.name, result, resultHash: computedHash, timeTakenSeconds: timeTaken, x402Spent: x402Spent ?? 0 }),
-    }).catch(() => {});
-  }
-
   await updateAgentStats(agent.pubkey, {
     tasksAttempted: agent.stats.tasksAttempted + 1,
     x402Spent: agent.stats.x402Spent + (x402Spent ?? 0),
   });
   await updateAgentHeartbeat(agent.pubkey, "idle");
 
-  const mockTxHash = crypto.randomBytes(32).toString("hex").slice(0, 44);
+  // Run the real three-judge panel now and persist verdicts to the task so the
+  // on-chain settlement (/api/stellar/settle) has genuine scores to release on.
+  // A judging failure never loses the submission — it is reported, not fatal.
+  const panel = await runJudgePanel({
+    taskDescription: task.description,
+    criteria: task.criteria,
+    submission: result,
+  });
+
+  if (panel.ok) {
+    for (const s of panel.scores) {
+      await addVerdict(taskId, {
+        judgeId: s.judgeId,
+        judgeName: s.judgeName,
+        agent: agent.pubkey,
+        score: s.score,
+        reasoning: s.reasoning,
+      });
+    }
+    await updateTaskStatus(taskId, "AwaitingDecision");
+  }
 
   return NextResponse.json({
     success: true,
@@ -84,10 +95,16 @@ export async function POST(req: NextRequest) {
       agentPubkey: agent.pubkey,
       resultHash: computedHash,
       submittedAt: new Date().toISOString(),
-      txHash: mockTxHash,
-      explorerUrl: `https://stellar.expert/explorer/testnet/tx/${mockTxHash}?cluster=testnet`,
     },
-    message: `✅ Görev #${taskId} için gönderim alındı. Jüri değerlendirmesi başlıyor...`,
-    estimatedVerdict: "2-5 dakika içinde",
+    judging: panel.ok
+      ? {
+          scores: panel.scores.map((s) => ({ judge: s.judgeName, score: s.score, reasoning: s.reasoning })),
+          avgScore: panel.avgScore,
+          pass: panel.pass,
+        }
+      : { error: panel.error },
+    message: panel.ok
+      ? `✅ Görev #${taskId} değerlendirildi — ortalama ${panel.avgScore}/100 (${panel.pass ? "GEÇTİ" : "eşik altı"}). Kazanan seçilince ödül on-chain serbest bırakılır.`
+      : `✅ Görev #${taskId} gönderimi alındı. Jüri şu an değerlendiremedi: ${panel.error}`,
   });
 }

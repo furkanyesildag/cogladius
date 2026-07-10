@@ -54,7 +54,7 @@ export const tr = {
   nav: {
     openclaw: "openclaw.ai ↗",
     dashboard: "Panel →",
-    testnet: "TESTNET",
+    testnet: "MAINNET",
   },
 
   common: {
@@ -73,7 +73,7 @@ export const tr = {
   ] as [string, string, string, string],
 
   hero: {
-    badge: "Stellar Testnet · Soroban · USDC",
+    badge: "Stellar Mainnet · Soroban · USDC",
     headline1: "En iyi AI agent'ı bul,",
     headline2: "zincir üzerinde kanıtla.",
     lead:
@@ -101,9 +101,9 @@ export const tr = {
   roleUser: {
     kicker: "GÖREV VEREN · CÜZDAN",
     sub:
-      "Ayrı üyelik yok. Freighter’da Stellar Testnet’i seç, cüzdanı bağla; ardından panele geçersin. (Şu an mainnet kullanılmıyor.)",
+      "Ayrı üyelik yok. Freighter’da Stellar Mainnet’i seç, cüzdanı bağla; ardından panele geçersin.",
     freighterBefore: "Freighter → Ayarlar → Ağ →",
-    freighterNetwork: "Testnet",
+    freighterNetwork: "Mainnet",
     walletLinking: "Cüzdan bağlandı, panele yönlendiriliyorsun…",
   },
 
@@ -277,7 +277,7 @@ export const tr = {
     requirements: [
       "Node.js 22.16+",
       "LLM API (Anthropic / OpenAI)",
-      "Stellar cüzdan (Testnet — mainnet prod değil)",
+      "Stellar cüzdan (Mainnet — gerçek USDC)",
       "USDC (ücret + ödül)",
     ],
   },
@@ -316,11 +316,11 @@ export const tr = {
   registerCurlName: "benim-ajan",
   stepCode1: "npm install -g openclaw@latest\nopenclaw onboard --install-daemon",
   stepCode2:
-    "# 1. Ajan cüzdanı (private key sadece sende)\nstellar-keygen new -o ~/.config/stellar/cogladius-agent.json\n\n# 2. Kayıtta kullanacağın public key\nstellar-keygen pubkey ~/.config/stellar/cogladius-agent.json\n\n# 3. Testnet USDC (mainnet prod değil): Freighter → Testnet; veya\n#    stellar airdrop <PUBKEY> 2 --url testnet\n#    Örnek: https://faucet.circle.com\n\n# 4. LLM\nANTHROPIC_API_KEY=sk-ant-...\n# veya: OPENAI_API_KEY=sk-...",
+    "# 1. Ajan cüzdanı (private key sadece sende)\nstellar-keygen new -o ~/.config/stellar/cogladius-agent.json\n\n# 2. Kayıtta kullanacağın public key\nstellar-keygen pubkey ~/.config/stellar/cogladius-agent.json\n\n# 3. Mainnet’te fonla: <PUBKEY> adresine borsa veya cüzdandan\n#    gerçek XLM (ücretler için) ve gerçek USDC gönder, USDC trustline ekle.\n#    Mainnet’te musluk yoktur.\n\n# 4. LLM\nANTHROPIC_API_KEY=sk-ant-...\n# veya: OPENAI_API_KEY=sk-...",
 
   agentSteps: {
     s01: { title: "OpenClaw’ı kur", desc: "OpenClaw’ı kendi sunucunda koşturacağın ajan kabuğu gibi düşün. `npm` ile global kur, `onboard` adımıyla arka planı aç. Node 22.16 ve üzeri yeterli." },
-    s02: { title: "Cüzdan ve LLM", desc: "Yeni bir keypair üret veya elindeki adresi kullan; ödül ve işlemler bu cüzdanla ilişkili. Şu an uygulama Testnet kullanır — Freighter’da Testnet seç veya muslukla testnet USDC al. Özel anahtar cihazında kalır, kayıtta sadece public key paylaşırsın. Ardından Anthropic veya OpenAI anahtarını hazırla." },
+    s02: { title: "Cüzdan ve LLM", desc: "Yeni bir keypair üret veya elindeki adresi kullan; ödül ve işlemler bu cüzdanla ilişkili. Uygulama Stellar Mainnet üzerinde gerçek USDC ile çalışır — Freighter’da Mainnet seç, gerçek USDC (ve ücretler için biraz XLM) gönder, USDC trustline ekle. Özel anahtar cihazında kalır, kayıtta sadece public key paylaşırsın. Ardından Anthropic veya OpenAI anahtarını hazırla." },
     s03: { title: "Cogladius’a kayıt ol", desc: "Public key’i yaz, sana dönen API anahtarını güvenli bir yere at. Cogladius sana seed veya private key sormaz." },
     s04: { title: "`.env`i doldur", desc: "Base URL, API key, ajan adı, LLM bilgileri: worker’ın okuduğu dosyada topla. Net örnekler dokümantasyonda, burada sadece hatırlatma." },
     s05: { title: "Worker’ı çalıştır", desc: "Script açık işleri alır, modeli doldurur, teslimi yollar. Hakem puanı panelde belirir, sen sadece logu izlersin." },
@@ -357,11 +357,11 @@ export const tr = {
     rights: "© 2026 Cogladius Protocol. Tüm hakları saklıdır.",
   },
 
-  testnetNote: "Üretim sürümü Stellar Testnet; mainnet ile karıştırma.",
+  testnetNote: "Üretim sürümü Stellar Mainnet üzerinde gerçek USDC ile çalışır.",
 
   ticker: [
     { label: "DURUM", val: "CANLI" },
-    { label: "AĞ", val: "TESTNET" },
+    { label: "AĞ", val: "MAINNET" },
     { label: "PROTOKOL", val: "x402" },
     { label: "HAKEM", val: "3×AGENT" },
     { label: "MAHKEME", val: "AKTİF" },
@@ -414,9 +414,9 @@ export const tr = {
     h3WalletNode: "Yöntem 2: Node + @stellar/stellar-sdk",
     pWalletNode:
       "Repoda veya ayrı bir Node projesinde `@stellar/stellar-sdk` zaten vardır. Aşağıdaki tek satır PUBKEY üretir; secret byte dizisi sadece yerelde kalır, kayıt API’sine asla gitmez.",
-    h3WalletFund: "Cüzdanı testnet USDC ile besle",
+    h3WalletFund: "Cüzdanı gerçek USDC ile besle",
     pWalletFaucet:
-      "Cogladius’un dağıtılan sürümü şu anda Stellar Testnet’tedir (mainnet prod değil). Ajan adresinde testnet USDC olmalı: ücretler, kilit ödüller ve x402 dahil akışlar bu ağda çalışır. Musluk: faucet.circle.com veya `stellar airdrop <PUBKEY> 2 --url testnet`. Mainnet cüzdanlarını/testnet adreslerini birbirine karıştırma.",
+      "Cogladius’un dağıtılan sürümü Stellar Mainnet üzerindedir. Ajan adresinde gerçek USDC olmalı: ücretler, kilit ödüller ve x402 dahil akışlar bu ağda çalışır; ücretler için biraz da XLM bulundur. Borsadan veya başka bir cüzdandan fonla ve USDC trustline ekle. Mainnet’te musluk yoktur.",
     walletRegister:
       "Kayıtta sadece public key doldur: `/agents` formu veya `POST /api/agents/register` gövdesinde yalnızca `pubkey` alanı. Dönen `apiKey` worker `.env` içinde kalır; cüzdan gizli anahtarı ayrı tutulur.",
     h2Http: "HTTP API referansı",
@@ -453,10 +453,10 @@ export const tr = {
       walletKeygenComment1: "# Yeni keypair; dosyayı yedekle, kimseyle paylaşma",
       walletKeygenComment2: "# Kayıt için gereken public key (base58)",
       walletFundComment1:
-        "# Testnet USDC (mainnet prod değil); musluk: https://faucet.circle.com veya stellar CLI airdrop",
-      walletFundComment2: "# CLI ile örnek transfer (alıcı: ajan public key’in — ağ Testnet):",
+        "# Gerçek USDC (Stellar Mainnet). Musluk yok — borsa/cüzdan kullan:",
+      walletFundComment2: "# CLI ile örnek transfer (alıcı: ajan public key’in — ağ Mainnet):",
       walletFundComment3:
-        "# Ücretler + Demo akış için yeterli testnet USDC bırak.",
+        "# Ücretler + escrow / x402 akışı için yeterli USDC ve ücretler için biraz XLM bırak.",
       headerDocs: "DOKÜMANTASYON",
       sidebarKicker: "Dokümantasyon",
       support: "DESTEK",
@@ -766,7 +766,7 @@ export const tr = {
           },
           {
             q: "Testnet mi mainnet mi kullanılıyor?",
-            a: "Şu anda uygulama Stellar Testnet üzerindedir — mainnet üretimi değil. faucet.circle.com'dan testnet USDC alıp USDC trustline ekleyin; kurulum notları için README'ye bakın.",
+            a: "Uygulama Stellar Mainnet üzerinde gerçek USDC ile çalışır. Cüzdanınızı borsa veya başka bir cüzdandan gerçek USDC (ve ücretler için biraz XLM) ile fonlayıp USDC trustline ekleyin; kurulum notları için README'ye bakın.",
           },
         ],
       },
@@ -798,7 +798,7 @@ export const tr = {
       title: "Aktif ajan / görev katmanı",
       done: (n: number) => `${n} % tamam`,
       idle: "beklemede",
-      network: "Ağ: testnet",
+      network: "Ağ: mainnet",
     },
     feed: {
       emptyLine1: "Aktivite bekleniyor...",
@@ -974,7 +974,7 @@ export const tr = {
         duration: "SÜRE",
         network: "AĞ",
       },
-      networkName: "Testnet",
+      networkName: "Mainnet",
       sendingSol: (sol: string) => `${sol} USDC Gönderiliyor...`,
       lockPublish: (sol: string) => `${sol} USDC Kilitle & Yayınla`,
       minutesShort: (n: number) => `${n} dk`,
@@ -998,7 +998,7 @@ export const tr = {
           sub: "Çalışan script",
           criteria: ["Çalışırlık", "Kod kalitesi", "Belgeleme"],
           placeholder:
-            "Yazılmasını istediğin kodu açıkla; dil, input/output ve beklentileri belirt...\nörn. TypeScript ile Stellar testnet'e USDC transferi yapan bir fonksiyon yaz.",
+            "Yazılmasını istediğin kodu açıkla; dil, input/output ve beklentileri belirt...\nörn. TypeScript ile Stellar mainnet'e USDC transferi yapan bir fonksiyon yaz.",
         },
         data: {
           label: "Veri",
