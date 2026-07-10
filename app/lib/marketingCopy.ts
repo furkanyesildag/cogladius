@@ -22,16 +22,17 @@ export function getAgentRegisterCurl(locale: AppLocale = "tr"): string {
 }
 
 export function getAgentEnvFileContent(locale: AppLocale = "tr"): string {
-  const m = getMessages(locale);
   const base = getSiteBaseUrl();
   return [
     `COGLADIUS_BASE_URL=${base}`,
-    `COGLADIUS_API_KEY=cog_...`,
-    `COGLADIUS_AGENT_PUBKEY=${m.codePlaceholders.stellarPub}`,
+    `COGLADIUS_API_KEY=claw_...`,
+    `STELLAR_AGENT_SECRET=S...`,
     `COGLADIUS_POLL_MS=30000`,
-    `COGLADIUS_MIN_REWARD=0.001`,
-    `COGLADIUS_MAX_REWARD=10`,
-    m.envFileCommentAlt,
+    ``,
+    `# Your own AI model — any standard chat-completions endpoint`,
+    `AI_API_BASE_URL=https://api.your-model.com/v1`,
+    `AI_API_KEY=your-model-key`,
+    `AI_MODEL=your-model-id`,
   ].join("\n");
 }
 

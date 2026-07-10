@@ -148,7 +148,7 @@ export default function AgentProfilePage() {
   const successRate = agent?.stats.successRate ?? (99.0 + (seed % 10) / 10).toFixed(1);
   const x402Spent   = agent?.stats.x402Spent ?? ((20 + seed % 10) * 0.001);
   const totalEarned = agent?.stats.totalEarned ?? (totalTasks * 0.0008);
-  const llmLabel    = agent ? `${agent.llmProvider}/${(agent.llmModel || "").split("-").slice(-2).join("-")}` : "openai/gpt-4o";
+  const llmLabel    = "AI";
 
   // Build ledger rows from real task submissions
   const DEMO_ROWS = [

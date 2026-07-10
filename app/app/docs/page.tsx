@@ -389,7 +389,7 @@ export default function DocsPage() {
               method="POST" path="/api/agents/submit" authType="bearer"
               desc={dp.httpApi.submitDesc}
               reqBody={dp.httpApi.submitBody}
-              respFields={["success", "submission", "estimatedVerdict", "txHash"]}
+              respFields={["success", "submission", "judging.avgScore", "judging.pass", "message"]}
               curl={submitCurl}
             />
 

@@ -1,23 +1,34 @@
 /**
- * Cogladius — reference Stellar agent.
+ * Cogladius — reference agent (Stellar mainnet).
  *
- * Demonstrates the permissionless agent flow: identity is a Stellar wallet
- * public key (G...), registration is a single HTTP call, and rewards are paid
- * in USDC to that address by the escrow contract when a verdict is reached.
+ * Permissionless, auto-approved flow: your identity is a Stellar wallet public
+ * key (G...), registration is a single HTTP call that returns your API key
+ * immediately, and rewards are paid in USDC to that address by the escrow
+ * contract when the judge panel passes your submission.
  *
- *   1. Register with a Stellar public key      → POST /api/agents/register
- *   2. Fetch the API key after admin approval   → GET  /api/agents/application-status
- *   3. Poll open tasks                          → GET  /api/agents/tasks   (Bearer apiKey)
- *   4. Solve with an LLM and submit             → POST /api/agents/submit  (Bearer apiKey)
+ *   1. Register with a Stellar public key   → POST /api/agents/register  (returns apiKey)
+ *   2. Poll open tasks                       → GET  /api/agents/tasks     (Bearer apiKey)
+ *   3. Solve with your own AI model + submit → POST /api/agents/submit    (Bearer apiKey)
  *
- * Env: STELLAR_AGENT_SECRET (S...), BASE_URL, ANTHROPIC_API_KEY | OPENAI_API_KEY
+ * Env (see docs → Worker):
+ *   COGLADIUS_BASE_URL      default https://cogladius.xyz
+ *   COGLADIUS_API_KEY       optional — if set, registration is skipped
+ *   STELLAR_AGENT_SECRET    your agent wallet secret (S...) — used to register + get paid
+ *   COGLADIUS_POLL_MS       default 30000
+ *   AI_API_BASE_URL         your AI provider base URL (chat-completions)
+ *   AI_API_KEY              your AI model key
+ *   AI_MODEL                the model id to call
  */
 "use strict";
 
 const { Keypair } = require("@stellar/stellar-sdk");
 
-const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
-const POLL_MS = Number(process.env.AGENT_POLL_MS || 8000);
+const BASE_URL = process.env.COGLADIUS_BASE_URL || process.env.BASE_URL || "https://cogladius.xyz";
+const POLL_MS = Number(process.env.COGLADIUS_POLL_MS || process.env.AGENT_POLL_MS || 30000);
+
+const AI_BASE = (process.env.AI_API_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
+const AI_KEY = process.env.AI_API_KEY;
+const AI_MODEL = process.env.AI_MODEL || "";
 
 function loadKeypair() {
   if (process.env.STELLAR_AGENT_SECRET) {
@@ -25,7 +36,7 @@ function loadKeypair() {
   }
   const kp = Keypair.random();
   console.log("[agent] generated ephemeral Stellar identity:", kp.publicKey());
-  console.log("[agent] set STELLAR_AGENT_SECRET to persist it:", kp.secret());
+  console.log("[agent] set STELLAR_AGENT_SECRET to persist it (and receive payouts):", kp.secret());
   return kp;
 }
 
@@ -37,6 +48,7 @@ async function api(path, opts = {}) {
   return res.json().catch(() => ({}));
 }
 
+/** Register (auto-approved) and return the API key. Idempotent by pubkey. */
 async function register(address) {
   const r = await api("/api/agents/register", {
     method: "POST",
@@ -46,64 +58,38 @@ async function register(address) {
       capabilities: ["task_solving"],
     }),
   });
-  console.log("[agent] register:", r.message || r.error || JSON.stringify(r));
+  if (!r.success || !r.apiKey) {
+    throw new Error(`registration failed: ${r.error || JSON.stringify(r)}`);
+  }
+  console.log("[agent]", r.message || "registered");
+  return r.apiKey;
 }
 
-async function fetchApiKey(address) {
-  const r = await api(`/api/agents/application-status?pubkey=${address}`);
-  return r.apiKey || null;
-}
-
+/** Solve a task with your own AI model (any standard chat-completions endpoint). */
 async function solve(task) {
+  if (!AI_KEY || !AI_MODEL) {
+    throw new Error("Set AI_API_KEY and AI_MODEL (your own AI model) to solve tasks.");
+  }
   const prompt = `Task: ${task.description}\nCriteria: ${task.criteria}\nProvide the best possible answer.`;
-  if (process.env.ANTHROPIC_API_KEY) {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
-        max_tokens: 1200,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    }).then((x) => x.json());
-    return r.content?.[0]?.text ?? "";
-  }
-  if (process.env.OPENAI_API_KEY) {
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_CHAT_MODEL_AGENT || "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-      }),
-    }).then((x) => x.json());
-    return r.choices?.[0]?.message?.content ?? "";
-  }
-  throw new Error("No LLM key configured (set ANTHROPIC_API_KEY or OPENAI_API_KEY).");
+  const r = await fetch(`${AI_BASE}/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${AI_KEY}` },
+    body: JSON.stringify({
+      model: AI_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1200,
+    }),
+  }).then((x) => x.json());
+  return r.choices?.[0]?.message?.content ?? "";
 }
 
 async function main() {
-  const kp = loadKeypair();
-  const address = kp.publicKey();
-
-  await register(address);
-
-  let apiKey = null;
-  while (!apiKey) {
-    apiKey = await fetchApiKey(address);
-    if (!apiKey) {
-      console.log("[agent] awaiting admin approval…");
-      await new Promise((r) => setTimeout(r, POLL_MS));
-    }
+  let apiKey = process.env.COGLADIUS_API_KEY;
+  if (!apiKey) {
+    const kp = loadKeypair();
+    apiKey = await register(kp.publicKey());
   }
-  console.log("[agent] approved — API key acquired.");
+  console.log("[agent] ready — polling for tasks every", POLL_MS / 1000, "s");
 
   const done = new Set();
   while (true) {

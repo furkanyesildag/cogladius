@@ -36,12 +36,11 @@ function StatusDot({ isOnline, status }: { isOnline: boolean; status: string }) 
   );
 }
 
-function LlmBadge({ provider, model }: { provider?: string; model?: string }) {
-  const colors: Record<string, string> = { anthropic: "var(--green)", openai: "var(--blue)", ollama: "var(--yellow)", openrouter: "var(--accent)" };
-  const color = colors[provider || ""] || "rgba(227,224,241,0.3)";
+function LlmBadge(_props: { provider?: string; model?: string }) {
+  const color = "rgba(227,224,241,0.4)";
   return (
-    <span style={{ fontFamily: "var(--font)", fontSize: 9, color, background: "var(--bg-base)", padding: "1px 6px", borderRadius: 2, border: `1px solid ${color}22`, whiteSpace: "nowrap" }}>
-      {provider || "?"}/{(model || "").split("-").slice(-2).join("-")}
+    <span style={{ fontFamily: "var(--font)", fontSize: 9, color, background: "var(--bg-base)", padding: "1px 6px", borderRadius: 2, border: `1px solid ${color}22`, whiteSpace: "nowrap", letterSpacing: "0.08em" }}>
+      AI
     </span>
   );
 }
@@ -124,7 +123,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState<RegisterStep>("form");
   const [form, setForm] = useState({
     pubkey: "", name: "", email: "", description: "", stellarAddress: "",
-    openclawVersion: "", llmProvider: "openai", llmModel: "gpt-4o-mini",
+    openclawVersion: "", llmProvider: "other", llmModel: "",
     maxRewardUsdc: "10", minRewardUsdc: "0.001", personality: "balanced",
   });
   const [loading, setLoading]         = useState(false);
@@ -163,8 +162,14 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
       });
       const data = await res.json();
       if (data.success) {
-        setAppId(data.applicationId);
-        setStep("pending");
+        if (data.apiKey) {
+          // Auto-approved: the API key is returned immediately.
+          setStatusResult({ status: "approved", apiKey: data.apiKey });
+          setStep("check_status");
+        } else {
+          setAppId(data.applicationId);
+          setStep("pending");
+        }
       } else {
         setError(data.error || reg.errSubmit);
       }
@@ -405,24 +410,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
               value={form.stellarAddress} onChange={(e) => setForm({ ...form, stellarAddress: e.target.value })} />
           </div>
 
-          {/* LLM */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelLlm}</label>
-              <select value={form.llmProvider} onChange={(e) => setForm({ ...form, llmProvider: e.target.value })}>
-                <option value="openai">OpenAI</option>
-                <option value="anthropic">Anthropic (Claude)</option>
-                <option value="ollama">Ollama</option>
-                <option value="openrouter">OpenRouter</option>
-                <option value="other">{reg.llmOther}</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelModel}</label>
-              <input type="text" placeholder="gpt-4o-mini"
-                value={form.llmModel} onChange={(e) => setForm({ ...form, llmModel: e.target.value })} />
-            </div>
-          </div>
+          {/* An agent's AI engine is its own private choice — not declared to the platform. */}
 
           {/* Personality + OpenClaw version */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -858,7 +846,7 @@ curl -X POST ${BASE}/api/agents/submit \\
             <div style={{ background: "var(--bg-base)", borderRadius: 4, padding: "12px", marginBottom: 16 }}>
               <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 10, textTransform: "uppercase" }}>{ag.detail.configTitle}</div>
               {[
-                { k: ag.detail.llm, v: `${selectedAgent.llmProvider}/${selectedAgent.llmModel}` },
+                { k: ag.detail.llm, v: "AI" },
                 {
                   k: ag.detail.personality,
                   v: ag.personalityLabel[selectedAgent.config.personality as keyof typeof ag.personalityLabel] ?? selectedAgent.config.personality,

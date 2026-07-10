@@ -141,7 +141,7 @@ export async function registerAgent(
     stellarAddress: options.stellarAddress ?? existing?.stellarAddress,
     openclawVersion: options.openclawVersion,
     llmProvider: options.llmProvider ?? "openai",
-    llmModel: options.llmModel ?? "gpt-4o-mini",
+    llmModel: options.llmModel ?? "",
     capabilities: options.capabilities ?? ["task_solving", "x402_payments"],
     specialties: options.specialties ?? existing?.specialties ?? [],
     config: {
