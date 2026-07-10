@@ -46,19 +46,15 @@ function RoleCard({ icon, accent, idPrefix, identifier, title, desc, cta, onClic
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-        className="landing-role-card"
+        className="landing-role-card glass-card"
         style={{
-        background: hovered ? "var(--bg-surface-mid)" : "var(--bg-surface-low)",
-        border: `1px solid ${hovered ? accent : "var(--bg-border-bright)"}`,
-        borderRadius: 12,
+        borderColor: hovered ? accent : undefined,
         padding: "clamp(24px, 4vw, 36px) clamp(20px, 4vw, 32px)",
         cursor: "pointer",
-        width: "min(100%, 280px)",
+        width: "min(100%, 300px)",
         maxWidth: "100%",
         textAlign: "left",
         boxSizing: "border-box",
-        transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s",
-        boxShadow: hovered ? `0 0 24px ${accent}14` : "none",
         position: "relative",
         overflow: "hidden",
       }}>
@@ -225,8 +221,8 @@ export default function LandingPage() {
         <div className="landing-hero-inner" style={{ position: "relative", zIndex: 1, maxWidth: 800, width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
 
           {/* Badge */}
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, padding: "6px 16px", background: "var(--accent-dim)", border: "1px solid var(--accent-border)", borderRadius: 4, marginBottom: 32, fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block", flexShrink: 0, animation: "pulse 2s infinite" }} />
+          <div className="glass-pill" style={{ marginBottom: 32, color: "var(--green)", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+            <span className="live-dot" />
             {m.hero.badge}
           </div>
 
