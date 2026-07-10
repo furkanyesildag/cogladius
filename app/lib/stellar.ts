@@ -16,19 +16,25 @@ import {
   BASE_FEE,
   Horizon,
   Memo,
-  Networks,
   Operation,
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
-import { USDC_ASSET_CODE, USDC_ISSUER } from "@/lib/constants";
+import {
+  USDC_ASSET_CODE,
+  USDC_ISSUER,
+  HORIZON_URL as CFG_HORIZON_URL,
+  NETWORK_PASSPHRASE as CFG_NETWORK_PASSPHRASE,
+  EXPLORER_BASE,
+  IS_MAINNET,
+} from "@/lib/constants";
 
-export const HORIZON_URL = "https://horizon-testnet.stellar.org";
-export const NETWORK_PASSPHRASE = Networks.TESTNET;
+// Network config is env-driven (defaults to mainnet — see constants.ts).
+export const HORIZON_URL = CFG_HORIZON_URL;
+export const NETWORK_PASSPHRASE = CFG_NETWORK_PASSPHRASE;
+// Friendbot only exists on testnet; there is no mainnet faucet.
 export const FRIENDBOT_URL = "https://friendbot.stellar.org";
-export const EXPLORER_TX = (hash: string) =>
-  `https://stellar.expert/explorer/testnet/tx/${hash}`;
-export const EXPLORER_ACCOUNT = (addr: string) =>
-  `https://stellar.expert/explorer/testnet/account/${addr}`;
+export const EXPLORER_TX = (hash: string) => `${EXPLORER_BASE}/tx/${hash}`;
+export const EXPLORER_ACCOUNT = (addr: string) => `${EXPLORER_BASE}/account/${addr}`;
 
 export function getServer(): Horizon.Server {
   return new Horizon.Server(HORIZON_URL);
@@ -180,8 +186,13 @@ export async function addUsdcTrustline(address: string): Promise<{ hash: string 
   return { hash: res.hash };
 }
 
-/** Fund an account on testnet via Friendbot (one-click faucet). */
+/** Fund an account on testnet via Friendbot (one-click faucet). No-op on mainnet. */
 export async function fundWithFriendbot(address: string): Promise<void> {
+  if (IS_MAINNET) {
+    throw new Error(
+      "Friendbot is testnet-only. On mainnet, fund the account with real XLM from an exchange or wallet."
+    );
+  }
   const res = await fetch(`${FRIENDBOT_URL}/?addr=${encodeURIComponent(address)}`);
   if (!res.ok) {
     let detail = "";

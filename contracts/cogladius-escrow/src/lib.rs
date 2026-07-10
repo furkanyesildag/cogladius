@@ -15,9 +15,9 @@
 //! ```
 //!
 //! ## USDC custody (SAC)
-//! Rewards are held as the real Stellar testnet USDC asset through its Stellar
-//! Asset Contract (SAC). The contract uses the SEP-41 token interface
-//! (`transfer`) for both the lock (poster → contract) and the payout
+//! Rewards are held as the real Stellar USDC asset through its Stellar Asset
+//! Contract (SAC). The contract uses the SEP-41 token interface (`transfer`)
+//! for both the lock (poster → contract) and the payout
 //! (contract → winner / poster).
 //!
 //! ## Verdict authority (on-chain ed25519)
@@ -26,10 +26,17 @@
 //! `release_to_winner` rebuilds the canonical verdict message and verifies the
 //! signature on-chain with `env.crypto().ed25519_verify` — funds move only on a
 //! genuine, unforgeable verdict, and only when the score clears the threshold.
+//!
+//! ## Emergency controls (mainnet hardening)
+//! The verdict key is a hot key off-chain: if it leaks, an attacker could sign
+//! valid verdicts and drain open tasks. To bound that blast radius the admin can
+//! [`pause`] settlements (and new posts) and [`set_verdict_pubkey`] to rotate the
+//! authority key without redeploying. Refunds are never paused so posters can
+//! always exit.
 
 use soroban_sdk::{
-    contract, contractevent, contracterror, contractimpl, contracttype, token, xdr::ToXdr,
-    Address, Bytes, BytesN, Env,
+    contract, contractevent, contracterror, contractimpl, contracttype, panic_with_error, token,
+    xdr::ToXdr, Address, Bytes, BytesN, Env,
 };
 
 #[contracttype]
@@ -45,14 +52,20 @@ pub enum Status {
 #[contracttype]
 #[derive(Clone)]
 pub struct Config {
-    /// Administrative authority (state transitions like `activate` / `flag_disputed`).
+    /// Administrative authority (state transitions, pause, key rotation).
     pub admin: Address,
     /// Stellar Asset Contract (SAC) address for the USDC reward asset.
     pub usdc_sac: Address,
-    /// ed25519 public key of the off-chain verdict authority.
+    /// ed25519 public key of the off-chain verdict authority (rotatable).
     pub verdict_pubkey: BytesN<32>,
-    /// Minimum average score (0-100) required to pay a winner.
+    /// Minimum average score (1-100) required to pay a winner.
     pub pass_threshold: u32,
+    /// Seconds after `deadline` during which a permissionless refund is blocked,
+    /// giving the platform a window to settle to a winner without being
+    /// front-run. Active tasks cannot be refunded until this window elapses.
+    pub settle_grace: u64,
+    /// Emergency stop: blocks `release_to_winner` and `post_task` (never refund).
+    pub paused: bool,
 }
 
 #[contracttype]
@@ -82,6 +95,9 @@ pub enum Error {
     InvalidAmount = 4,
     ScoreTooLow = 5,
     NotExpired = 6,
+    Paused = 7,
+    RefundLocked = 8,
+    InvalidConfig = 9,
 }
 
 // ── Events (soroban-sdk 26 `#[contractevent]`) ──
@@ -118,6 +134,16 @@ pub struct DisputeEvent {
     pub task_id: u64,
 }
 
+#[contractevent(topics = ["pause"])]
+pub struct PauseEvent {
+    pub paused: bool,
+}
+
+#[contractevent(topics = ["verdict_key"])]
+pub struct VerdictKeyEvent {
+    pub pubkey: BytesN<32>,
+}
+
 // Persistent task entries live ~30 days of ledgers before needing a bump.
 const TASK_TTL_THRESHOLD: u32 = 17_280; // ~1 day
 const TASK_TTL_EXTEND: u32 = 518_400; // ~30 days
@@ -147,14 +173,18 @@ pub struct EscrowContract;
 #[contractimpl]
 impl EscrowContract {
     /// One-time constructor: wires the USDC SAC, the verdict-authority public
-    /// key, and the pass threshold.
+    /// key, the pass threshold, and the post-deadline settlement grace window.
     pub fn __constructor(
         env: Env,
         admin: Address,
         usdc_sac: Address,
         verdict_pubkey: BytesN<32>,
         pass_threshold: u32,
+        settle_grace: u64,
     ) {
+        if pass_threshold < 1 || pass_threshold > 100 {
+            panic_with_error!(&env, Error::InvalidConfig);
+        }
         env.storage().instance().set(
             &DataKey::Config,
             &Config {
@@ -162,6 +192,8 @@ impl EscrowContract {
                 usdc_sac,
                 verdict_pubkey,
                 pass_threshold,
+                settle_grace,
+                paused: false,
             },
         );
     }
@@ -176,6 +208,10 @@ impl EscrowContract {
         deadline: u64,
     ) -> Result<(), Error> {
         poster.require_auth();
+        let config = Self::config(&env);
+        if config.paused {
+            return Err(Error::Paused);
+        }
         if reward <= 0 {
             return Err(Error::InvalidAmount);
         }
@@ -183,12 +219,7 @@ impl EscrowContract {
         if env.storage().persistent().has(&key) {
             return Err(Error::TaskExists);
         }
-        let config = Self::config(&env);
-        token::TokenClient::new(&env, &config.usdc_sac).transfer(
-            &poster,
-            &env.current_contract_address(),
-            &reward,
-        );
+        // Effects before interaction: record the task, then pull the funds.
         env.storage().persistent().set(
             &key,
             &Task {
@@ -202,6 +233,11 @@ impl EscrowContract {
         env.storage()
             .persistent()
             .extend_ttl(&key, TASK_TTL_THRESHOLD, TASK_TTL_EXTEND);
+        token::TokenClient::new(&env, &config.usdc_sac).transfer(
+            &poster,
+            &env.current_contract_address(),
+            &reward,
+        );
         PostEvent { task_id, poster, reward, deadline }.publish(&env);
         Ok(())
     }
@@ -233,12 +269,15 @@ impl EscrowContract {
         nonce: u64,
         signature: BytesN<64>,
     ) -> Result<(), Error> {
+        let config = Self::config(&env);
+        if config.paused {
+            return Err(Error::Paused);
+        }
         let key = DataKey::Task(task_id);
         let mut task = Self::load(&env, &key)?;
         if task.status != Status::Open && task.status != Status::Active {
             return Err(Error::InvalidState);
         }
-        let config = Self::config(&env);
         if score < config.pass_threshold {
             return Err(Error::ScoreTooLow);
         }
@@ -247,38 +286,55 @@ impl EscrowContract {
         env.crypto()
             .ed25519_verify(&config.verdict_pubkey, &msg, &signature);
 
-        token::TokenClient::new(&env, &config.usdc_sac).transfer(
-            &env.current_contract_address(),
-            &winner,
-            &task.reward,
-        );
+        // Effects before interaction (CEI): mark Completed, then pay out.
+        let reward = task.reward;
         task.status = Status::Completed;
         task.winner = Some(winner.clone());
         env.storage().persistent().set(&key, &task);
-        SettleEvent { task_id, winner, reward: task.reward, score }.publish(&env);
+        token::TokenClient::new(&env, &config.usdc_sac).transfer(
+            &env.current_contract_address(),
+            &winner,
+            &reward,
+        );
+        SettleEvent { task_id, winner, reward, score }.publish(&env);
         Ok(())
     }
 
-    /// Refund the reward to the poster. Permissionless after the deadline
-    /// (expiry); before the deadline it is a poster-authorized cancel.
+    /// Refund the reward to the poster.
+    ///
+    /// - **Open** task: before `deadline + settle_grace` this is a
+    ///   poster-authorized cancel; after it, permissionless.
+    /// - **Active** task (work submitted): locked until `deadline + settle_grace`
+    ///   so the platform can settle to a winner without being front-run; after
+    ///   the window it is permissionless.
     pub fn refund(env: Env, task_id: u64) -> Result<(), Error> {
         let key = DataKey::Task(task_id);
         let mut task = Self::load(&env, &key)?;
         if task.status != Status::Open && task.status != Status::Active {
             return Err(Error::InvalidState);
         }
-        if env.ledger().timestamp() <= task.deadline {
+        let config = Self::config(&env);
+        let grace_end = task.deadline.saturating_add(config.settle_grace);
+        if env.ledger().timestamp() <= grace_end {
+            // Still inside the settlement window.
+            if task.status == Status::Active {
+                // Committed work: no refund until the window elapses.
+                return Err(Error::RefundLocked);
+            }
+            // Open task: only the poster may cancel their own task early.
             task.poster.require_auth();
         }
-        let config = Self::config(&env);
-        token::TokenClient::new(&env, &config.usdc_sac).transfer(
-            &env.current_contract_address(),
-            &task.poster,
-            &task.reward,
-        );
+        // Effects before interaction (CEI): mark Refunded, then pay out.
+        let poster = task.poster.clone();
+        let reward = task.reward;
         task.status = Status::Refunded;
         env.storage().persistent().set(&key, &task);
-        RefundEvent { task_id, poster: task.poster.clone(), reward: task.reward }.publish(&env);
+        token::TokenClient::new(&env, &config.usdc_sac).transfer(
+            &env.current_contract_address(),
+            &poster,
+            &reward,
+        );
+        RefundEvent { task_id, poster, reward }.publish(&env);
         Ok(())
     }
 
@@ -298,6 +354,37 @@ impl EscrowContract {
         Ok(())
     }
 
+    /// Emergency stop: block `release_to_winner` and `post_task`. Admin-only.
+    /// Refunds remain available so posters can always exit. Intended for a
+    /// suspected verdict-key compromise while the key is rotated.
+    pub fn pause(env: Env) {
+        let mut config = Self::config(&env);
+        config.admin.require_auth();
+        config.paused = true;
+        Self::save_config(&env, &config);
+        PauseEvent { paused: true }.publish(&env);
+    }
+
+    /// Lift the emergency stop. Admin-only.
+    pub fn unpause(env: Env) {
+        let mut config = Self::config(&env);
+        config.admin.require_auth();
+        config.paused = false;
+        Self::save_config(&env, &config);
+        PauseEvent { paused: false }.publish(&env);
+    }
+
+    /// Rotate the verdict-authority public key (e.g. after a key compromise)
+    /// without redeploying. Admin-only. Existing signatures over the old key
+    /// stop verifying immediately.
+    pub fn set_verdict_pubkey(env: Env, new_pubkey: BytesN<32>) {
+        let mut config = Self::config(&env);
+        config.admin.require_auth();
+        config.verdict_pubkey = new_pubkey.clone();
+        Self::save_config(&env, &config);
+        VerdictKeyEvent { pubkey: new_pubkey }.publish(&env);
+    }
+
     pub fn get_task(env: Env, task_id: u64) -> Option<Task> {
         env.storage().persistent().get(&DataKey::Task(task_id))
     }
@@ -310,6 +397,10 @@ impl EscrowContract {
 impl EscrowContract {
     fn config(env: &Env) -> Config {
         env.storage().instance().get(&DataKey::Config).unwrap()
+    }
+
+    fn save_config(env: &Env, config: &Config) {
+        env.storage().instance().set(&DataKey::Config, config);
     }
 
     fn load(env: &Env, key: &DataKey) -> Result<Task, Error> {

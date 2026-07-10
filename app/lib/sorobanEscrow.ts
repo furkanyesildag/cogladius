@@ -28,10 +28,22 @@ import {
 
 const BASE_FEE = "1000000"; // generous fee for Soroban invocations
 
+/**
+ * Resolve the client RPC URL. It is normally the same-origin proxy
+ * (`/api/soroban`) so the mainnet RPC secret stays server-side; the SDK needs
+ * an absolute URL, so relative paths are resolved against the page origin.
+ */
+function clientRpcUrl(): string {
+  const u = SOROBAN_RPC_URL;
+  if (u.startsWith("/") && typeof window !== "undefined") {
+    return window.location.origin + u;
+  }
+  return u;
+}
+
 function getServer(): rpc.Server {
-  return new rpc.Server(SOROBAN_RPC_URL, {
-    allowHttp: SOROBAN_RPC_URL.startsWith("http://"),
-  });
+  const url = clientRpcUrl();
+  return new rpc.Server(url, { allowHttp: url.startsWith("http://") });
 }
 
 async function waitForSuccess(server: rpc.Server, hash: string): Promise<void> {

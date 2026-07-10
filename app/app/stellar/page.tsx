@@ -13,6 +13,7 @@ import {
   shortAddress,
   type PaymentRecord,
 } from "@/lib/stellar";
+import { IS_MAINNET } from "@/lib/constants";
 
 const card: React.CSSProperties = {
   background: "var(--bg-surface)",
@@ -415,7 +416,7 @@ export default function StellarDappPage() {
                 </div>
               </div>
 
-              {(!funded || Number(balance) === 0) && (
+              {!IS_MAINNET && (!funded || Number(balance) === 0) && (
                 <div
                   style={{
                     marginTop: 18,

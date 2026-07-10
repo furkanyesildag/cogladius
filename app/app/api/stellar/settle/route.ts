@@ -87,15 +87,28 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine the verdict score (must clear the contract's pass threshold).
+    // An explicit body.score is an authorized operator override; otherwise the
+    // score MUST derive from real recorded judge verdicts. We never fall back to
+    // an assumed passing score — that would release real USDC without a verdict.
     let score = Number(body.score);
     if (!Number.isFinite(score)) {
       const winnerScores = (task.verdicts || [])
         .filter((v) => v.agent === winnerKey)
         .map((v) => v.score);
-      score =
+      const derived =
         averageScore(winnerScores) ??
-        averageScore((task.verdicts || []).map((v) => v.score)) ??
-        80;
+        averageScore((task.verdicts || []).map((v) => v.score));
+      if (derived === null) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "No judge verdicts recorded for this task; refusing to settle without a real score.",
+          },
+          { status: 400 }
+        );
+      }
+      score = derived;
     }
     score = Math.max(0, Math.min(100, Math.round(score)));
 

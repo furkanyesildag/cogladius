@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import ConnectWallet from "@/components/ConnectWallet";
 import { TaskType, OutputFormat } from "@/lib/types";
-import { ESCROW_CONTRACT_ID } from "@/lib/constants";
+import { ESCROW_CONTRACT_ID, IS_MAINNET } from "@/lib/constants";
 import { postTaskOnChain } from "@/lib/sorobanEscrow";
 import { fetchUsdcBalance, addUsdcTrustline, EXPLORER_TX } from "@/lib/stellar";
 import { useMessages, useLocale } from "@/lib/i18n";
@@ -74,7 +74,8 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
   const [description, setDescription] = useState("");
   const [criteriaChips, setCriteriaChips] = useState<string[]>([]);
   const [chipInput, setChipInput] = useState("");
-  const [rewardUsdc, setRewardUsdc] = useState(1);
+  const [rewardInput, setRewardInput] = useState("1");
+  const rewardUsdc = parseFloat(rewardInput) || 0;
   const [deadlineMin, setDeadlineMin] = useState(30);
   const [loading, setLoading] = useState(false);
   const [trustLoading, setTrustLoading] = useState(false);
@@ -136,7 +137,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!conn) { setError("Connect your Freighter wallet first."); return; }
-    if (!conn.isTestnet) { setError("Switch Freighter to Testnet to lock the reward."); return; }
+    if (!conn.isTestnet) { setError(`Switch Freighter to ${IS_MAINNET ? "Mainnet" : "Testnet"} to lock the reward.`); return; }
     if (!ESCROW_CONTRACT_ID) { setError("Escrow contract is not configured yet."); return; }
     if (!hasTrustline) { setError("Add a USDC trustline first (button above)."); return; }
     setLoading(true);
@@ -435,9 +436,9 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                   {L.suggestPrefix} {def.rewardRange[0]}–{def.rewardRange[1]}
                 </span>
               </div>
-              <input type="number" value={rewardUsdc}
-                onChange={(e) => setRewardUsdc(parseFloat(e.target.value) || 0)}
-                min="0.0001" max="10000" step="0.1" required
+              <input type="text" inputMode="decimal" value={rewardInput}
+                onChange={(e) => { const v = e.target.value.replace(",", "."); if (/^\d*\.?\d*$/.test(v)) setRewardInput(v); }}
+                placeholder="0" required
                 style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: def.color }} />
               {usdcBalance !== null && (
                 <div style={{ fontFamily: "var(--font)", fontSize: 9, color: balanceOk ? "rgba(227,224,241,0.3)" : "var(--red)", marginTop: 4 }}>

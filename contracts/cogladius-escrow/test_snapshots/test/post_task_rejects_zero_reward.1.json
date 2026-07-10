@@ -164,6 +164,22 @@
                           },
                           {
                             "key": {
+                              "symbol": "paused"
+                            },
+                            "val": {
+                              "bool": false
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "settle_grace"
+                            },
+                            "val": {
+                              "u64": "300"
+                            }
+                          },
+                          {
+                            "key": {
                               "symbol": "usdc_sac"
                             },
                             "val": {

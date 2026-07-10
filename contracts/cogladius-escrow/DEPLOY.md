@@ -56,9 +56,16 @@ stellar contract deploy \
   --admin "$(stellar keys address cogladius-deployer)" \
   --usdc_sac CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA \
   --verdict_pubkey ebdaf5654c9ef27b07e536c5d32a5b4bebce48bfc010691d7da6a44a3c2b4a0e \
-  --pass_threshold 70
+  --pass_threshold 70 \
+  --settle_grace 3600
 # → CCFIRTWXY667WXKN3LW7K2MGAJT4MTDT34N3J5VG54RNZXTMH3COPH2F
 ```
+
+- `--pass_threshold` must be `1..=100` (the constructor rejects anything else).
+- `--settle_grace` is the post-deadline window (in seconds) during which a
+  permissionless refund is blocked so the platform can settle to a winner
+  without being front-run. `3600` = 1 hour. Active tasks cannot be refunded
+  until `deadline + settle_grace` elapses.
 
 ## 4. Verify
 
@@ -67,8 +74,32 @@ CONTRACT=CCFIRTWXY667WXKN3LW7K2MGAJT4MTDT34N3J5VG54RNZXTMH3COPH2F
 
 stellar contract invoke --id $CONTRACT --source cogladius-deployer \
   --network testnet -- get_config
-# → {"admin":"GBPWNBSO…","pass_threshold":70,"usdc_sac":"CBIELTK6…","verdict_pubkey":"ebdaf565…"}
+# → {"admin":"GBPWNBSO…","pass_threshold":70,"paused":false,"settle_grace":3600,
+#    "usdc_sac":"CBIELTK6…","verdict_pubkey":"ebdaf565…"}
 ```
+
+## Emergency operations (admin-only)
+
+The verdict authority is a hot key: if it leaks, an attacker could sign valid
+verdicts and drain open tasks. Two admin controls bound that blast radius —
+neither can touch escrowed funds, and refunds are never blocked.
+
+```bash
+# Freeze settlements + new posts (refunds stay open) during an incident:
+stellar contract invoke --id $CONTRACT --source cogladius-deployer \
+  --network testnet -- pause
+
+# Rotate the verdict authority key without redeploying (old signatures die):
+stellar contract invoke --id $CONTRACT --source cogladius-deployer \
+  --network testnet -- set_verdict_pubkey --new_pubkey <NEW_RAW_HEX>
+
+# Resume once the new key is in place:
+stellar contract invoke --id $CONTRACT --source cogladius-deployer \
+  --network testnet -- unpause
+```
+
+Keep the `admin` key on separate, ideally hardware/multisig custody — distinct
+from both the verdict key and the fee submitter.
 
 ## 5. Lock a USDC reward (post_task)
 

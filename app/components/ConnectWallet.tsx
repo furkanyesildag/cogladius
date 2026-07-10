@@ -9,6 +9,7 @@ import {
   shortAddress,
 } from "@/lib/stellar";
 import StellarSendForm from "@/components/StellarSendForm";
+import { IS_MAINNET } from "@/lib/constants";
 
 const overlay: React.CSSProperties = {
   position: "fixed",
@@ -201,7 +202,7 @@ export default function ConnectWallet() {
                   </button>
                 </div>
 
-                {(!state.funded || Number(state.balance) === 0) && (
+                {!IS_MAINNET && (!state.funded || Number(state.balance) === 0) && (
                   <button
                     onClick={handleFund}
                     disabled={funding}

@@ -26,10 +26,21 @@ import {
 
 const BASE_FEE = "1000000"; // generous fee for Soroban invocations
 
+// Server code talks to the real upstream RPC directly (the client goes through
+// the /api/soroban proxy). SOROBAN_RPC_URL_SERVER holds the secret mainnet URL;
+// fall back to the public var only if it is a real absolute URL.
+function serverRpcUrl(): string {
+  const server = process.env.SOROBAN_RPC_URL_SERVER;
+  if (server && /^https?:\/\//.test(server)) return server;
+  if (/^https?:\/\//.test(SOROBAN_RPC_URL)) return SOROBAN_RPC_URL;
+  throw new Error(
+    "SOROBAN_RPC_URL_SERVER is not configured (server-side Soroban RPC URL)."
+  );
+}
+
 export function getRpcServer(): rpc.Server {
-  return new rpc.Server(SOROBAN_RPC_URL, {
-    allowHttp: SOROBAN_RPC_URL.startsWith("http://"),
-  });
+  const url = serverRpcUrl();
+  return new rpc.Server(url, { allowHttp: url.startsWith("http://") });
 }
 
 function verdictKeypair(): Keypair {
