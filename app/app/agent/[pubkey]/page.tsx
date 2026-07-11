@@ -152,18 +152,18 @@ export default function AgentProfilePage() {
 
   // Build ledger rows from real task submissions
   const DEMO_ROWS = [
-    { taskId: "#0xFF24A1", instruction: "OPTIMIZE_LIQUIDITY_REALLOCATION_V3",   result: "SUCCESS"  as const, gasFee: "0.000042 USDC", time: "14:22:01" },
-    { taskId: "#0xFF24A0", instruction: "SCAN_MEMPOOL_FRONT_RUN_DETECTION",      result: "SUCCESS"  as const, gasFee: "0.000012 USDC", time: "14:18:55" },
-    { taskId: "#0xFF23F8", instruction: "ARBITRAGE_JUPITER_PHOENIX_SWAP",        result: "REJECTED" as const, gasFee: "0.000005 USDC", time: "13:55:12" },
-    { taskId: "#0xFF23E1", instruction: "GENERATE_ZK_PROOF_AUTH_HANDSHAKE",      result: "SUCCESS"  as const, gasFee: "0.000088 USDC", time: "13:42:00" },
-    { taskId: "#0xFF23D2", instruction: "VALIDATE_CROSS_CHAIN_BRIDGE_ORACLE",    result: "SUCCESS"  as const, gasFee: "0.000015 USDC", time: "13:30:10" },
+    { taskId: "#0xFF24A1", instruction: "OPTIMIZE_LIQUIDITY_REALLOCATION_V3",   result: "SUCCESS"  as const, gasFee: "0.000042 XLM", time: "14:22:01" },
+    { taskId: "#0xFF24A0", instruction: "SCAN_MEMPOOL_FRONT_RUN_DETECTION",      result: "SUCCESS"  as const, gasFee: "0.000012 XLM", time: "14:18:55" },
+    { taskId: "#0xFF23F8", instruction: "ARBITRAGE_JUPITER_PHOENIX_SWAP",        result: "REJECTED" as const, gasFee: "0.000005 XLM", time: "13:55:12" },
+    { taskId: "#0xFF23E1", instruction: "GENERATE_ZK_PROOF_AUTH_HANDSHAKE",      result: "SUCCESS"  as const, gasFee: "0.000088 XLM", time: "13:42:00" },
+    { taskId: "#0xFF23D2", instruction: "VALIDATE_CROSS_CHAIN_BRIDGE_ORACLE",    result: "SUCCESS"  as const, gasFee: "0.000015 XLM", time: "13:30:10" },
   ];
 
   const realRows = tasks.map((t, i) => ({
     taskId: `#${String(t.id).padStart(6, "0")}`,
     instruction: t.description.toUpperCase().replace(/ /g, "_").substring(0, 42),
     result: (t.status === "Settled" || t.status === "Resolved" ? "SUCCESS" : t.status === "Open" || t.status === "UnderReview" ? "PENDING" : "REJECTED") as "SUCCESS" | "REJECTED" | "PENDING",
-    gasFee: `${(0.00004 + i * 0.000015).toFixed(6)} USDC`,
+    gasFee: `${(0.00004 + i * 0.000015).toFixed(6)} XLM`,
     time: new Date(t.deadline * 1000 - 3600000).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
     taskObj: t,
   }));
@@ -240,10 +240,10 @@ export default function AgentProfilePage() {
         {/* Top nav */}
         <header style={{ height: 44, background: "var(--bg-surface-low)", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", padding: "0 20px", gap: 16, flexShrink: 0, position: "sticky", top: 0, zIndex: 100 }}>
           <div style={{ display: "flex", gap: 20, flex: 1 }}>
-            <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.05em" }}>USDC/USD: $142.31</span>
-            <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.4)" }}>GAS: 0.000005 USDC</span>
+            <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.05em" }}>XLM/USD: $142.31</span>
+            <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.4)" }}>GAS: 0.000005 XLM</span>
             <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.4)" }}>
-              BAL: <span style={{ color: "var(--accent)" }}>{totalEarned.toFixed(4)} USDC</span>
+              BAL: <span style={{ color: "var(--accent)" }}>{totalEarned.toFixed(4)} XLM</span>
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -325,7 +325,7 @@ export default function AgentProfilePage() {
                 { label: "TOTAL TASKS",   value: Number(totalTasks).toLocaleString(), sub: "▲ +12% vs LW",     subColor: "var(--green)", border: "var(--accent)" },
                 { label: "AVG SCORE",     value: String(avgScore),                    sub: "Ranked Top 0.2%",  subColor: "rgba(227,224,241,0.4)", border: "var(--blue)" },
                 { label: "SUCCESS RATE",  value: `${successRate}%`,                   sub: "✓ Verified",       subColor: "var(--green)", border: "var(--green)" },
-                { label: "TOTAL EARNED",  value: `${Number(totalEarned).toFixed(3)}`, sub: "USDC",       subColor: "rgba(227,224,241,0.4)", border: "var(--yellow)" },
+                { label: "TOTAL EARNED",  value: `${Number(totalEarned).toFixed(3)}`, sub: "XLM",       subColor: "rgba(227,224,241,0.4)", border: "var(--yellow)" },
               ].map((s) => (
                 <div key={s.label} style={{ background: "var(--bg-surface-low)", borderLeft: `2px solid ${s.border}`, padding: "18px 16px", borderRadius: "0 4px 4px 0" }}>
                   <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
@@ -343,7 +343,7 @@ export default function AgentProfilePage() {
                   <span key={c} style={{ fontFamily: "var(--font)", fontSize: 8, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent-border)", padding: "2px 8px", borderRadius: 2, letterSpacing: "0.05em" }}>{c}</span>
                 ))}
                 <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)", marginLeft: "auto" }}>
-                  x402 harcama: <span style={{ color: "var(--yellow)" }}>{x402Spent.toFixed(4)} USDC</span>
+                  x402 harcama: <span style={{ color: "var(--yellow)" }}>{x402Spent.toFixed(4)} XLM</span>
                 </span>
               </div>
             )}

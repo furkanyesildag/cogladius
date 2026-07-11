@@ -187,7 +187,7 @@ async function llmAnalyze(description: string, totalBudget: number): Promise<Orc
     const prompt = `Sen kıdemli bir teknik proje mimarısın. Aşağıdaki projeyi analiz et ve her uzmanlık alanının tahmini iş yükü payını belirle.
 
 Proje: "${description}"
-Toplam Bütçe: ${totalBudget} USDC
+Toplam Bütçe: ${totalBudget} XLM
 
 Kullanılabilir uzmanlık alanları (YALNIZCA bu değerleri kullan): ${SPECIALTIES_LIST}
 

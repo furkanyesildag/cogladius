@@ -151,7 +151,7 @@ export default function DisputePanel({
               <div className="flex justify-between border-t border-[var(--dim)] pt-2">
                 <span className="text-[var(--muted)]">{dp.stakeAmountLabel}</span>
                 <span className="text-[var(--orange)] font-bold">
-                  {stakeUsdc.toFixed(2)} USDC
+                  {stakeUsdc.toFixed(2)} XLM
                 </span>
               </div>
             </div>

@@ -218,7 +218,7 @@ function BreakdownCard({
     <div style={{ border: "1px solid var(--accent-border)", borderRadius: 6, overflow: "hidden", marginTop: 12 }}>
       <div style={{ padding: "10px 14px", background: "var(--accent-dim)", display: "flex", alignItems: "center", gap: 8 }}>
         <span className="material-symbols-outlined" style={{ fontSize: 15, color: "var(--accent)" }}>hub</span>
-        <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.08em" }}>PROJE PLANI — {totalBudget} USDC</span>
+        <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.08em" }}>PROJE PLANI — {totalBudget} XLM</span>
       </div>
       {breakdown.map((b, i) => {
         const meta = SPECIALTY_META[b.specialty as AgentSpecialty];
@@ -228,7 +228,7 @@ function BreakdownCard({
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 14, color: meta.color }}>{meta.icon}</span>
               <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 800, color: meta.color, flex: 1, letterSpacing: "0.06em" }}>{meta.label.toUpperCase()}</span>
-              <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)" }}>{b.budgetUsdc.toFixed(3)} USDC</span>
+              <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)" }}>{b.budgetUsdc.toFixed(3)} XLM</span>
             </div>
             {/* Progress bar + pct controls */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
@@ -575,7 +575,7 @@ function PostProjectModal({
                     step={0.1}
                     style={{ fontFamily: "var(--font)", fontSize: 24, fontWeight: 900, color: "var(--accent)", padding: "12px 46px 12px 14px", borderRadius: 10 }}
                   />
-                  <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)", opacity: 0.55 }}>USDC</span>
+                  <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)", opacity: 0.55 }}>XLM</span>
                 </div>
                 <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.36)", lineHeight: 1.5 }}>{n.modalBudgetSub}</p>
               </div>
@@ -1136,7 +1136,7 @@ export default function ProjectsPage() {
                 </div>
                 <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: selectedId === p.id ? "var(--text-primary)" : "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{p.title}</div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)" }}>{p.totalBudgetUsdc.toFixed(2)} USDC</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)" }}>{p.totalBudgetUsdc.toFixed(2)} XLM</span>
                   {p.subTasks.length > 0 && (
                     <div style={{ display: "flex", gap: 2 }}>
                       {p.subTasks.slice(0, 5).map((st) => <span key={st.id} style={{ width: 5, height: 5, borderRadius: "50%", background: SPECIALTY_META[st.specialty]?.color ?? "var(--bg-border)", display: "inline-block" }} title={SPECIALTY_META[st.specialty]?.label} />)}
@@ -1162,7 +1162,7 @@ export default function ProjectsPage() {
                   <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedProject.description.slice(0, 120)}…</p>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 20, fontWeight: 900, color: "var(--accent)", letterSpacing: "-0.02em" }}>{selectedProject.totalBudgetUsdc.toFixed(2)} USDC</div>
+                  <div style={{ fontFamily: "var(--font)", fontSize: 20, fontWeight: 900, color: "var(--accent)", letterSpacing: "-0.02em" }}>{selectedProject.totalBudgetUsdc.toFixed(2)} XLM</div>
                   <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)" }}>TOPLAM BÜTÇE</div>
                 </div>
               </div>

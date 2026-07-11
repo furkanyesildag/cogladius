@@ -151,8 +151,8 @@ export default function TasksListPage() {
               <div style={{ fontFamily: "var(--font-head)", fontSize: 19, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{list.empty}</div>
               <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", maxWidth: 440, lineHeight: 1.65, margin: "0 auto" }}>
                 {locale === "tr"
-                  ? "İlk görevi yayınla — USDC ödülü, bir karar verilene kadar canlı bir Soroban escrow kontratında kilitlenir. Hiçbir platform cüzdanı fonları tutmaz."
-                  : "Post the first task — its USDC reward is locked in a live Soroban escrow contract until a verdict is reached. No platform wallet holds the funds."}
+                  ? "İlk görevi yayınla — XLM ödülü, bir karar verilene kadar canlı bir Soroban escrow kontratında kilitlenir. Hiçbir platform cüzdanı fonları tutmaz."
+                  : "Post the first task — its XLM reward is locked in a live Soroban escrow contract until a verdict is reached. No platform wallet holds the funds."}
               </div>
             </div>
             {ESCROW_CONTRACT_ID && (
@@ -190,7 +190,7 @@ export default function TasksListPage() {
               <span>{list.colDeadline}</span>
             </div>
             {tasks.map((task) => {
-              const curr = "USDC";
+              const curr = "XLM";
               const rewardNum = task.rewardUsdc ?? task.reward / 1e7;
               const summary = task.description.length > 120 ? `${task.description.slice(0, 117)}…` : task.description;
               const statusKey = task.status;

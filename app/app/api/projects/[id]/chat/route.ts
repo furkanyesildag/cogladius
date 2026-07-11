@@ -28,7 +28,7 @@ function buildSystemPrompt(
 
   const budget = project?.totalBudgetUsdc ?? 0;
 
-  // Budget assessment thresholds (rough USDC benchmarks)
+  // Budget assessment thresholds (rough XLM benchmarks)
   const budgetNote =
     budget === 0
       ? "⚠️ Bütçe girilmemiş — kullanıcıdan netleştirmesini iste."
@@ -73,7 +73,7 @@ PROJE DETAYLARI
 ═══════════════════════════════════════
 Başlık      : ${project?.title ?? "Belirtilmemiş"}
 Açıklama    : ${project?.description ?? "Yok"}
-Toplam Bütçe: ${budget} USDC  ${budgetNote}
+Toplam Bütçe: ${budget} XLM  ${budgetNote}
 Son Tarih   : ${deadline}
 Proje ID    : #${project?.id}
 
@@ -88,15 +88,15 @@ KULLANILABİLİR UZMANLIK ALANLARI
 ${specialtyList}
 
 ═══════════════════════════════════════
-BÜTÇE REHBERİ (kaba USDC tahminleri)
+BÜTÇE REHBERİ (kaba XLM tahminleri)
 ═══════════════════════════════════════
-• Frontend / Backend küçük: 0.5–2 USDC | Orta: 2–5 USDC | Büyük: 5–15 USDC
-• Blockchain (akıllı sözleşme): min. 3 USDC önerilir; güvenlik denetimi +2 USDC
-• Design (tam marka): 1–4 USDC | Logo only: 0.5 USDC
-• AI/ML (basit entegrasyon): 1–3 USDC | Model eğitimi: 5–20 USDC
-• DevOps / Altyapı: 1–3 USDC | k8s/cloud büyük: 3–8 USDC
-• Research / Content: 0.3–1.5 USDC
-• Security audit: 2–8 USDC (kapsama göre)
+• Frontend / Backend küçük: 0.5–2 XLM | Orta: 2–5 XLM | Büyük: 5–15 XLM
+• Blockchain (akıllı sözleşme): min. 3 XLM önerilir; güvenlik denetimi +2 XLM
+• Design (tam marka): 1–4 XLM | Logo only: 0.5 XLM
+• AI/ML (basit entegrasyon): 1–3 XLM | Model eğitimi: 5–20 XLM
+• DevOps / Altyapı: 1–3 XLM | k8s/cloud büyük: 3–8 XLM
+• Research / Content: 0.3–1.5 XLM
+• Security audit: 2–8 XLM (kapsama göre)
 
 ═══════════════════════════════════════
 GÖREV VE DAVRANIŞLAR
@@ -118,7 +118,7 @@ GÖREV VE DAVRANIŞLAR
      (tier, başarı oranı, ortalama puan, uzmanlık, aktivite durumu baz al)
    - 🟢 Aktif agentları tercih et, ⚫ Çevrimdışı olanlara dikkat çek
    - Kullanılacak teknoloji stackini belirt (React, Next.js, Soroban, Prisma, vb.)
-   - Bütçe dağılımını hem yüzde hem USDC olarak göster
+   - Bütçe dağılımını hem yüzde hem XLM olarak göster
 
 3. ETKİLEŞİMLİ MÜZAKERE:
    - Kullanıcının her sorusunu tam ve eksiksiz yanıtla
@@ -138,7 +138,7 @@ GÖREV VE DAVRANIŞLAR
    - Her zaman Türkçe yaz
    - Profesyonel, samimi ve güven verici ton
    - Başlıklar, madde işaretleri ve emoji kullanarak okunabilir yap
-   - Bütçe rakamlarını her zaman USDC cinsinden belirt
+   - Bütçe rakamlarını her zaman XLM cinsinden belirt
    - Agent isimlerini kalın yaz
    - Uzun analizlerde bölümler arası ayırıcı kullan (─── veya ═══)
 

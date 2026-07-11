@@ -5,7 +5,7 @@ import ConnectWallet from "@/components/ConnectWallet";
 import { TaskType, OutputFormat } from "@/lib/types";
 import { ESCROW_CONTRACT_ID, IS_MAINNET } from "@/lib/constants";
 import { postTaskOnChain } from "@/lib/sorobanEscrow";
-import { fetchUsdcBalance, addUsdcTrustline, EXPLORER_TX } from "@/lib/stellar";
+import { fetchXlmBalance, EXPLORER_TX } from "@/lib/stellar";
 import { useMessages, useLocale } from "@/lib/i18n";
 import type { AppMessages } from "@/lib/i18n";
 import { useStellar } from "@/lib/stellarContext";
@@ -95,11 +95,12 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskType, locale]);
 
+  // XLM is native — no trustline needed. We just track the poster's XLM balance.
   const refreshUsdc = (addr: string) =>
-    fetchUsdcBalance(addr)
-      .then(({ usdc, hasTrustline }) => {
-        setUsdcBalance(parseFloat(usdc));
-        setHasTrustline(hasTrustline);
+    fetchXlmBalance(addr)
+      .then(({ xlm }) => {
+        setUsdcBalance(parseFloat(xlm));
+        setHasTrustline(true);
       })
       .catch(() => {});
 
@@ -120,31 +121,16 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
 
   const ready = !!conn && conn.isTestnet;
 
-  async function handleAddTrustline() {
-    if (!conn?.address) return;
-    setTrustLoading(true);
-    setError(null);
-    try {
-      await addUsdcTrustline(conn.address);
-      await refreshUsdc(conn.address);
-    } catch (err: any) {
-      setError(err?.message || "Failed to add USDC trustline.");
-    } finally {
-      setTrustLoading(false);
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!conn) { setError("Connect your Freighter wallet first."); return; }
     if (!conn.isTestnet) { setError(`Switch Freighter to ${IS_MAINNET ? "Mainnet" : "Testnet"} to lock the reward.`); return; }
     if (!ESCROW_CONTRACT_ID) { setError("Escrow contract is not configured yet."); return; }
-    if (!hasTrustline) { setError("Add a USDC trustline first (button above)."); return; }
     setLoading(true);
     setError(null);
     try {
       const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
-      // 1) Lock the USDC reward in the Soroban escrow contract (real on-chain).
+      // 1) Lock the XLM reward in the Soroban escrow contract (real on-chain).
       const { hash } = await postTaskOnChain({
         posterAddress: conn.address,
         taskId,
@@ -202,7 +188,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
             </div>
             <div style={{ fontFamily: "var(--font-head)", fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{L.successTitle}</div>
             <div style={{ fontFamily: "var(--font)", fontSize: 10, color: def.color, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
-              {def.label.toUpperCase()} · #{taskId} · {rewardUsdc.toFixed(4)} USDC
+              {def.label.toUpperCase()} · #{taskId} · {rewardUsdc.toFixed(4)} XLM
             </div>
           </div>
           <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.7, marginBottom: 20 }}>
@@ -255,24 +241,11 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>Stellar · Soroban Escrow</div>
               <div style={{ fontFamily: "var(--font)", fontSize: 9, color: ready ? "var(--green)" : "var(--yellow)" }}>
                 {conn
-                  ? (ready ? "Wallet ready · USDC reward locked in the escrow contract on publish" : "Switch Freighter to Testnet to continue")
-                  : "Connect Freighter below to lock a USDC reward"}
+                  ? (ready ? "Wallet ready · XLM reward locked in the escrow contract on publish" : "Switch Freighter to Testnet to continue")
+                  : "Connect Freighter below to lock a XLM reward"}
               </div>
             </div>
           </div>
-
-          {/* USDC trustline notice */}
-          {conn && ready && !hasTrustline && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--yellow-dim, rgba(255,209,102,0.12))", border: "1px solid rgba(255,209,102,0.35)", borderRadius: 8, padding: "10px 14px" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--yellow)" }}>info</span>
-              <div style={{ flex: 1, fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)" }}>
-                You need a USDC trustline to hold and lock rewards.
-              </div>
-              <button type="button" onClick={handleAddTrustline} disabled={trustLoading} className="btn-accent-ghost" style={{ fontSize: 10, padding: "6px 12px" }}>
-                {trustLoading ? "Adding…" : "Add USDC trustline"}
-              </button>
-            </div>
-          )}
 
           {/* Divider */}
           <div style={{ height: 1, background: "var(--bg-border)" }} />
@@ -317,7 +290,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                       {d.sub}
                     </div>
                     <div style={{ fontFamily: "var(--font)", fontSize: 9, color: active ? d.color : "rgba(227,224,241,0.2)", marginTop: 8, letterSpacing: "0.04em" }}>
-                      {d.rewardRange[0]}–{d.rewardRange[1]} USDC
+                      {d.rewardRange[0]}–{d.rewardRange[1]} XLM
                     </div>
                   </button>
                 );
@@ -442,7 +415,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                 style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: def.color }} />
               {usdcBalance !== null && (
                 <div style={{ fontFamily: "var(--font)", fontSize: 9, color: balanceOk ? "rgba(227,224,241,0.3)" : "var(--red)", marginTop: 4 }}>
-                  {L.balancePrefix} {usdcBalance.toFixed(4)} USDC {!balanceOk && L.insufficientSuffix}
+                  {L.balancePrefix} {usdcBalance.toFixed(4)} XLM {!balanceOk && L.insufficientSuffix}
                 </div>
               )}
             </div>
@@ -485,7 +458,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
             {[
               [L.summaryLabels.taskType, def.label, def.color],
               [L.summaryLabels.output, L.outputFormats[outputFormat], "var(--text-primary)"],
-              [L.summaryLabels.reward, `${rewardUsdc.toFixed(4)} USDC`, "var(--accent)"],
+              [L.summaryLabels.reward, `${rewardUsdc.toFixed(4)} XLM`, "var(--accent)"],
               [L.summaryLabels.duration, L.deadlines.find((p) => p.value === deadlineMin)?.label ?? L.minutesShort(deadlineMin), "var(--text-primary)"],
               [L.summaryLabels.network, "Stellar Mainnet", "var(--green)"],
             ].map(([label, val, color], i) => (
@@ -508,7 +481,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
           {!networkConnected ? (
             <div style={{ textAlign: "center", paddingTop: 4 }}>
               <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)", marginBottom: 12 }}>
-                Connect Freighter to lock a USDC reward
+                Connect Freighter to lock a XLM reward
               </div>
               <ConnectWallet />
             </div>
@@ -531,12 +504,12 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               {loading ? (
                 <>
                   <span className="material-symbols-outlined" style={{ fontSize: 15, animation: "spin 1s linear infinite" }}>sync</span>
-                  {`Locking ${rewardUsdc.toFixed(4)} USDC…`}
+                  {`Locking ${rewardUsdc.toFixed(4)} XLM…`}
                 </>
               ) : (
                 <>
                   <span className="material-symbols-outlined" style={{ fontSize: 15 }}>rocket_launch</span>
-                  {`Lock ${rewardUsdc.toFixed(4)} USDC & Publish`}
+                  {`Lock ${rewardUsdc.toFixed(4)} XLM & Publish`}
                 </>
               )}
             </button>

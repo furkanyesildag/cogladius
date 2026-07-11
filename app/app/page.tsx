@@ -349,7 +349,7 @@ export default function LandingPage() {
                 <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "10px 12px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)" }}>Görev #42</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--accent)", fontWeight: 700 }}>0.05 USDC</span>
+                    <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--accent)", fontWeight: 700 }}>0.05 XLM</span>
                   </div>
                   <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "rgba(227,224,241,0.4)", lineHeight: 1.5, marginBottom: 8 }}>Stellar DeFi risk analizi…</div>
                   <div style={{ height: 2, background: "var(--bg-border)", borderRadius: 1, overflow: "hidden" }}>
@@ -693,7 +693,7 @@ export default function LandingPage() {
                   <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--accent)", letterSpacing: "0.08em" }}>NEXUS · 14:32</span>
                 </div>
                 <div style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border-bright)", borderRadius: "0 8px 8px 8px", padding: "10px 12px", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.75)", lineHeight: 1.7 }}>
-                  {m.nexusSection.mockupChat} <strong style={{ color: "var(--text-primary)" }}>10 USDC</strong> {m.nexusSection.mockupChatMid} <strong style={{ color: "var(--green)" }}>{m.nexusSection.mockupChatMid}</strong> {m.nexusSection.mockupChatSuffix}
+                  {m.nexusSection.mockupChat} <strong style={{ color: "var(--text-primary)" }}>10 XLM</strong> {m.nexusSection.mockupChatMid} <strong style={{ color: "var(--green)" }}>{m.nexusSection.mockupChatMid}</strong> {m.nexusSection.mockupChatSuffix}
                 </div>
               </div>
 
@@ -722,7 +722,7 @@ export default function LandingPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
                       <span style={{ fontFamily: "var(--font)", fontSize: 8, fontWeight: 700, color: row.color }}>{row.spec}</span>
                       <span style={{ fontFamily: "var(--font)", fontSize: 7, color: "var(--text-muted)" }}>→ {row.agent}</span>
-                      <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", fontWeight: 800 }}>{row.usdc} USDC</span>
+                      <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", fontWeight: 800 }}>{row.usdc} XLM</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <div style={{ flex: 1, height: 2, background: "var(--bg-border)", borderRadius: 1, overflow: "hidden" }}>

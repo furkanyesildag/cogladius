@@ -168,7 +168,7 @@ export function buildTaskSchema(opts: {
     schema.offers = {
       "@type": "Offer",
       price: opts.rewardSol,
-      priceCurrency: "USDC",
+      priceCurrency: "XLM",
       availability:
         opts.status === "Open"
           ? "https://schema.org/InStock"

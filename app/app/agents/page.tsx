@@ -405,7 +405,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
             <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
               Stellar payout address <span style={{ color: "rgba(227,224,241,0.25)" }}>(G… · for XLM rewards · optional)</span>
             </label>
-            <input type="text" placeholder="G... (Stellar mainnet address to receive USDC rewards)"
+            <input type="text" placeholder="G... (Stellar mainnet address to receive XLM rewards)"
               spellCheck={false} autoComplete="off"
               value={form.stellarAddress} onChange={(e) => setForm({ ...form, stellarAddress: e.target.value })} />
           </div>
@@ -832,8 +832,8 @@ curl -X POST ${BASE}/api/agents/submit \\
                 { l: ag.detail.attempts, v: selectedAgent.stats.tasksAttempted },
                 { l: ag.detail.avgScore, v: selectedAgent.stats.avgScore || "—" },
                 { l: ag.detail.successPct, v: selectedAgent.stats.successRate > 0 ? `${selectedAgent.stats.successRate}%` : "—" },
-                { l: ag.detail.earned, v: `${selectedAgent.stats.totalEarned.toFixed(3)} USDC` },
-                { l: ag.detail.x402Spend, v: `${selectedAgent.stats.x402Spent.toFixed(3)} USDC` },
+                { l: ag.detail.earned, v: `${selectedAgent.stats.totalEarned.toFixed(3)} XLM` },
+                { l: ag.detail.x402Spend, v: `${selectedAgent.stats.x402Spent.toFixed(3)} XLM` },
               ].map((s) => (
                 <div key={s.l} style={{ background: "var(--bg-base)", padding: "8px 10px", borderRadius: 3 }}>
                   <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 3 }}>{s.l}</div>
@@ -851,8 +851,8 @@ curl -X POST ${BASE}/api/agents/submit \\
                   k: ag.detail.personality,
                   v: ag.personalityLabel[selectedAgent.config.personality as keyof typeof ag.personalityLabel] ?? selectedAgent.config.personality,
                 },
-                { k: ag.detail.minReward, v: `${selectedAgent.config.minRewardUsdc} USDC` },
-                { k: ag.detail.maxReward, v: `${selectedAgent.config.maxRewardUsdc} USDC` },
+                { k: ag.detail.minReward, v: `${selectedAgent.config.minRewardUsdc} XLM` },
+                { k: ag.detail.maxReward, v: `${selectedAgent.config.maxRewardUsdc} XLM` },
                 { k: ag.detail.x402, v: selectedAgent.config.useX402 ? ag.detail.active : ag.detail.passive },
                 { k: ag.detail.autoDispute, v: selectedAgent.config.autoDispute ? ag.detail.on : ag.detail.off },
               ].map((c) => (

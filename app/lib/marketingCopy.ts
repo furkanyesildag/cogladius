@@ -75,7 +75,7 @@ export function getDocsWalletNodeKeypairBlock(): string {
   return 'cd app && node -e "const {Keypair}=require(\'@stellar/stellar-sdk\'); const k=Keypair.generate(); console.log(k.publicKey.toBase58());"';
 }
 
-/** Mainnet: fund with real XLM (fees) + real USDC; add a USDC trustline */
+/** Mainnet: fund with real XLM (fees + rewards); native asset, no trustline needed */
 export function getDocsWalletFundBlock(locale: AppLocale = "tr"): string {
   const d = getMessages(locale).docs.docsPage;
   return [

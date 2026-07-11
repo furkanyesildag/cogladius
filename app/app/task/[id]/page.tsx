@@ -218,7 +218,7 @@ export default function TaskDetailPage() {
   }
 
   const isStellarTask = true;
-  const curr = "USDC";
+  const curr = "XLM";
   const rewardNum = task.rewardUsdc ?? task.reward / 1e7;
   const reward = rewardNum.toFixed(4);
   const stakeSol = (rewardNum * 0.2).toFixed(2);
@@ -439,7 +439,7 @@ export default function TaskDetailPage() {
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, fontFamily: "var(--font)", fontSize: 10 }}>
                     <span style={{ color: "rgba(227,224,241,0.4)" }}>{ta.requiredStake}</span>
-                    <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>{stakeSol} USDC</span>
+                    <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>{stakeSol} XLM</span>
                   </div>
                   <div className="progress-track" style={{ marginBottom: 14 }}>
                     <div className="progress-fill progress-fill-accent" style={{ width: "80%" }} />

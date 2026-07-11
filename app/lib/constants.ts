@@ -30,7 +30,7 @@ export const ESCROW_CONTRACT_ID =
   process.env.NEXT_PUBLIC_ESCROW_CONTRACT_ID || "";
 
 // Real Circle USDC asset + its Stellar Asset Contract (SAC) address.
-export const USDC_ASSET_CODE = "USDC";
+export const USDC_ASSET_CODE = "XLM";
 export const USDC_ISSUER =
   process.env.NEXT_PUBLIC_USDC_ISSUER ||
   (IS_MAINNET

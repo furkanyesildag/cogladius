@@ -1,7 +1,7 @@
 /**
  * POST /api/stellar/settle
  *
- * Releases a task's USDC reward to the winning agent by invoking the Soroban
+ * Releases a task's XLM reward to the winning agent by invoking the Soroban
  * escrow contract's `release_to_winner` with a verdict-authority signature.
  * The contract — not the platform — holds and moves the funds.
  *
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     // Determine the verdict score (must clear the contract's pass threshold).
     // An explicit body.score is an authorized operator override; otherwise the
     // score MUST derive from real recorded judge verdicts. We never fall back to
-    // an assumed passing score — that would release real USDC without a verdict.
+    // an assumed passing score — that would release real XLM without a verdict.
     let score = Number(body.score);
     if (!Number.isFinite(score)) {
       const winnerScores = (task.verdicts || [])

@@ -114,7 +114,7 @@ function EditModal({ task, onSave, onClose }: { task: Task; onSave: (t: Task) =>
             <textarea value={criteria} onChange={(e) => setCriteria(e.target.value)} rows={2} style={{ resize: "vertical" }} />
           </div>
           <div>
-            <label style={{ display: "block", fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Ödül (USDC)</label>
+            <label style={{ display: "block", fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8 }}>Ödül (XLM)</label>
             <input type="number" value={reward} onChange={(e) => setReward(e.target.value)} step="0.0001" min="0.0001" style={{ width: 160 }} />
           </div>
           <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 4 }}>
@@ -194,7 +194,7 @@ export default function TaskPanel({ tasks, onPostTask, onSelectTask, onDeleteTas
 
                 <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 12, color: "var(--accent)", fontWeight: 700 }}>
                   {(task.rewardUsdc ?? task.reward / 1_000_000).toFixed(4)}
-                  <span style={{ fontSize: 9, fontWeight: 400, color: "var(--text-muted)", marginLeft: 3 }}>USDC</span>
+                  <span style={{ fontSize: 9, fontWeight: 400, color: "var(--text-muted)", marginLeft: 3 }}>XLM</span>
                 </span>
 
                 {/* Hover actions */}

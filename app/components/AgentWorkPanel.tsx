@@ -496,7 +496,7 @@ export default function AgentWorkPanel({
 
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginTop: 8 }}>
           <span style={{ color: S.tm }}>
-            {aw.headerTaskLine(task.id)}<span style={{ color: S.accent }}>{(task.rewardUsdc ?? 0).toFixed(4)} USDC</span>
+            {aw.headerTaskLine(task.id)}<span style={{ color: S.accent }}>{(task.rewardUsdc ?? 0).toFixed(4)} XLM</span>
             {avgScore !== null && <span style={{ marginLeft: 10, color: avgScore >= 70 ? S.green : S.yellow }}>{aw.judgeAvgSuffix(avgScore)}</span>}
           </span>
           <button onClick={onClose} style={{ background: "none", border: "none", color: S.tm, cursor: "pointer", fontSize: 13, lineHeight: 1 }}>×</button>

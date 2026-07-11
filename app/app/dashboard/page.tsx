@@ -127,7 +127,7 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
           { label: "OPEN", val: String(openTasks), color: "var(--accent)" },
           { label: "SETTLED", val: String(settledTasks), color: "#40E183" },
           { label: "AGENTS", val: `${workingCount}/${agents.length}`, color: agents.length > 0 && workingCount > 0 ? "var(--green)" : "rgba(227,224,241,0.4)" },
-          { label: "x402", val: `${totalX402.toFixed(3)} USDC`, color: "var(--accent)" },
+          { label: "x402", val: `${totalX402.toFixed(3)} XLM`, color: "var(--accent)" },
         ].map((s, i) => (
           <div key={s.label} style={{ flex: 1, padding: "5px 12px", borderRight: i < 4 ? "1px solid rgba(255,255,255,0.04)" : "none", textAlign: "center" }}>
             <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(227,224,241,0.28)", letterSpacing: "0.12em", marginBottom: 2 }}>{s.label}</div>
@@ -170,7 +170,7 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.2)" }}>
                 <span>{agent.pubkey.substring(0,6)}…{agent.pubkey.slice(-3)}</span>
-                <span>{agent.x402Spending.toFixed(3)} USDC</span>
+                <span>{agent.x402Spending.toFixed(3)} XLM</span>
               </div>
             </div>
           );
@@ -461,7 +461,7 @@ export default function Dashboard() {
     const explorerUrl = EXPLORER_TX(txHash);
     setTasks((prev) => [{ id: taskId, poster: publicKey?.toString() || "Demo", description, criteria, reward: Number(usdcToStroops(rewardUsdc)), rewardUsdc, deadline: Math.floor(Date.now() / 1000) + deadlineMinutes * 60, status: "Open", submissions: [], verdicts: [], taskType, outputFormat, contractTaskId: meta?.contractTaskId, escrowContractId: meta?.escrowContractId, postTxHash: txHash }, ...prev]);
     setFeed((prev) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.taskPosted(taskId, rewardUsdc.toFixed(4)), icon: "tx", agent: "tx" }, ...prev]);
-    setTxLog((prev) => [{ id: Date.now(), type: "post_task()", hash: txHash, taskId, amount: `${rewardUsdc.toFixed(4)} USDC`, time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...prev]);
+    setTxLog((prev) => [{ id: Date.now(), type: "post_task()", hash: txHash, taskId, amount: `${rewardUsdc.toFixed(4)} XLM`, time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...prev]);
     setShowPostModal(false);
   }
 
@@ -485,7 +485,7 @@ export default function Dashboard() {
     const tloc = locale === "tr" ? "tr-TR" : "en-US";
     const reward = (selectedTask.rewardUsdc ?? 0).toFixed(4);
 
-    // Release the USDC reward from the Soroban escrow contract → winning agent.
+    // Release the XLM reward from the Soroban escrow contract → winning agent.
     let finalHash = txHash;
     let explorerUrl = "";
     let winnerStellar: string | undefined;
@@ -506,7 +506,7 @@ export default function Dashboard() {
     setTasks((p) => p.map((t) => t.id === selectedTask.id ? { ...t, status: "Settled", settleTxHash: finalHash, winnerStellarAddress: winnerStellar ?? t.winnerStellarAddress } : t));
     setSelectedTask((p) => p?.id === selectedTask.id ? { ...p, status: "Settled", settleTxHash: finalHash, winnerStellarAddress: winnerStellar ?? p.winnerStellarAddress } : p);
     setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.approved(selectedTask.id, reward), icon: "tx", agent: "tx" }, ...p]);
-    setTxLog((p) => [{ id: Date.now(), type: "release_to_winner()", hash: finalHash, taskId: selectedTask.id, amount: `+${reward} USDC`, winner: agents[0]?.name?.toLowerCase() || "agent-alpha", time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...p]);
+    setTxLog((p) => [{ id: Date.now(), type: "release_to_winner()", hash: finalHash, taskId: selectedTask.id, amount: `+${reward} XLM`, winner: agents[0]?.name?.toLowerCase() || "agent-alpha", time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...p]);
   }
 
   function handleAgentReject(agentResult: string, reason: string) {
@@ -555,13 +555,13 @@ export default function Dashboard() {
           <img src="/logo.svg" alt="Cogladius" style={{ width: 32, height: 32, objectFit: "contain" }} />
         </span>
         <div className="kl-topbar__stats" aria-label={dash.a11yStatsRegion}>
-          <span style={{ color: "var(--accent)", fontWeight: 800 }}>USDC $1.00</span>
+          <span style={{ color: "var(--accent)", fontWeight: 800 }}>XLM $1.00</span>
           <span>{dash.topbar.gas("0.00001")}</span>
           {usdcBalance !== null && (
             <span>
               {dash.topbar.bal}
               {": "}
-              <span className="kl-stat-mono" style={{ color: usdcBalance > 1 ? "var(--green)" : "var(--yellow)" }}>{usdcBalance.toFixed(2)} USDC</span>
+              <span className="kl-stat-mono" style={{ color: usdcBalance > 1 ? "var(--green)" : "var(--yellow)" }}>{usdcBalance.toFixed(2)} XLM</span>
               {usdcBalance < 1 && (
                 <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" className="kl-stat-mono" style={{ marginLeft: 6, color: "var(--yellow)", fontSize: 8, textDecoration: "none" }}>
                   {dash.topbar.faucet} ↗
@@ -585,7 +585,7 @@ export default function Dashboard() {
           <span>
             {dash.topbar.x402}
             {": "}
-            <span className="kl-stat-mono" style={{ color: "var(--accent)" }}>{totalX402.toFixed(4)} USDC</span>
+            <span className="kl-stat-mono" style={{ color: "var(--accent)" }}>{totalX402.toFixed(4)} XLM</span>
           </span>
         </div>
         <div className="kl-topbar__actions">
@@ -726,7 +726,7 @@ export default function Dashboard() {
                     <div className="kl-agent-stats">
                       <span>{sf.taskCount(agent.tasksCompleted)}</span>
                       {avg > 0 && <span style={{ color: avg >= 70 ? "var(--green)" : "var(--yellow)", fontWeight: 600 }}>ø{avg}</span>}
-                      <span className="kl-agent-stat-usdc">{agent.x402Spending.toFixed(3)} USDC</span>
+                      <span className="kl-agent-stat-usdc">{agent.x402Spending.toFixed(3)} XLM</span>
                     </div>
                     {avg > 0 && (
                       <div className="score-bar-track" title={`~${avg}/100`}>
@@ -759,13 +759,13 @@ export default function Dashboard() {
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: a.color, flexShrink: 0, boxShadow: `0 0 6px ${a.color}99` }} aria-hidden />
                       {a.name.replace(/^agent-/i, "")}
                     </span>
-                    <span style={{ color: "var(--accent)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{a.x402Spending.toFixed(4)} USDC</span>
+                    <span style={{ color: "var(--accent)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{a.x402Spending.toFixed(4)} XLM</span>
                   </div>
                 ))}
               </div>
               <div className="kl-x402-total">
                 <span style={{ color: "rgba(227,224,241,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", fontSize: 8 }}>{sf.total}</span>
-                <span>{totalX402.toFixed(4)} USDC</span>
+                <span>{totalX402.toFixed(4)} XLM</span>
               </div>
             </div>
             )}
@@ -843,7 +843,7 @@ export default function Dashboard() {
                 </div>
               ) : tasks.map((task) => {
                 const isStellarTask = true;
-                const taskCurr = "USDC";
+                const taskCurr = "XLM";
                 const rew = (task.rewardUsdc ?? task.reward / 1e7).toFixed(4);
                 const isSelected = selectedTask?.id === task.id;
                 const isUrgent = task.status === "Disputed";
@@ -1070,7 +1070,7 @@ export default function Dashboard() {
                   <span className={getTaskBadgeClass(selectedTask.status)}>{(ui.status as Record<string, string>)[selectedTask.status]}</span>
                   <span style={{ fontFamily: "var(--font)", fontSize: 14, color: "var(--accent)", fontWeight: 800, marginLeft: "auto" }}>
                     {(selectedTask.rewardUsdc ?? selectedTask.reward / 1e7).toFixed(4)}
-                    <span style={{ fontSize: 9, fontWeight: 400, color: "var(--text-muted)", marginLeft: 3 }}>{"USDC"}</span>
+                    <span style={{ fontSize: 9, fontWeight: 400, color: "var(--text-muted)", marginLeft: 3 }}>{"XLM"}</span>
                   </span>
                   <button
                     type="button"

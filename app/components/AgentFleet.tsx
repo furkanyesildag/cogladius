@@ -85,7 +85,7 @@ export default function AgentFleet({ agents, judges }: AgentFleetProps) {
                       ø{avgScore}
                     </span>
                   )}
-                  <span style={{ color: "var(--accent)", marginLeft: "auto" }}>{agent.x402Spending.toFixed(3)} USDC</span>
+                  <span style={{ color: "var(--accent)", marginLeft: "auto" }}>{agent.x402Spending.toFixed(3)} XLM</span>
                 </div>
 
                 {/* Score bar */}
@@ -140,12 +140,12 @@ export default function AgentFleet({ agents, judges }: AgentFleetProps) {
         {agents.map((agent) => (
           <div key={agent.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 14px" }}>
             <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)" }}>{agent.name.toLowerCase().replace("agent-", "")}</span>
-            <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)" }}>{agent.x402Spending.toFixed(4)} USDC</span>
+            <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)" }}>{agent.x402Spending.toFixed(4)} XLM</span>
           </div>
         ))}
         <div style={{ margin: "4px 14px 0", borderTop: "1px solid var(--bg-border)", paddingTop: 8, display: "flex", justifyContent: "space-between" }}>
           <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-ghost)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Toplam</span>
-          <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", fontWeight: 700 }}>{totalX402.toFixed(4)} USDC</span>
+          <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", fontWeight: 700 }}>{totalX402.toFixed(4)} XLM</span>
         </div>
       </div>
 
