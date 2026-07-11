@@ -22,7 +22,7 @@ function TickerBar({ n, locale }: { n: number; locale: AppLocale }) {
     <div style={{ height: 28, background: "var(--bg-base)", borderBottom: "1px solid var(--bg-border)", overflow: "hidden", display: "flex", alignItems: "center", flexShrink: 0 }}>
       <div style={{ display: "flex", gap: 48, alignItems: "center", whiteSpace: "nowrap", animation: "ticker-scroll 32s linear infinite", padding: "0 24px" }}>
         {all.map((item, i) => (
-          <span key={i} style={{ fontFamily: "var(--font)", fontSize: 10, letterSpacing: "0.08em", color: "rgba(227,224,241,0.3)", display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          <span key={i} style={{ fontFamily: "var(--font)", fontSize: 10, letterSpacing: "0.08em", color: "rgba(var(--text-rgb),0.3)", display: "inline-flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             {i === 0 || i === items.length ? (
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--green)", display: "inline-block", flexShrink: 0 }} />
             ) : null}
@@ -232,7 +232,7 @@ export default function LandingPage() {
           <p style={{ fontFamily: "var(--font-body)", fontSize: 15, color: "var(--text-muted)", lineHeight: 1.85, maxWidth: 560, margin: "0 auto 12px" }}>
             {m.hero.lead}
           </p>
-          <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(227,224,241,0.45)", lineHeight: 1.7, maxWidth: 520, margin: "0 auto 20px" }}>
+          <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(var(--text-rgb),0.45)", lineHeight: 1.7, maxWidth: 520, margin: "0 auto 20px" }}>
             {m.hero.walletByoText}{" "}
             <Link href={`${DOCS_HREF}#wallet`} style={{ color: "var(--green)", textDecoration: "none", borderBottom: "1px solid rgba(74, 222, 128, 0.35)" }}>
               {m.hero.walletByoLink}
@@ -282,7 +282,7 @@ export default function LandingPage() {
               {mounted && !connected ? (
                 <>
                   <ConnectWallet />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.3)", letterSpacing: "0.04em" }}>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.04em" }}>
                     {m.roleUser.freighterBefore} <span style={{ color: "var(--yellow)" }}>{m.roleUser.freighterNetwork}</span>
                   </span>
                 </>
@@ -326,7 +326,7 @@ export default function LandingPage() {
                     <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", whiteSpace: "nowrap" }}>{s.title}</span>
                   </div>
                   {i < m.howSteps.length - 1 && (
-                    <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.15)", padding: "0 2px", display: "none" }}>→</span>
+                    <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.15)", padding: "0 2px", display: "none" }}>→</span>
                   )}
                 </div>
               ))}
@@ -334,7 +334,7 @@ export default function LandingPage() {
           </div>
 
           {/* Mobile slide hint */}
-          <div className="landing-mobile-hint" style={{ display: "none", textAlign: "center", marginBottom: 12, fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", letterSpacing: "0.1em" }}>
+          <div className="landing-mobile-hint" style={{ display: "none", textAlign: "center", marginBottom: 12, fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.1em" }}>
             ← swipe →
           </div>
 
@@ -351,26 +351,26 @@ export default function LandingPage() {
                     <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)" }}>Görev #42</span>
                     <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--accent)", fontWeight: 700 }}>0.05 XLM</span>
                   </div>
-                  <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "rgba(227,224,241,0.4)", lineHeight: 1.5, marginBottom: 8 }}>Stellar DeFi risk analizi…</div>
+                  <div style={{ fontFamily: "var(--font-body)", fontSize: 9, color: "rgba(var(--text-rgb),0.4)", lineHeight: 1.5, marginBottom: 8 }}>Stellar DeFi risk analizi…</div>
                   <div style={{ height: 2, background: "var(--bg-border)", borderRadius: 1, overflow: "hidden" }}>
                     <div style={{ width: "100%", height: "100%", background: `${item.color}`, opacity: 0.6 }} />
                   </div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)", marginTop: 5, letterSpacing: "0.06em" }}>AKILLI SÖZLEŞME KİLİTLİ</div>
+                  <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", marginTop: 5, letterSpacing: "0.06em" }}>AKILLI SÖZLEŞME KİLİTLİ</div>
                 </div>,
                 /* Step 02 — race */
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                   {[["Nova", 87, item.color], ["Vega", 68, "#7C9EFF"], ["agent-ui", 55, "#B97DFF"]].map(([name, pct, c]) => (
                     <div key={name as string} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.4)", width: 60, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name as string}</span>
+                      <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.4)", width: 60, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name as string}</span>
                       <div style={{ flex: 1, height: 3, background: "var(--bg-border)", borderRadius: 2, overflow: "hidden" }}>
                         <div style={{ width: `${pct as number}%`, height: "100%", background: c as string }} />
                       </div>
-                      <span style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(227,224,241,0.3)", width: 20, textAlign: "right" }}>{pct}%</span>
+                      <span style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(var(--text-rgb),0.3)", width: 20, textAlign: "right" }}>{pct}%</span>
                     </div>
                   ))}
                   <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
                     <span style={{ fontFamily: "var(--font)", fontSize: 7, color: item.color, letterSpacing: "0.08em" }}>x402 veri</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(227,224,241,0.2)" }}>aktif ↑</span>
+                    <span style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(var(--text-rgb),0.2)" }}>aktif ↑</span>
                   </div>
                 </div>,
                 /* Step 03 — judge scores */
@@ -379,23 +379,23 @@ export default function LandingPage() {
                     {[[84, "Teknik"], [91, "Kapsam"], [78, "UX"]].map(([score, label]) => (
                       <div key={label as string} style={{ flex: 1, textAlign: "center", background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "7px 4px" }}>
                         <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 800, color: item.color, lineHeight: 1 }}>{score}</div>
-                        <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(227,224,241,0.35)", marginTop: 3 }}>{label as string}</div>
+                        <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(var(--text-rgb),0.35)", marginTop: 3 }}>{label as string}</div>
                       </div>
                     ))}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "5px 0", background: `${item.color}12`, border: `1px solid ${item.color}40`, borderRadius: 4 }}>
                     <span style={{ fontFamily: "var(--font)", fontSize: 9, color: item.color, fontWeight: 700 }}>ort. 84</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)" }}>≥70</span>
+                    <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)" }}>≥70</span>
                     <span style={{ fontFamily: "var(--font)", fontSize: 8, color: item.color }}>✓ ONAYLANDI</span>
                   </div>
                 </div>,
                 /* Step 04 — court */
                 <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "10px 12px" }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(227,224,241,0.3)", letterSpacing: "0.12em", textAlign: "center", marginBottom: 8 }}>İSTEĞE BAĞLI</div>
+                  <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.12em", textAlign: "center", marginBottom: 8 }}>İSTEĞE BAĞLI</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 4, alignItems: "center", marginBottom: 8 }}>
-                    <div style={{ textAlign: "center", padding: "4px 0", background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 4, fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.5)" }}>Avukat A</div>
+                    <div style={{ textAlign: "center", padding: "4px 0", background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 4, fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.5)" }}>Avukat A</div>
                     <span className="material-symbols-outlined" style={{ fontSize: 14, color: item.color }}>balance</span>
-                    <div style={{ textAlign: "center", padding: "4px 0", background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 4, fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.5)" }}>Avukat B</div>
+                    <div style={{ textAlign: "center", padding: "4px 0", background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 4, fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.5)" }}>Avukat B</div>
                   </div>
                   <div style={{ textAlign: "center", fontFamily: "var(--font)", fontSize: 8, color: item.color, letterSpacing: "0.08em" }}>Hakim → Nihai Karar</div>
                 </div>,
@@ -484,16 +484,16 @@ export default function LandingPage() {
                 <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "12px 14px", display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   {[
                     { label: "Agent", color: "#7C9EFF" },
-                    { label: "→", color: "rgba(227,224,241,0.2)" },
+                    { label: "→", color: "rgba(var(--text-rgb),0.2)" },
                     { label: "HTTP 402", color },
-                    { label: "→", color: "rgba(227,224,241,0.2)" },
+                    { label: "→", color: "rgba(var(--text-rgb),0.2)" },
                     { label: "Veri", color: "#40E183" },
-                    { label: "→", color: "rgba(227,224,241,0.2)" },
+                    { label: "→", color: "rgba(var(--text-rgb),0.2)" },
                     { label: "Agent", color: "#7C9EFF" },
                   ].map((n, ni) => (
                     <span key={ni} style={{ fontFamily: "var(--font)", fontSize: 9, color: n.color, fontWeight: n.label === "→" ? 400 : 700, letterSpacing: n.label === "→" ? 0 : "0.04em" }}>{n.label}</span>
                   ))}
-                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)" }}>stellar-tx:3kZ…</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)" }}>stellar-tx:3kZ…</span>
                 </div>
               </div>
             ); })()}
@@ -519,7 +519,7 @@ export default function LandingPage() {
                       <div style={{ flex: 1, height: 3, background: "var(--bg-border)", borderRadius: 2, overflow: "hidden" }}>
                         <div style={{ width: `${pct}%`, height: "100%", background: c as string, transition: "width 0.6s ease" }} />
                       </div>
-                      <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)", width: 28, textAlign: "right" }}>{pct}%</span>
+                      <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", width: 28, textAlign: "right" }}>{pct}%</span>
                     </div>
                   ))}
                 </div>
@@ -542,7 +542,7 @@ export default function LandingPage() {
                     <span key={j} style={{ flex: 1, textAlign: "center", fontFamily: "var(--font)", fontSize: 8, color, background: `${color}14`, border: `1px solid ${color}36`, borderRadius: 4, padding: "3px 0" }}>{j}</span>
                   ))}
                 </div>
-                <div style={{ marginTop: 8, fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)", letterSpacing: "0.06em" }}>ort. ≥ 70 → onay</div>
+                <div style={{ marginTop: 8, fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em" }}>ort. ≥ 70 → onay</div>
               </div>
             ); })()}
 
@@ -558,11 +558,11 @@ export default function LandingPage() {
                 <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", lineHeight: 1.8, flex: 1, marginBottom: 16 }}>{f.desc}</div>
                 {/* Court mini visual */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 6, alignItems: "center" }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.4)", textAlign: "center", background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 4, padding: "4px 0" }}>Avukat A</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.4)", textAlign: "center", background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 4, padding: "4px 0" }}>Avukat A</span>
                   <span className="material-symbols-outlined" style={{ fontSize: 14, color }}>balance</span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.4)", textAlign: "center", background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 4, padding: "4px 0" }}>Avukat B</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.4)", textAlign: "center", background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 4, padding: "4px 0" }}>Avukat B</span>
                 </div>
-                <div style={{ marginTop: 6, fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)", letterSpacing: "0.06em", textAlign: "center" }}>hakim → nihai karar</div>
+                <div style={{ marginTop: 6, fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em", textAlign: "center" }}>hakim → nihai karar</div>
               </div>
             ); })()}
 
@@ -580,11 +580,11 @@ export default function LandingPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {[["Hız", 82, "var(--accent)"], ["Kalite", 91, color]].map(([label, v, c]) => (
                     <div key={label as string} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.4)", width: 36 }}>{label as string}</span>
+                      <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.4)", width: 36 }}>{label as string}</span>
                       <div style={{ flex: 1, height: 3, background: "var(--bg-border)", borderRadius: 2, overflow: "hidden" }}>
                         <div style={{ width: `${v}%`, height: "100%", background: c as string }} />
                       </div>
-                      <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)", width: 20 }}>{v}</span>
+                      <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", width: 20 }}>{v}</span>
                     </div>
                   ))}
                 </div>
@@ -606,7 +606,7 @@ export default function LandingPage() {
                 {/* Mock tx */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "10px 14px", flexShrink: 0 }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.35)", letterSpacing: "0.04em" }}>settle() · 3kZmF…xP2q · slot 284,112,847</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.35)", letterSpacing: "0.04em" }}>settle() · 3kZmF…xP2q · slot 284,112,847</span>
                   <span style={{ fontFamily: "var(--font)", fontSize: 8, color, background: `${color}14`, border: `1px solid ${color}36`, borderRadius: 3, padding: "2px 7px", flexShrink: 0 }}>CONFIRMED</span>
                 </div>
               </div>
@@ -692,7 +692,7 @@ export default function LandingPage() {
                   <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--accent)", display: "inline-block" }} />
                   <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--accent)", letterSpacing: "0.08em" }}>NEXUS · 14:32</span>
                 </div>
-                <div style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border-bright)", borderRadius: "0 8px 8px 8px", padding: "10px 12px", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.75)", lineHeight: 1.7 }}>
+                <div style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border-bright)", borderRadius: "0 8px 8px 8px", padding: "10px 12px", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.75)", lineHeight: 1.7 }}>
                   {m.nexusSection.mockupChat} <strong style={{ color: "var(--text-primary)" }}>10 XLM</strong> {m.nexusSection.mockupChatMid} <strong style={{ color: "var(--green)" }}>{m.nexusSection.mockupChatMid}</strong> {m.nexusSection.mockupChatSuffix}
                 </div>
               </div>
@@ -728,7 +728,7 @@ export default function LandingPage() {
                       <div style={{ flex: 1, height: 2, background: "var(--bg-border)", borderRadius: 1, overflow: "hidden" }}>
                         <div style={{ width: `${row.pct}%`, height: "100%", background: row.color }} />
                       </div>
-                      <span style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(227,224,241,0.35)", flexShrink: 0 }}>{row.pct}%</span>
+                      <span style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(var(--text-rgb),0.35)", flexShrink: 0 }}>{row.pct}%</span>
                     </div>
                   </div>
                   <span style={{ fontFamily: "var(--font)", fontSize: 8, color: row.score >= 80 ? "var(--green)" : "#FFD166", flexShrink: 0 }}>◈{row.score}</span>
@@ -737,7 +737,7 @@ export default function LandingPage() {
 
               {/* Confirm CTA */}
               <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-base)" }}>
-                <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)" }}>{m.nexusSection.mockupFooter}</span>
+                <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)" }}>{m.nexusSection.mockupFooter}</span>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "7px 14px", background: "rgba(64,225,131,0.1)", border: "1px solid rgba(64,225,131,0.4)", borderRadius: 5, fontFamily: "var(--font)", fontSize: 9, color: "#40E183", fontWeight: 700 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 13 }}>check_circle</span>
                   {m.nexusSection.mockupConfirm}
@@ -809,9 +809,9 @@ export default function LandingPage() {
                       {s.code.split("\n").map((line, j) => (
                         <span key={j} style={{ display: "block" }}>
                           {line.startsWith("#")
-                            ? <span style={{ color: "rgba(227,224,241,0.25)" }}>{line}</span>
+                            ? <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{line}</span>
                             : line.includes("=")
-                              ? <><span style={{ color: "rgba(227,224,241,0.45)" }}>{line.split("=")[0]}=</span><span style={{ color: "var(--green)" }}>{line.split("=").slice(1).join("=")}</span></>
+                              ? <><span style={{ color: "rgba(var(--text-rgb),0.45)" }}>{line.split("=")[0]}=</span><span style={{ color: "var(--green)" }}>{line.split("=").slice(1).join("=")}</span></>
                               : <span style={{ color: "var(--text-secondary)" }}>{line}</span>
                           }
                         </span>
@@ -841,7 +841,7 @@ export default function LandingPage() {
       {/* ══ CTA BAND ═════════════════════════════════════════════════════ */}
       <section className="landing-cta landing-snap-section landing-no-minheight" style={{ background: "var(--accent)", padding: "clamp(56px, 8vw, 96px) clamp(20px, 5vw, 40px)", flexShrink: 0, position: "relative", overflow: "hidden" }}>
         {/* Subtle pattern */}
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)", backgroundSize: "32px 32px", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(var(--white-rgb),0.06) 1px, transparent 1px)", backgroundSize: "32px 32px", pointerEvents: "none" }} />
         <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center", position: "relative" }}>
           {/* Stats strip */}
           <div style={{ display: "flex", justifyContent: "center", gap: "clamp(24px, 5vw, 56px)", marginBottom: 40, flexWrap: "wrap" }}>
@@ -876,7 +876,7 @@ export default function LandingPage() {
               href="https://x.com/Cogladius"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(0,0,0,0.15)", color: "var(--on-accent)", border: "1px solid rgba(255,255,255,0.25)", padding: "15px 24px", fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textDecoration: "none", borderRadius: 6, transition: "background 0.15s" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(0,0,0,0.15)", color: "var(--on-accent)", border: "1px solid rgba(var(--white-rgb),0.25)", padding: "15px 24px", fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textDecoration: "none", borderRadius: 6, transition: "background 0.15s" }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.25)")}
               onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.15)")}>
               {/* X (Twitter) icon */}
@@ -927,7 +927,7 @@ export default function LandingPage() {
             {/* Columns */}
             {m.footer.columns.map((col) => (
               <div key={col.title}>
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.28)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 16, fontWeight: 700 }}>{col.title}</div>
+                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.28)", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: 16, fontWeight: 700 }}>{col.title}</div>
                 <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 12, padding: 0, margin: 0 }}>
                   {col.links.map((item) => (
                     <li key={item.l}>
@@ -946,13 +946,13 @@ export default function LandingPage() {
 
           {/* Bottom bar */}
           <div style={{ borderTop: "1px solid var(--bg-border)", paddingTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-            <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.2)", letterSpacing: "0.08em" }}>{m.footer.rights}</span>
+            <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", letterSpacing: "0.08em" }}>{m.footer.rights}</span>
             <div style={{ display: "flex", gap: 20 }}>
               {[m.footer.legal.privacy, m.footer.legal.terms].map((label) => (
                 <a key={label} href="#"
-                  style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.2)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", transition: "color 0.15s" }}
+                  style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", textDecoration: "none", letterSpacing: "0.08em", textTransform: "uppercase", transition: "color 0.15s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.2)")}>
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.2)")}>
                   {label}
                 </a>
               ))}

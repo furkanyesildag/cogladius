@@ -78,11 +78,11 @@ function ApplicationCard({
               {app.name}
             </span>
             <StatusBadge status={app.status} labels={admin.statusBadges} />
-            <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)" }}>
+            <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)" }}>
               {timeSince(app.submittedAt, admin.timeSince)}
             </span>
           </div>
-          <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {app.pubkey}
           </div>
         </div>
@@ -109,7 +109,7 @@ function ApplicationCard({
           </div>
         )}
 
-        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "rgba(227,224,241,0.2)", flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>expand_more</span>
+        <span className="material-symbols-outlined" style={{ fontSize: 16, color: "rgba(var(--text-rgb),0.2)", flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>expand_more</span>
       </div>
 
       {/* Reject note input */}
@@ -130,7 +130,7 @@ function ApplicationCard({
           </button>
           <button
             onClick={() => setShowReject(false)}
-            style={{ fontFamily: "var(--font)", fontSize: 10, padding: "7px 10px", background: "transparent", color: "rgba(227,224,241,0.3)", border: "1px solid var(--bg-border)", borderRadius: 4, cursor: "pointer" }}>
+            style={{ fontFamily: "var(--font)", fontSize: 10, padding: "7px 10px", background: "transparent", color: "rgba(var(--text-rgb),0.3)", border: "1px solid var(--bg-border)", borderRadius: 4, cursor: "pointer" }}>
             {admin.card.cancel}
           </button>
         </div>
@@ -163,7 +163,7 @@ function ApplicationCard({
           {app.description && (
             <div style={{ background: "var(--bg-base)", padding: "12px 14px", borderRadius: 4 }}>
               <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 6, textTransform: "uppercase" }}>{admin.card.applicationReason}</div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.7)", lineHeight: 1.6, margin: 0 }}>{app.description}</p>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.7)", lineHeight: 1.6, margin: 0 }}>{app.description}</p>
             </div>
           )}
 
@@ -192,12 +192,12 @@ function ApplicationCard({
               <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 4, textTransform: "uppercase" }}>
                 {admin.card.reviewNoteTitle} {app.reviewedAt ? new Date(app.reviewedAt).toLocaleString(dateLocale) : ""}
               </div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.6)", margin: 0 }}>{app.reviewNote}</p>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.6)", margin: 0 }}>{app.reviewNote}</p>
             </div>
           )}
 
           {/* Full pubkey */}
-          <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.25)", wordBreak: "break-all" }}>
+          <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.25)", wordBreak: "break-all" }}>
             {admin.card.pubkeyLabel} {app.pubkey}
           </div>
         </div>
@@ -301,7 +301,7 @@ export default function AdminPage() {
           <div style={{ textAlign: "center", marginBottom: 32 }}>
             <img src="/logo.svg" alt="Cogladius" style={{ width: 52, height: 52, objectFit: "contain", display: "block", margin: "0 auto 12px" }} />
             <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.15em", textTransform: "uppercase" }}>{ap.login.title}</div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.35)", marginTop: 5 }}>{ap.login.subtitle}</div>
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.35)", marginTop: 5 }}>{ap.login.subtitle}</div>
           </div>
 
           <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "28px 24px" }}>
@@ -332,7 +332,7 @@ export default function AdminPage() {
           </div>
 
           <div style={{ textAlign: "center", marginTop: 20 }}>
-            <button onClick={() => router.push("/")} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.25)", letterSpacing: "0.06em" }}>
+            <button onClick={() => router.push("/")} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.25)", letterSpacing: "0.06em" }}>
               {ap.login.homeLink}
             </button>
           </div>
@@ -355,7 +355,7 @@ export default function AdminPage() {
             <span className="material-symbols-outlined" style={{ fontSize: 13 }}>refresh</span>
             {ap.header.refresh}
           </button>
-          <button onClick={() => { setAuthed(false); setData(null); setSecret(""); }} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", letterSpacing: "0.06em" }}>
+          <button onClick={() => { setAuthed(false); setData(null); setSecret(""); }} style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em" }}>
             {ap.header.logout}
           </button>
         </div>
@@ -393,7 +393,7 @@ export default function AdminPage() {
                 fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.07em",
                 padding: "8px 16px", borderRadius: 4, cursor: "pointer", border: "none",
                 background: tab === t.key ? "var(--accent)" : "var(--bg-surface-low)",
-                color: tab === t.key ? "var(--on-accent)" : "rgba(227,224,241,0.5)",
+                color: tab === t.key ? "var(--on-accent)" : "rgba(var(--text-rgb),0.5)",
                 transition: "all 0.12s",
               }}>
               {t.label} ({t.count})
@@ -403,7 +403,7 @@ export default function AdminPage() {
 
         {/* Applications list */}
         {filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 0", fontFamily: "var(--font)", fontSize: 12, color: "rgba(227,224,241,0.2)" }}>
+          <div style={{ textAlign: "center", padding: "60px 0", fontFamily: "var(--font)", fontSize: 12, color: "rgba(var(--text-rgb),0.2)" }}>
             {ap.emptyCategory}
           </div>
         ) : (

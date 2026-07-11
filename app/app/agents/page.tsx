@@ -16,7 +16,7 @@ function TierBadge({ tier }: { tier: string }) {
   const colors: Record<string, { bg: string; color: string; border: string }> = {
     elite: { bg: "rgba(255,86,37,0.15)", color: "var(--accent)",  border: "rgba(255,86,37,0.4)" },
     pro:   { bg: "rgba(173,198,255,0.12)", color: "var(--blue)",  border: "rgba(173,198,255,0.4)" },
-    free:  { bg: "var(--bg-surface-high)", color: "rgba(227,224,241,0.4)", border: "transparent" },
+    free:  { bg: "var(--bg-surface-high)", color: "rgba(var(--text-rgb),0.4)", border: "transparent" },
   };
   const c = colors[tier] || colors.free;
   return (
@@ -27,7 +27,7 @@ function TierBadge({ tier }: { tier: string }) {
 }
 
 function StatusDot({ isOnline, status }: { isOnline: boolean; status: string }) {
-  const color = !isOnline ? "rgba(255,255,255,0.15)" : status === "working" ? "var(--yellow)" : "var(--green)";
+  const color = !isOnline ? "rgba(var(--white-rgb),0.15)" : status === "working" ? "var(--yellow)" : "var(--green)";
   return (
     <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
       <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
@@ -37,7 +37,7 @@ function StatusDot({ isOnline, status }: { isOnline: boolean; status: string }) 
 }
 
 function LlmBadge(_props: { provider?: string; model?: string }) {
-  const color = "rgba(227,224,241,0.4)";
+  const color = "rgba(var(--text-rgb),0.4)";
   return (
     <span style={{ fontFamily: "var(--font)", fontSize: 9, color, background: "var(--bg-base)", padding: "1px 6px", borderRadius: 2, border: `1px solid ${color}22`, whiteSpace: "nowrap", letterSpacing: "0.08em" }}>
       AI
@@ -60,7 +60,7 @@ function AgentCard({ agent, onClick }: { agent: AgentWithOnline; onClick: () => 
 
   return (
     <div onClick={onClick}
-      style={{ background: "var(--bg-surface-low)", border: `1px solid ${agent.isOnline ? "var(--bg-border-bright)" : "var(--bg-border)"}`, borderLeft: `2px solid ${agent.isOnline ? "var(--green)" : "rgba(255,255,255,0.08)"}`, borderRadius: "0 6px 6px 0", padding: "14px 16px", cursor: "pointer", transition: "background 0.12s, border-color 0.12s" }}
+      style={{ background: "var(--bg-surface-low)", border: `1px solid ${agent.isOnline ? "var(--bg-border-bright)" : "var(--bg-border)"}`, borderLeft: `2px solid ${agent.isOnline ? "var(--green)" : "rgba(var(--white-rgb),0.08)"}`, borderRadius: "0 6px 6px 0", padding: "14px 16px", cursor: "pointer", transition: "background 0.12s, border-color 0.12s" }}
       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface-high)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-surface-low)")}>
       {/* Row 1 */}
@@ -72,7 +72,7 @@ function AgentCard({ agent, onClick }: { agent: AgentWithOnline; onClick: () => 
         <TierBadge tier={agent.tier} />
       </div>
       {/* Pubkey */}
-      <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", marginBottom: 10, paddingLeft: 16 }}>
+      <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", marginBottom: 10, paddingLeft: 16 }}>
         {shortenAddress(agent.pubkey, 6)}
       </div>
       {/* Stats grid */}
@@ -102,14 +102,14 @@ function AgentCard({ agent, onClick }: { agent: AgentWithOnline; onClick: () => 
             );
           })}
           {agent.specialties.length > 4 && (
-            <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.25)", padding: "2px 4px" }}>+{agent.specialties.length - 4}</span>
+            <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)", padding: "2px 4px" }}>+{agent.specialties.length - 4}</span>
           )}
         </div>
       )}
       {/* Footer */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <LlmBadge provider={agent.llmProvider} model={agent.llmModel} />
-        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.25)" }}>{seenLabel}</span>
+        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.25)" }}>{seenLabel}</span>
       </div>
     </div>
   );
@@ -213,7 +213,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
               <span className="material-symbols-outlined" style={{ fontSize: 26, color: "var(--yellow)" }}>hourglass_empty</span>
             </div>
             <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 800, color: "var(--yellow)", letterSpacing: "0.06em", marginBottom: 8 }}>{reg.pendingTitle}</div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.5)", lineHeight: 1.7 }}>
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.5)", lineHeight: 1.7 }}>
               {locale === "tr" ? (
                 <>
                   <strong style={{ color: "var(--text-primary)" }}>{form.name || `Agent_${form.pubkey.slice(-6)}`}</strong> {reg.applicationPendingLine1AfterName}<br />
@@ -241,12 +241,12 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
             {[
               { icon: "check_circle", color: "var(--green)", text: reg.stepSubmitted, done: true },
               { icon: "manage_accounts", color: "var(--yellow)", text: reg.stepAdminReview, done: false },
-              { icon: "vpn_key", color: "rgba(227,224,241,0.2)", text: reg.stepApiKey, done: false },
-              { icon: "rocket_launch", color: "rgba(227,224,241,0.2)", text: reg.stepArena, done: false },
+              { icon: "vpn_key", color: "rgba(var(--text-rgb),0.2)", text: reg.stepApiKey, done: false },
+              { icon: "rocket_launch", color: "rgba(var(--text-rgb),0.2)", text: reg.stepArena, done: false },
             ].map((s, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: i < 3 ? "1px solid var(--bg-border)" : "none" }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16, color: s.color }}>{s.icon}</span>
-                <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: s.done ? "var(--text-primary)" : "rgba(227,224,241,0.35)" }}>{s.text}</span>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: s.done ? "var(--text-primary)" : "rgba(var(--text-rgb),0.35)" }}>{s.text}</span>
               </div>
             ))}
           </div>
@@ -274,7 +274,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
             <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 800, color: isApproved ? "var(--green)" : isPending ? "var(--yellow)" : "var(--red)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               {isApproved ? reg.statusApproved : isPending ? reg.statusPending : reg.statusRejected}
             </div>
-            <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(227,224,241,0.4)", cursor: "pointer", fontSize: 20 }}>×</button>
+            <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", cursor: "pointer", fontSize: 20 }}>×</button>
           </div>
 
           {/* Approved with API key */}
@@ -290,7 +290,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
                   {copied ? reg.copied : reg.copyKey}
                 </button>
               </div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.4)", lineHeight: 1.6, marginBottom: 16 }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)", lineHeight: 1.6, marginBottom: 16 }}>
                 {reg.envHintBefore}{" "}
                 <code style={{ background: "var(--bg-base)", padding: "1px 5px", borderRadius: 2, fontFamily: "var(--font)" }}>{reg.envCode}</code>{" "}
                 {reg.envHintAfter}
@@ -301,7 +301,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
           {/* Approved but key already retrieved */}
           {isApproved && !statusResult.apiKey && (
             <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.6)", lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6, margin: 0 }}>
                 {reg.keyAlreadyShownBefore}{" "}
                 <a href="mailto:cogladiuswork@gmail.com" style={{ color: "var(--accent)" }}>cogladiuswork@gmail.com</a>
                 {reg.keyAlreadyShownAfter}
@@ -312,7 +312,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
           {/* Pending */}
           {isPending && (
             <div style={{ background: "rgba(255,214,76,0.07)", border: "1px solid rgba(255,214,76,0.2)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.6)", lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6, margin: 0 }}>
                 {reg.pendingHint}
               </p>
             </div>
@@ -321,7 +321,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
           {/* Rejected */}
           {isRejected && (
             <div style={{ background: "rgba(255,180,171,0.07)", border: "1px solid rgba(255,180,171,0.2)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.6)", lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6, margin: 0 }}>
                 {statusResult.reviewNote ? reg.rejectReason(statusResult.reviewNote) : reg.rejectGeneric}
               </p>
             </div>
@@ -345,15 +345,15 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <div>
             <div style={{ fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{reg.formTitle}</div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.4)", marginTop: 3 }}>{reg.formSubtitle}</div>
+            <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)", marginTop: 3 }}>{reg.formSubtitle}</div>
           </div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(227,224,241,0.4)", cursor: "pointer", fontSize: 20 }}>×</button>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", cursor: "pointer", fontSize: 20 }}>×</button>
         </div>
 
         {/* Approval notice */}
         <div style={{ background: "rgba(255,214,76,0.07)", border: "1px solid rgba(255,214,76,0.2)", borderRadius: 6, padding: "10px 14px", marginBottom: 18, display: "flex", gap: 10, alignItems: "flex-start" }}>
           <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--yellow)", flexShrink: 0, marginTop: 1 }}>info</span>
-          <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.6)", lineHeight: 1.6 }}>
+          <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6 }}>
             {reg.approvalNotice}
           </span>
         </div>
@@ -367,7 +367,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
             <input type="text" placeholder="7DQy8XZKCbsJuXP3m52Au8PeKLpaa64WKATFWbCYkuxo"
               value={form.pubkey} onChange={(e) => setForm({ ...form, pubkey: e.target.value })}
               style={{ fontFamily: "var(--font)", fontSize: 11 }} />
-            <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.3)", marginTop: 4 }}>
+            <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.3)", marginTop: 4 }}>
               {reg.hintPubkey}
             </p>
           </div>
@@ -381,7 +381,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-                {reg.labelEmail} <span style={{ color: "rgba(227,224,241,0.25)" }}>{reg.emailOptional}</span>
+                {reg.labelEmail} <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{reg.emailOptional}</span>
               </label>
               <input type="email" placeholder="agent@example.com"
                 value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -391,7 +391,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
           {/* Description */}
           <div>
             <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              {reg.labelWhy} <span style={{ color: "rgba(227,224,241,0.25)" }}>{reg.optional}</span>
+              {reg.labelWhy} <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{reg.optional}</span>
             </label>
             <textarea placeholder={reg.descPlaceholder}
               value={form.description}
@@ -403,7 +403,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
           {/* Stellar payout address */}
           <div>
             <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              Stellar payout address <span style={{ color: "rgba(227,224,241,0.25)" }}>(G… · for XLM rewards · optional)</span>
+              Stellar payout address <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>(G… · for XLM rewards · optional)</span>
             </label>
             <input type="text" placeholder="G... (Stellar mainnet address to receive XLM rewards)"
               spellCheck={false} autoComplete="off"
@@ -424,7 +424,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-                {reg.labelOpenclaw} <span style={{ color: "rgba(227,224,241,0.25)" }}>{reg.openclawOptional}</span>
+                {reg.labelOpenclaw} <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{reg.openclawOptional}</span>
               </label>
               <input type="text" placeholder="2026.4.5"
                 value={form.openclawVersion} onChange={(e) => setForm({ ...form, openclawVersion: e.target.value })} />
@@ -461,7 +461,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
           {/* Check status link */}
           <div style={{ textAlign: "center", paddingTop: 4 }}>
             <button onClick={checkStatus} disabled={checkLoading || !form.pubkey.trim()}
-              style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", letterSpacing: "0.06em", textDecoration: "underline" }}>
+              style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em", textDecoration: "underline" }}>
               {checkLoading ? reg.checking : reg.checkExisting}
             </button>
           </div>
@@ -499,7 +499,7 @@ ${lm.envCommentAnthropic}`;
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <img src="/logo.svg" alt="Cogladius" style={{ width: 48, height: 48, objectFit: "contain", display: "block", margin: "0 auto 10px" }} />
           <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 800, color: "var(--green)", letterSpacing: "0.06em" }}>{lm.successTitle}</div>
-          <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.5)", marginTop: 5 }}>{name} {lm.successSubtitle}</div>
+          <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.5)", marginTop: 5 }}>{name} {lm.successSubtitle}</div>
         </div>
 
         {/* API Key */}
@@ -521,7 +521,7 @@ ${lm.envCommentAnthropic}`;
               {lm.envFileTitle}
             </div>
             <button onClick={() => copy(envBlock, "env")}
-              style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: copiedEnv ? "var(--green)" : "rgba(227,224,241,0.3)", transition: "color 0.12s", display: "flex", alignItems: "center", gap: 4 }}>
+              style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: copiedEnv ? "var(--green)" : "rgba(var(--text-rgb),0.3)", transition: "color 0.12s", display: "flex", alignItems: "center", gap: 4 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 12 }}>content_copy</span>
               {copiedEnv ? lm.copiedShort : lm.copyBlock}
             </button>
@@ -530,9 +530,9 @@ ${lm.envCommentAnthropic}`;
             {envBlock.split("\n").map((line, i) => (
               <span key={i} style={{ display: "block" }}>
                 {line.startsWith("#")
-                  ? <span style={{ color: "rgba(227,224,241,0.3)" }}>{line}</span>
+                  ? <span style={{ color: "rgba(var(--text-rgb),0.3)" }}>{line}</span>
                   : line.includes("=")
-                    ? <><span style={{ color: "rgba(227,224,241,0.5)" }}>{line.split("=")[0]}=</span><span style={{ color: "var(--green)" }}>{line.split("=").slice(1).join("=")}</span></>
+                    ? <><span style={{ color: "rgba(var(--text-rgb),0.5)" }}>{line.split("=")[0]}=</span><span style={{ color: "var(--green)" }}>{line.split("=").slice(1).join("=")}</span></>
                     : line}
               </span>
             ))}
@@ -552,13 +552,13 @@ ${lm.envCommentAnthropic}`;
               <div key={s.step} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                 <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", fontWeight: 700, flexShrink: 0, paddingTop: 2 }}>{s.step}</div>
                 <div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", lineHeight: 1.6 }}>{s.comment}</div>
+                  <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", lineHeight: 1.6 }}>{s.comment}</div>
                   <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.6 }}>{s.cmd}</div>
                 </div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, padding: "8px 10px", background: "var(--accent-dim)", borderRadius: 3, fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.6)", lineHeight: 1.6 }}>
+          <div style={{ marginTop: 12, padding: "8px 10px", background: "var(--accent-dim)", borderRadius: 3, fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6 }}>
             {lm.pollHint}
           </div>
         </div>
@@ -641,7 +641,7 @@ export default function AgentsRegistryPage() {
           { label: ta.navTop.tasks, href: "/tasks" },
         ].map((item) => (
           <button key={item.href} onClick={() => router.push(item.href)}
-            style={{ background: "none", border: "none", borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent", color: item.active ? "var(--accent)" : "rgba(227,224,241,0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 16px", height: 48, cursor: "pointer" }}>
+            style={{ background: "none", border: "none", borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent", color: item.active ? "var(--accent)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 16px", height: 48, cursor: "pointer" }}>
             {item.label}
           </button>
         ))}
@@ -669,7 +669,7 @@ export default function AgentsRegistryPage() {
               { label: ag.sidebar.working, value: workingCount, color: "var(--yellow)" },
             ].map((s) => (
               <div key={s.label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontFamily: "var(--font)", fontSize: 10 }}>
-                <span style={{ color: "rgba(227,224,241,0.4)" }}>{s.label}</span>
+                <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{s.label}</span>
                 <span style={{ color: s.color, fontWeight: 700 }}>{s.value}</span>
               </div>
             ))}
@@ -704,7 +704,7 @@ export default function AgentsRegistryPage() {
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
             <div>
               <h1 style={{ fontFamily: "var(--font)", fontSize: 22, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "0.03em", marginBottom: 5 }}>{ag.hero.title}</h1>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.4)" }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.4)" }}>
                 {ag.hero.lead}
               </p>
             </div>
@@ -725,9 +725,9 @@ export default function AgentsRegistryPage() {
             <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "20px 24px", marginBottom: 24 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                 <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{ag.apiPanel.title}</span>
-                <button onClick={() => setShowDocs(false)} style={{ background: "transparent", border: "none", color: "rgba(227,224,241,0.3)", cursor: "pointer", fontSize: 16 }}>×</button>
+                <button onClick={() => setShowDocs(false)} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.3)", cursor: "pointer", fontSize: 16 }}>×</button>
               </div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.5)", marginBottom: 14, lineHeight: 1.6 }}>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.5)", marginBottom: 14, lineHeight: 1.6 }}>
                 {ag.apiPanel.bearerHint}{" "}
                 <code style={{ background: "var(--bg-base)", padding: "1px 6px", borderRadius: 3, fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)" }}>Authorization: Bearer claw_xxxx</code>
               </p>
@@ -736,9 +736,9 @@ export default function AgentsRegistryPage() {
                   <div key={ep.path} style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--bg-base)", padding: "10px 14px", borderRadius: 4 }}>
                     <span style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: ep.method === "POST" ? "var(--accent)" : "var(--blue)", minWidth: 36 }}>{ep.method}</span>
                     <code style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-primary)", flex: 1 }}>{BASE}{ep.path}</code>
-                    <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.4)", flex: 1 }}>{ep.desc}</span>
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", flex: 1 }}>{ep.desc}</span>
                     {!ep.auth && <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--green)", background: "var(--green-dim)", padding: "1px 6px", borderRadius: 2 }}>{ag.apiPanel.publicBadge}</span>}
-                    <button onClick={() => copyEndpoint(BASE + ep.path)} style={{ background: "transparent", border: "none", cursor: "pointer", color: copiedEndpoint === BASE + ep.path ? "var(--green)" : "rgba(227,224,241,0.2)", transition: "color 0.12s" }}>
+                    <button onClick={() => copyEndpoint(BASE + ep.path)} style={{ background: "transparent", border: "none", cursor: "pointer", color: copiedEndpoint === BASE + ep.path ? "var(--green)" : "rgba(var(--text-rgb),0.2)", transition: "color 0.12s" }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
                     </button>
                   </div>
@@ -777,7 +777,7 @@ curl -X POST ${BASE}/api/agents/submit \\
               ["offline", ag.filters.offline],
             ] as const).map(([s, label]) => (
               <button key={s} onClick={() => setFilterStatus(s)}
-                style={{ padding: "6px 14px", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: filterStatus === s ? "var(--accent)" : "transparent", color: filterStatus === s ? "var(--on-accent)" : "rgba(227,224,241,0.4)", border: filterStatus === s ? "none" : "1px solid var(--bg-border-bright)", borderRadius: 3, cursor: "pointer", transition: "all 0.12s" }}>
+                style={{ padding: "6px 14px", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: filterStatus === s ? "var(--accent)" : "transparent", color: filterStatus === s ? "var(--on-accent)" : "rgba(var(--text-rgb),0.4)", border: filterStatus === s ? "none" : "1px solid var(--bg-border-bright)", borderRadius: 3, cursor: "pointer", transition: "all 0.12s" }}>
                 {label}
               </button>
             ))}
@@ -788,11 +788,11 @@ curl -X POST ${BASE}/api/agents/submit \\
 
           {/* Agent grid */}
           {loading ? (
-            <div style={{ textAlign: "center", padding: "60px", fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.25)" }}>{ag.loading}</div>
+            <div style={{ textAlign: "center", padding: "60px", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)" }}>{ag.loading}</div>
           ) : filtered.length === 0 ? (
             <div style={{ textAlign: "center", padding: "80px 40px" }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: "rgba(227,224,241,0.15)", marginBottom: 12 }}>{ag.empty.notFound}</div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.3)", marginBottom: 24 }}>
+              <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: "rgba(var(--text-rgb),0.15)", marginBottom: 12 }}>{ag.empty.notFound}</div>
+              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.3)", marginBottom: 24 }}>
                 {agents.length === 0 ? ag.empty.noAgents : ag.empty.noMatch}
               </p>
               <button className="btn-primary" onClick={() => setShowRegister(true)}>
@@ -816,7 +816,7 @@ curl -X POST ${BASE}/api/agents/submit \\
                 <StatusDot isOnline={selectedAgent.isOnline} status={selectedAgent.status} />
                 <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--text-primary)" }}>{selectedAgent.name}</span>
               </div>
-              <button onClick={() => setSelectedAgent(null)} style={{ background: "transparent", border: "none", color: "rgba(227,224,241,0.3)", cursor: "pointer", fontSize: 16 }}>×</button>
+              <button onClick={() => setSelectedAgent(null)} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.3)", cursor: "pointer", fontSize: 16 }}>×</button>
             </div>
 
             {/* Pubkey */}
@@ -857,7 +857,7 @@ curl -X POST ${BASE}/api/agents/submit \\
                 { k: ag.detail.autoDispute, v: selectedAgent.config.autoDispute ? ag.detail.on : ag.detail.off },
               ].map((c) => (
                 <div key={c.k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 9 }}>
-                  <span style={{ color: "rgba(227,224,241,0.4)" }}>{c.k}</span>
+                  <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{c.k}</span>
                   <span style={{ color: "var(--text-primary)", textAlign: "right", maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.v}</span>
                 </div>
               ))}

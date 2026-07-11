@@ -69,7 +69,7 @@ function CopyButton({ text }: { text: string }) {
         setDidCopy(true);
         setTimeout(() => setDidCopy(false), 1500);
       }}
-      style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: didCopy ? "var(--green)" : "rgba(227,224,241,0.35)", letterSpacing: "0.06em", padding: "2px 6px", transition: "color 0.15s" }}
+      style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: didCopy ? "var(--green)" : "rgba(var(--text-rgb),0.35)", letterSpacing: "0.06em", padding: "2px 6px", transition: "color 0.15s" }}
     >
       {didCopy ? aw.copied : aw.copy}
     </button>
@@ -79,8 +79,8 @@ function CopyButton({ text }: { text: string }) {
 function CodeBlock({ lang, code }: { lang: string; code: string }) {
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,0,0,0.4)", borderRadius: "4px 4px 0 0", padding: "5px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.4)", letterSpacing: "0.08em" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,0,0,0.4)", borderRadius: "4px 4px 0 0", padding: "5px 12px", borderBottom: "1px solid rgba(var(--white-rgb),0.06)" }}>
+        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.4)", letterSpacing: "0.08em" }}>
           {lang || "code"}
         </span>
         <CopyButton text={code} />
@@ -209,7 +209,7 @@ function ResultRenderer({
                     <span style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: "var(--accent)", flexShrink: 0, minWidth: 18, marginTop: 3 }}>
                       {isNum ? listM[1] : "▸"}
                     </span>
-                    <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.78)", lineHeight: 1.75 }}>
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.78)", lineHeight: 1.75 }}>
                       <RichLine text={listM[2]} />
                     </span>
                   </div>
@@ -219,14 +219,14 @@ function ResultRenderer({
               if (URL_RE.test(line)) {
                 URL_RE.lastIndex = 0;
                 return (
-                  <p key={li} style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.65)", lineHeight: 1.8, marginBottom: 4 }}>
+                  <p key={li} style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.65)", lineHeight: 1.8, marginBottom: 4 }}>
                     <RichLine text={line} />
                   </p>
                 );
               }
               // Normal paragraph
               return (
-                <p key={li} style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.65)", lineHeight: 1.8, marginBottom: 4 }}>
+                <p key={li} style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.65)", lineHeight: 1.8, marginBottom: 4 }}>
                   <RichLine text={line} />
                 </p>
               );
@@ -528,14 +528,14 @@ export default function AgentWorkPanel({
                   <span style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: S.accent, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                     {m.speaker ?? winnerAgent.name}
                   </span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)", letterSpacing: "0.05em" }}>{aw.submissionDelivered}</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.05em" }}>{aw.submissionDelivered}</span>
                   {fmeta && (
                     <span style={{ marginLeft: 4, display: "inline-flex", alignItems: "center", gap: 4, background: `${fmeta.color}14`, border: `1px solid ${fmeta.color}44`, borderRadius: 3, padding: "1px 7px", fontFamily: "var(--font)", fontSize: 8, color: fmeta.color, letterSpacing: "0.06em" }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 10 }}>{fmeta.icon}</span>
                       {fmeta.label}
                     </span>
                   )}
-                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.25)" }}>{m.ts}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)" }}>{m.ts}</span>
                   <CopyButton text={m.content} />
                 </div>
                 {/* Submission body — smart rendering */}
@@ -553,13 +553,13 @@ export default function AgentWorkPanel({
               <div key={i} style={{ animation: "fadeIn 0.3s ease", background: "var(--bg-surface-high)", border: `1px solid var(--bg-border)`, borderLeft: `2px solid ${c}`, borderRadius: "0 3px 3px 0", padding: "7px 12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <span style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: S.yellow, letterSpacing: "0.06em", textTransform: "uppercase" }}>◈ {js.name}</span>
-                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: c }}>{js.score}<span style={{ fontSize: 8, color: "rgba(227,224,241,0.3)", fontWeight: 400 }}>/100</span></span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.25)" }}>{m.ts}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: c }}>{js.score}<span style={{ fontSize: 8, color: "rgba(var(--text-rgb),0.3)", fontWeight: 400 }}>/100</span></span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)" }}>{m.ts}</span>
                 </div>
                 <div style={{ background: "var(--bg-border)", height: 2, marginBottom: 5, overflow: "hidden" }}>
                   <div style={{ width: barW, height: "100%", background: c, transition: "width 0.8s ease" }} />
                 </div>
-                <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.5)" }}>{js.comment}</span>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.5)" }}>{js.comment}</span>
               </div>
             );
           }
@@ -569,7 +569,7 @@ export default function AgentWorkPanel({
             const color     = isSuccess ? S.green : isDanger ? S.red : S.ts;
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderTop: `1px solid ${S.border}`, animation: "fadeIn 0.3s ease" }}>
-                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.2)", flexShrink: 0 }}>{m.ts}</span>
+                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)", flexShrink: 0 }}>{m.ts}</span>
                 <span style={{ fontFamily: "var(--font)", fontSize: 10, color }}>{m.content}</span>
               </div>
             );
@@ -581,10 +581,10 @@ export default function AgentWorkPanel({
             <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", animation: "fadeIn 0.2s ease" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
                 {!isUser && <span style={{ width: 5, height: 5, borderRadius: "50%", background: agentColor, display: "inline-block" }} />}
-                <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isUser ? "rgba(227,224,241,0.3)" : agentColor }}>
+                <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isUser ? "rgba(var(--text-rgb),0.3)" : agentColor }}>
                   {isUser ? aw.youLabel : m.speaker ?? agentA.name}
                 </span>
-                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.2)" }}>{m.ts}</span>
+                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)" }}>{m.ts}</span>
               </div>
               <div style={{ background: isUser ? S.accentD : "var(--bg-surface-high)", border: `1px solid ${isUser ? "rgba(255,86,37,0.3)" : S.borderB}`, borderRadius: isUser ? "4px 4px 0 4px" : "0 4px 4px 4px", padding: "8px 12px", maxWidth: "88%", fontFamily: "var(--font-body)", fontSize: 11, color: S.tp, lineHeight: 1.7 }}>
                 {m.content}

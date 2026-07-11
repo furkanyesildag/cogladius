@@ -128,7 +128,7 @@ function nowStr() { const d = new Date(); return `${pad(d.getHours())}:${pad(d.g
 
 function StatusBadge({ status }: { status: Project["status"] }) {
   const map: Record<string, [string, string]> = {
-    draft:       ["TASLAK",       "rgba(227,224,241,0.3)"],
+    draft:       ["TASLAK",       "rgba(var(--text-rgb),0.3)"],
     analyzing:   ["ANALİZ",       "#FFD166"],
     squadFormed: ["PLAN HAZIR",   "#7C9EFF"],
     active:      ["AKTİF",        "#40E183"],
@@ -159,7 +159,7 @@ function RenderLine({ text }: { text: string }) {
 function AgentMessageBody({ text }: { text: string }) {
   if (!text) return null;
   return (
-    <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.82)", lineHeight: 1.8 }}>
+    <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.82)", lineHeight: 1.8 }}>
       {text.split("\n").map((line, i) => {
         if (!line.trim()) return <div key={i} style={{ height: 6 }} />;
         if (/^#{1,3}\s/.test(line)) {
@@ -246,7 +246,7 @@ function BreakdownCard({
               )}
             </div>
             {/* Reasoning */}
-            {b.reasoning && <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.4)", margin: "0 0 6px", lineHeight: 1.5 }}>{b.reasoning}</p>}
+            {b.reasoning && <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", margin: "0 0 6px", lineHeight: 1.5 }}>{b.reasoning}</p>}
             {/* Technologies */}
             {(b as any).technologies?.length > 0 && (
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -262,7 +262,7 @@ function BreakdownCard({
                   <div key={a.pubkey} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 3, padding: "3px 8px" }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: meta.color, display: "inline-block" }} />
                     <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-secondary)" }}>{a.name}</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)" }}>◈ {a.avgScore}</span>
+                    <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)" }}>◈ {a.avgScore}</span>
                   </div>
                 ))}
               </div>
@@ -479,8 +479,8 @@ function PostProjectModal({
                 </h2>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                   <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase" }}>NEXUS</span>
-                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(227,224,241,0.2)" }} />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.38)", letterSpacing: "0.12em", textTransform: "uppercase" }}>{n.step1} · {n.step2} · {n.step3}</span>
+                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(var(--text-rgb),0.2)" }} />
+                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.38)", letterSpacing: "0.12em", textTransform: "uppercase" }}>{n.step1} · {n.step2} · {n.step3}</span>
                 </div>
               </div>
             </div>
@@ -488,9 +488,9 @@ function PostProjectModal({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.04)", border: "1px solid var(--bg-border)", borderRadius: 10, cursor: "pointer", color: "var(--text-muted)", flexShrink: 0, transition: "background 0.15s ease, color 0.15s ease" }}
+              style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(var(--white-rgb),0.04)", border: "1px solid var(--bg-border)", borderRadius: 10, cursor: "pointer", color: "var(--text-muted)", flexShrink: 0, transition: "background 0.15s ease, color 0.15s ease" }}
               onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-high)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "var(--text-muted)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(var(--white-rgb),0.04)"; e.currentTarget.style.color = "var(--text-muted)"; }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
             </button>
@@ -542,7 +542,7 @@ function PostProjectModal({
                   style={{ minHeight: 168, padding: "14px 14px 40px", fontFamily: "var(--font-body)", fontSize: 13, lineHeight: 1.75 }}
                 />
               </div>
-              <p style={{ margin: "10px 0 0", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.42)", lineHeight: 1.65 }}>
+              <p style={{ margin: "10px 0 0", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.42)", lineHeight: 1.65 }}>
                 {n.modalDescHelper}
               </p>
               {fieldErrors.desc && (
@@ -577,7 +577,7 @@ function PostProjectModal({
                   />
                   <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)", opacity: 0.55 }}>XLM</span>
                 </div>
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.36)", lineHeight: 1.5 }}>{n.modalBudgetSub}</p>
+                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.36)", lineHeight: 1.5 }}>{n.modalBudgetSub}</p>
               </div>
 
               <div>
@@ -598,13 +598,13 @@ function PostProjectModal({
                     </button>
                   ))}
                 </div>
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.36)", lineHeight: 1.5 }}>{n.modalDurationSub}</p>
+                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.36)", lineHeight: 1.5 }}>{n.modalDurationSub}</p>
               </div>
             </div>
 
             <div className="nexus-info-rail" style={{ marginTop: 18 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--accent)", flexShrink: 0 }}>bolt</span>
-              <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(227,224,241,0.78)", lineHeight: 1.65 }}>
+              <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.78)", lineHeight: 1.65 }}>
                 {n.s1Desc}
               </span>
             </div>
@@ -618,7 +618,7 @@ function PostProjectModal({
           </div>
 
           <div className="nexus-modal-footer">
-            <p style={{ margin: "0 0 12px", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.38)", textAlign: "center", lineHeight: 1.55 }}>
+            <p style={{ margin: "0 0 12px", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.38)", textAlign: "center", lineHeight: 1.55 }}>
               {n.modalCtaHint}
             </p>
             <button type="submit" disabled={loading} className="nexus-modal-submit">
@@ -812,7 +812,7 @@ function OrchestratorChat({
               {/* Speaker label */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {isAgent && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block" }} />}
-                <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isAgent ? "var(--accent)" : "rgba(227,224,241,0.3)", letterSpacing: "0.06em" }}>
+                <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isAgent ? "var(--accent)" : "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em" }}>
                   {isAgent ? "NEXUS" : msgs.common.or === "VEYA" ? "SİZ" : "YOU"} · {msg.ts}
                 </span>
               </div>
@@ -977,7 +977,7 @@ function EmptyState({ onNew }: { onNew: () => void }) {
                 <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)", fontWeight: 600, whiteSpace: "nowrap" }}>{s.label}</span>
               </div>
               {i < steps.length - 1 && (
-                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.15)", padding: "0 0", marginLeft: -8, display: "block" }}>›</span>
+                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.15)", padding: "0 0", marginLeft: -8, display: "block" }}>›</span>
               )}
             </div>
           ))}
@@ -1003,7 +1003,7 @@ function EmptyState({ onNew }: { onNew: () => void }) {
         </button>
 
         {/* Subtle footnote */}
-        <p style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.2)", marginTop: 20, letterSpacing: "0.06em" }}>
+        <p style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", marginTop: 20, letterSpacing: "0.06em" }}>
           Cogladius · NEXUS Orchestrator · Stellar Mainnet
         </p>
       </div>
@@ -1084,9 +1084,9 @@ export default function ProjectsPage() {
         <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.1em" }}>ORCHESTRATOR</span>
         <div style={{ flex: 1 }} />
         {[{ label: "DASHBOARD", href: "/dashboard" }, { label: "AGENTS", href: "/agents" }].map((l) => (
-          <button key={l.href} onClick={() => router.push(l.href)} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.4)", letterSpacing: "0.08em", textTransform: "uppercase" }}
+          <button key={l.href} onClick={() => router.push(l.href)} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", letterSpacing: "0.08em", textTransform: "uppercase" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.4)")}>
+            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.4)")}>
             {l.label} ↗
           </button>
         ))}
@@ -1110,11 +1110,11 @@ export default function ProjectsPage() {
               {m.nexusSection.emptyStart}
             </button>
           </div>
-          <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.22)", letterSpacing: "0.14em", textTransform: "uppercase", padding: "4px 12px 6px" }}>
+          <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.22)", letterSpacing: "0.14em", textTransform: "uppercase", padding: "4px 12px 6px" }}>
             {m.common.or === "VEYA" ? "Projelerim" : "My Projects"} ({projects.length})
           </div>
           {projects.length === 0 ? (
-            <div style={{ padding: "16px 12px", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.22)", textAlign: "center" }}>Henüz proje yok</div>
+            <div style={{ padding: "16px 12px", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.22)", textAlign: "center" }}>Henüz proje yok</div>
           ) : (
             projects.map((p) => (
               <button key={p.id} onClick={() => {
@@ -1128,11 +1128,11 @@ export default function ProjectsPage() {
                 }
               }}
                 style={{ width: "100%", background: selectedId === p.id ? "var(--bg-surface)" : "transparent", border: "none", borderLeft: `2px solid ${selectedId === p.id ? "var(--accent)" : "transparent"}`, padding: "9px 12px", cursor: "pointer", textAlign: "left", transition: "background 0.12s" }}
-                onMouseEnter={(e) => { if (selectedId !== p.id) e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
+                onMouseEnter={(e) => { if (selectedId !== p.id) e.currentTarget.style.background = "rgba(var(--white-rgb),0.03)"; }}
                 onMouseLeave={(e) => { if (selectedId !== p.id) e.currentTarget.style.background = "transparent"; }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
                   <StatusBadge status={p.status} />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.2)", marginLeft: "auto" }}>#{p.id}</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)", marginLeft: "auto" }}>#{p.id}</span>
                 </div>
                 <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: selectedId === p.id ? "var(--text-primary)" : "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{p.title}</div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>

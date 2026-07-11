@@ -2380,3 +2380,20 @@ body::before {
   .glass-card, .btn-hero { transition: none; }
   .live-dot { animation: none; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THEME-AWARE RGB TOKENS  ·  fix light mode for inline hardcoded colors
+   Components hardcode rgba(227,224,241,α) (dark text), rgba(13,13,24,α) (dark
+   bg) and rgba(255,255,255,α) (light hairlines). Flipping the RGB per theme
+   (alpha preserved) makes every one of them adapt to light mode automatically.
+══════════════════════════════════════════════════════════════════════════ */
+:root, [data-theme="dark"] {
+  --text-rgb: 227, 224, 241;
+  --base-rgb: 13, 13, 24;
+  --white-rgb: 255, 255, 255;
+}
+[data-theme="light"] {
+  --text-rgb: 26, 26, 46;
+  --base-rgb: 240, 240, 245;
+  --white-rgb: 16, 18, 40;
+}

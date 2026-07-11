@@ -35,20 +35,20 @@ function CodeBlock({ code, lang = "bash", id }: { code: string; lang?: string; i
   const key = id ?? code.slice(0, 20);
   return (
     <div style={{ position: "relative", margin: "14px 0", borderRadius: 8, overflow: "hidden", border: "1px solid var(--bg-border-bright)" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 14px", background: "rgba(0,0,0,0.35)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.35)", letterSpacing: "0.1em" }}>{lang}</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 14px", background: "rgba(0,0,0,0.35)", borderBottom: "1px solid rgba(var(--white-rgb),0.06)" }}>
+        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.35)", letterSpacing: "0.1em" }}>{lang}</span>
         <button
           onClick={() => copy(key, code)}
-          style={{ fontFamily: "var(--font)", fontSize: 9, color: copied === key ? "var(--green)" : "rgba(227,224,241,0.4)", background: "none", border: "none", cursor: "pointer", letterSpacing: "0.08em", padding: "2px 6px", transition: "color 0.15s" }}>
+          style={{ fontFamily: "var(--font)", fontSize: 9, color: copied === key ? "var(--green)" : "rgba(var(--text-rgb),0.4)", background: "none", border: "none", cursor: "pointer", letterSpacing: "0.08em", padding: "2px 6px", transition: "color 0.15s" }}>
           {copied === key ? dp.codeCopied : dp.codeCopy}
         </button>
       </div>
       <pre style={{ margin: 0, padding: "16px 18px", background: "rgba(0,0,0,0.4)", fontFamily: "var(--font)", fontSize: 12, lineHeight: 1.75, color: "var(--text-secondary)", overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
         {code.split("\n").map((line, i) => {
-          if (line.startsWith("#")) return <span key={i} style={{ display: "block", color: "rgba(227,224,241,0.28)" }}>{line}</span>;
+          if (line.startsWith("#")) return <span key={i} style={{ display: "block", color: "rgba(var(--text-rgb),0.28)" }}>{line}</span>;
           if (line.includes("=")) {
             const eq = line.indexOf("=");
-            return <span key={i} style={{ display: "block" }}><span style={{ color: "rgba(227,224,241,0.55)" }}>{line.slice(0, eq + 1)}</span><span style={{ color: "var(--green)" }}>{line.slice(eq + 1)}</span></span>;
+            return <span key={i} style={{ display: "block" }}><span style={{ color: "rgba(var(--text-rgb),0.55)" }}>{line.slice(0, eq + 1)}</span><span style={{ color: "var(--green)" }}>{line.slice(eq + 1)}</span></span>;
           }
           return <span key={i} style={{ display: "block", color: "var(--text-secondary)" }}>{line}</span>;
         })}
@@ -70,7 +70,7 @@ function Callout({ type, children }: { type: "tip" | "warn" | "info" | "key"; ch
       <span className="material-symbols-outlined" style={{ fontSize: 18, color: meta.color, flexShrink: 0, marginTop: 1 }}>{meta.icon}</span>
       <div>
         <div style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: meta.color, letterSpacing: "0.12em", marginBottom: 5 }}>{meta.label}</div>
-        <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(227,224,241,0.78)", lineHeight: 1.7 }}>{children}</div>
+        <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(var(--text-rgb),0.78)", lineHeight: 1.7 }}>{children}</div>
       </div>
     </div>
   );
@@ -107,10 +107,10 @@ function EndpointCard({ method, path, authType, desc, reqBody, respFields, curl 
           <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.7, marginBottom: 14 }}>{desc}</p>
           {reqBody && (
             <>
-              <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.35)", letterSpacing: "0.12em", marginBottom: 8 }}>{dp.endpointRequestBody}</div>
+              <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.35)", letterSpacing: "0.12em", marginBottom: 8 }}>{dp.endpointRequestBody}</div>
               <div style={{ border: "1px solid var(--bg-border)", borderRadius: 6, overflow: "hidden", marginBottom: 14 }}>
                 {reqBody.map((f, i) => (
-                  <div key={f.field} style={{ display: "grid", gridTemplateColumns: "130px 70px 1fr", gap: 12, padding: "9px 12px", borderBottom: i < reqBody.length - 1 ? "1px solid var(--bg-border)" : "none", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)" }}>
+                  <div key={f.field} style={{ display: "grid", gridTemplateColumns: "130px 70px 1fr", gap: 12, padding: "9px 12px", borderBottom: i < reqBody.length - 1 ? "1px solid var(--bg-border)" : "none", background: i % 2 === 0 ? "transparent" : "rgba(var(--white-rgb),0.02)" }}>
                     <code style={{ fontFamily: "var(--font)", fontSize: 11, color: f.req ? "var(--text-primary)" : "var(--text-muted)" }}>{f.field}{f.req && <span style={{ color: "var(--red)", marginLeft: 2 }}>*</span>}</code>
                     <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "#7C9EFF" }}>{f.type}</span>
                     <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)" }}>{f.note}</span>
@@ -121,7 +121,7 @@ function EndpointCard({ method, path, authType, desc, reqBody, respFields, curl 
           )}
           {respFields && (
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.35)", letterSpacing: "0.12em", marginBottom: 8 }}>{dp.endpointSuccessResponse}</div>
+              <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.35)", letterSpacing: "0.12em", marginBottom: 8 }}>{dp.endpointSuccessResponse}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {respFields.map((f) => <code key={f} style={{ fontFamily: "var(--font)", fontSize: 10, color: "#40E183", background: "rgba(64,225,131,0.08)", border: "1px solid rgba(64,225,131,0.2)", borderRadius: 3, padding: "2px 7px" }}>{f}</code>)}
               </div>
@@ -129,7 +129,7 @@ function EndpointCard({ method, path, authType, desc, reqBody, respFields, curl 
           )}
           {curl && (
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.35)", letterSpacing: "0.12em", marginBottom: 6 }}>{dp.endpointExample}</div>
+              <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.35)", letterSpacing: "0.12em", marginBottom: 6 }}>{dp.endpointExample}</div>
               <CodeBlock code={curl} lang="bash" id={path} />
             </div>
           )}
@@ -217,7 +217,7 @@ export default function DocsPage() {
 
         {/* ── SIDEBAR NAV ────────────────────────────────────────── */}
         <aside style={{ width: 220, flexShrink: 0, borderRight: "1px solid var(--bg-border)", position: "sticky", top: 52, height: "calc(100vh - 52px)", overflowY: "auto", padding: "24px 0" }}>
-          <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.25)", letterSpacing: "0.18em", textTransform: "uppercase", padding: "0 20px", marginBottom: 12 }}>{dp.sidebarKicker}</div>
+          <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)", letterSpacing: "0.18em", textTransform: "uppercase", padding: "0 20px", marginBottom: 12 }}>{dp.sidebarKicker}</div>
           {dp.nav.map((n) => (
             <a key={n.id} href={`#${n.id}`} onClick={() => setActiveSection(n.id)}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 20px", textDecoration: "none", fontFamily: "var(--font)", fontSize: 11, color: activeSection === n.id ? "var(--accent)" : "var(--text-muted)", background: activeSection === n.id ? "var(--accent-dim)" : "transparent", borderRight: `2px solid ${activeSection === n.id ? "var(--accent)" : "transparent"}`, transition: "all 0.12s" }}
@@ -332,13 +332,13 @@ export default function DocsPage() {
                 <thead>
                   <tr style={{ background: "var(--bg-surface)" }}>
                     {[dp.httpApi.thAccess, dp.httpApi.thMethod, dp.httpApi.thPath, dp.httpApi.thPurpose].map((h) => (
-                      <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: "rgba(227,224,241,0.4)", fontWeight: 700, letterSpacing: "0.1em", fontSize: 9, textTransform: "uppercase", borderBottom: "1px solid var(--bg-border)" }}>{h}</th>
+                      <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: "rgba(var(--text-rgb),0.4)", fontWeight: 700, letterSpacing: "0.1em", fontSize: 9, textTransform: "uppercase", borderBottom: "1px solid var(--bg-border)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {dp.httpApi.rows.map((r, i) => (
-                    <tr key={r.path} style={{ borderBottom: i < dp.httpApi.rows.length - 1 ? "1px solid var(--bg-border)" : "none", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)" }}>
+                    <tr key={r.path} style={{ borderBottom: i < dp.httpApi.rows.length - 1 ? "1px solid var(--bg-border)" : "none", background: i % 2 === 0 ? "transparent" : "rgba(var(--white-rgb),0.02)" }}>
                       <td style={{ padding: "9px 14px" }}>
                         <span style={{ fontFamily: "var(--font)", fontSize: 8, color: r.auth === "bearer" ? "#FFD166" : "#40E183", background: r.auth === "bearer" ? "rgba(255,209,102,0.1)" : "rgba(64,225,131,0.1)", border: `1px solid ${r.auth === "bearer" ? "rgba(255,209,102,0.3)" : "rgba(64,225,131,0.3)"}`, borderRadius: 3, padding: "2px 7px", letterSpacing: "0.08em" }}>
                           {r.auth === "bearer" ? dp.authBearer : dp.authPublic}
@@ -401,7 +401,7 @@ export default function DocsPage() {
               {workerLoopDisplay.map((s, i) => {
                 const accentIdx = new Set([0, 6]);
                 return (
-                  <span key={i} style={{ fontFamily: "var(--font)", fontSize: 10, color: s === "→" ? "rgba(227,224,241,0.2)" : accentIdx.has(i) ? "var(--accent)" : "var(--text-muted)", fontWeight: s === "→" ? 400 : 600 }}>{s}</span>
+                  <span key={i} style={{ fontFamily: "var(--font)", fontSize: 10, color: s === "→" ? "rgba(var(--text-rgb),0.2)" : accentIdx.has(i) ? "var(--accent)" : "var(--text-muted)", fontWeight: s === "→" ? 400 : 600 }}>{s}</span>
                 );
               })}
             </div>
@@ -415,7 +415,7 @@ export default function DocsPage() {
             <H3>{dp.worker.h3Opt}</H3>
             <div style={{ border: "1px solid var(--bg-border)", borderRadius: 8, overflow: "hidden" }}>
               {dp.worker.optRows.map((v, i) => (
-                <div key={v.key} style={{ display: "grid", gridTemplateColumns: "220px 80px 1fr", gap: 12, padding: "9px 14px", borderBottom: i < dp.worker.optRows.length - 1 ? "1px solid var(--bg-border)" : "none", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)", alignItems: "center" }}>
+                <div key={v.key} style={{ display: "grid", gridTemplateColumns: "220px 80px 1fr", gap: 12, padding: "9px 14px", borderBottom: i < dp.worker.optRows.length - 1 ? "1px solid var(--bg-border)" : "none", background: i % 2 === 0 ? "transparent" : "rgba(var(--white-rgb),0.02)", alignItems: "center" }}>
                   <code style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-primary)" }}>{v.key}</code>
                   <code style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--green)" }}>{v.default}</code>
                   <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)" }}>{v.desc}</span>
@@ -482,12 +482,12 @@ export default function DocsPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" as const }}>
                 {dp.judging.flowSteps.map((label, si) => (
                   <span key={`${label}-${si}`} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                    {si > 0 && <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.2)", fontWeight: 400 }}>→</span>}
+                    {si > 0 && <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.2)", fontWeight: 400 }}>→</span>}
                     <span style={{ fontFamily: "var(--font)", fontSize: 11, color: si === 0 ? "var(--text-secondary)" : si === 1 ? "#7C9EFF" : si === 2 ? "var(--green)" : "var(--accent)", fontWeight: 600 }}>{label}</span>
                   </span>
                 ))}
               </div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.4)", marginTop: 8, lineHeight: 1.6 }}>
+              <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)", marginTop: 8, lineHeight: 1.6 }}>
                 {dp.judging.flowNote}
               </div>
             </div>

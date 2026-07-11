@@ -48,7 +48,7 @@ function getBorderColor(status: Task["status"]): string {
   if (status === "Disputed")         return "var(--red)";
   if (status === "Settled")          return "rgba(64,225,131,0.4)";
   if (status === "Resolved")         return "var(--blue)";
-  return "rgba(255,255,255,0.05)";
+  return "rgba(var(--white-rgb),0.05)";
 }
 
 function Countdown({ deadline }: { deadline: number }) {

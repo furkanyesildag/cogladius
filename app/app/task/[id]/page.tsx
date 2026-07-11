@@ -41,7 +41,7 @@ function Countdown({ deadline }: { deadline: number }) {
     };
     tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
   }, [deadline, ended]);
-  return <span style={{ color: "rgba(227,224,241,0.4)" }}>{rem}</span>;
+  return <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{rem}</span>;
 }
 
 /* ── Info chip ───────────────────────────────────────────────────────────── */
@@ -89,7 +89,7 @@ function Timeline({ status }: { status: string }) {
                     <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700 }}>{i + 1}</span>
                   )}
                 </div>
-                <span style={{ fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: isActive ? "var(--accent)" : isDone ? "rgba(227,224,241,0.5)" : "rgba(227,224,241,0.2)", fontWeight: isActive ? 700 : 400 }}>
+                <span style={{ fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: isActive ? "var(--accent)" : isDone ? "rgba(var(--text-rgb),0.5)" : "rgba(var(--text-rgb),0.2)", fontWeight: isActive ? 700 : 400 }}>
                   {step.label}
                 </span>
               </div>
@@ -135,9 +135,9 @@ function FinalistTable({ task }: { task: Task }) {
           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
           <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: f.isLeader ? "var(--green)" : "var(--text-primary)" }}>{f.name}</span>
           <span style={{ fontFamily: "var(--font)", fontSize: 11, color: f.latency === "142ms" ? "var(--green)" : "var(--yellow)" }}>{f.latency}</span>
-          <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.4)" }}>{f.hashrate}</span>
+          <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)" }}>{f.hashrate}</span>
           <span>
-            <span style={{ background: f.isLeader ? "rgba(64,225,131,0.15)" : "var(--bg-surface-high)", color: f.isLeader ? "var(--green)" : "rgba(227,224,241,0.4)", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 2, border: f.isLeader ? "1px solid rgba(64,225,131,0.3)" : "none" }}>
+            <span style={{ background: f.isLeader ? "rgba(64,225,131,0.15)" : "var(--bg-surface-high)", color: f.isLeader ? "var(--green)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 2, border: f.isLeader ? "1px solid rgba(64,225,131,0.3)" : "none" }}>
               {f.status}
             </span>
           </span>
@@ -211,7 +211,7 @@ export default function TaskDetailPage() {
 
   if (!task) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)", fontFamily: "var(--font)", color: "rgba(227,224,241,0.3)" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)", fontFamily: "var(--font)", color: "rgba(var(--text-rgb),0.3)" }}>
         {ta.loading}
       </div>
     );
@@ -236,7 +236,7 @@ export default function TaskDetailPage() {
         </span>
         {[{ label: ta.navTop.dashboard, href: "/dashboard" }, { label: ta.navTop.tasks, href: "/tasks" }, { label: ta.navTop.agents, href: "/agents" }].map((item) => (
           <button key={item.label} onClick={() => router.push(item.href)}
-            style={{ background: "none", border: "none", borderBottom: item.href.includes("/tasks") ? "2px solid var(--accent)" : "2px solid transparent", color: item.href.includes("/tasks") ? "var(--accent)" : "rgba(227,224,241,0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 16px", height: 48, cursor: "pointer", transition: "color 0.12s" }}>
+            style={{ background: "none", border: "none", borderBottom: item.href.includes("/tasks") ? "2px solid var(--accent)" : "2px solid transparent", color: item.href.includes("/tasks") ? "var(--accent)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 16px", height: 48, cursor: "pointer", transition: "color 0.12s" }}>
             {item.label}
           </button>
         ))}
@@ -288,17 +288,17 @@ export default function TaskDetailPage() {
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
           {/* Breadcrumb + back */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
               <span>{ta.breadcrumbArena}</span>
-              <span style={{ color: "rgba(227,224,241,0.15)" }}>›</span>
+              <span style={{ color: "rgba(var(--text-rgb),0.15)" }}>›</span>
               <span>{ta.breadcrumbTasks}</span>
-              <span style={{ color: "rgba(227,224,241,0.15)" }}>›</span>
+              <span style={{ color: "rgba(var(--text-rgb),0.15)" }}>›</span>
               <span style={{ color: "var(--accent)" }}>{ta.taskSolSlug(task.id)}</span>
             </div>
             <button onClick={() => router.push("/dashboard")}
-              style={{ background: "transparent", border: "none", color: "rgba(227,224,241,0.4)", fontFamily: "var(--font)", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, letterSpacing: "0.06em" }}
+              style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, letterSpacing: "0.06em" }}
               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.4)")}>
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.4)")}>
               {ta.backUpper}
             </button>
           </div>
@@ -410,7 +410,7 @@ export default function TaskDetailPage() {
                     </div>
                   ) : (
                     <>
-                      <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(227,224,241,0.5)", lineHeight: 1.5, marginBottom: 10 }}>
+                      <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.5)", lineHeight: 1.5, marginBottom: 10 }}>
                         Release the locked XLM from escrow to the winning agent&apos;s Stellar address.
                       </p>
                       <button onClick={settleStellar} disabled={settling}
@@ -432,13 +432,13 @@ export default function TaskDetailPage() {
                     <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--accent)", marginTop: 1 }}>warning</span>
                     <div>
                       <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>{ta.disputeStart}</div>
-                      <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.5)", lineHeight: 1.5 }}>
+                      <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.5)", lineHeight: 1.5 }}>
                         {ta.disputeDesc}
                       </p>
                     </div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, fontFamily: "var(--font)", fontSize: 10 }}>
-                    <span style={{ color: "rgba(227,224,241,0.4)" }}>{ta.requiredStake}</span>
+                    <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{ta.requiredStake}</span>
                     <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>{stakeSol} XLM</span>
                   </div>
                   <div className="progress-track" style={{ marginBottom: 14 }}>
@@ -482,7 +482,7 @@ export default function TaskDetailPage() {
           <div className="modal-box" style={{ maxWidth: 600 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <span style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--accent)" }}>{ta.disputeModalTitle}</span>
-              <button style={{ background: "transparent", border: "none", color: "rgba(227,224,241,0.4)", cursor: "pointer", fontSize: 18 }} onClick={() => setShowDisputePanel(false)}>×</button>
+              <button style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", cursor: "pointer", fontSize: 18 }} onClick={() => setShowDisputePanel(false)}>×</button>
             </div>
             <DisputePanel
               task={task}

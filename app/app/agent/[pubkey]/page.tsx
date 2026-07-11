@@ -49,7 +49,7 @@ function ReputationGrid({ seed }: { seed: number }) {
         </div>
         <div style={{ display: "flex", marginTop: 8 }}>
           {MONTHS.map((m) => (
-            <span key={m} style={{ flex: 1, fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.25)", minWidth: 52 }}>{m}</span>
+            <span key={m} style={{ flex: 1, fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)", minWidth: 52 }}>{m}</span>
           ))}
         </div>
       </div>
@@ -70,13 +70,13 @@ function TaskRow({ taskId, instruction, result, gasFee, time, onClick }: {
       onMouseEnter={(e) => { if (onClick) e.currentTarget.style.background = "var(--bg-surface-high)"; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}>
       <span style={{ color: "var(--accent)" }}>{taskId}</span>
-      <span style={{ color: "rgba(227,224,241,0.65)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 12 }}>{instruction}</span>
+      <span style={{ color: "rgba(var(--text-rgb),0.65)", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 12 }}>{instruction}</span>
       <span style={{ color, display: "flex", alignItems: "center", gap: 4 }}>
         <span className="material-symbols-outlined" style={{ fontSize: 12 }}>{icon}</span>
         {result}
       </span>
-      <span style={{ color: "rgba(227,224,241,0.3)" }}>{gasFee}</span>
-      <span style={{ color: "rgba(227,224,241,0.2)" }}>{time}</span>
+      <span style={{ color: "rgba(var(--text-rgb),0.3)" }}>{gasFee}</span>
+      <span style={{ color: "rgba(var(--text-rgb),0.2)" }}>{time}</span>
     </div>
   );
 }
@@ -225,9 +225,9 @@ export default function AgentProfilePage() {
           {mounted && connected && (
             <button
               onClick={() => disconnect()}
-              style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", background: "transparent", border: "1px solid var(--bg-border)", padding: "6px", cursor: "pointer", letterSpacing: "0.06em", textTransform: "uppercase", transition: "color 0.12s, border-color 0.12s" }}
+              style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", background: "transparent", border: "1px solid var(--bg-border)", padding: "6px", cursor: "pointer", letterSpacing: "0.06em", textTransform: "uppercase", transition: "color 0.12s, border-color 0.12s" }}
               onMouseEnter={(e) => { e.currentTarget.style.color = "var(--red)"; e.currentTarget.style.borderColor = "var(--red)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(227,224,241,0.3)"; e.currentTarget.style.borderColor = "var(--bg-border)"; }}>
+              onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(var(--text-rgb),0.3)"; e.currentTarget.style.borderColor = "var(--bg-border)"; }}>
               DISCONNECT
             </button>
           )}
@@ -241,14 +241,14 @@ export default function AgentProfilePage() {
         <header style={{ height: 44, background: "var(--bg-surface-low)", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", padding: "0 20px", gap: 16, flexShrink: 0, position: "sticky", top: 0, zIndex: 100 }}>
           <div style={{ display: "flex", gap: 20, flex: 1 }}>
             <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.05em" }}>XLM/USD: $142.31</span>
-            <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.4)" }}>GAS: 0.000005 XLM</span>
-            <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.4)" }}>
+            <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)" }}>GAS: 0.000005 XLM</span>
+            <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)" }}>
               BAL: <span style={{ color: "var(--accent)" }}>{totalEarned.toFixed(4)} XLM</span>
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {mounted && pubkey && (
-              <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.35)" }}>{shortenAddress(pubkey)}</span>
+              <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.35)" }}>{shortenAddress(pubkey)}</span>
             )}
             <ThemeToggle />
             <ConnectWallet />
@@ -278,14 +278,14 @@ export default function AgentProfilePage() {
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 12, color: "rgba(227,224,241,0.3)" }}>vpn_key</span>
-                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.4)" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 12, color: "rgba(var(--text-rgb),0.3)" }}>vpn_key</span>
+                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)" }}>
                   {pubkey ? `${pubkey.slice(0, 10)}...${pubkey.slice(-10)}` : "7xR9...qW2mP_Ledger_v4.2"}
                 </span>
-                <button style={{ background: "transparent", border: "none", color: "rgba(227,224,241,0.25)", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.06em", transition: "color 0.12s" }}
+                <button style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.25)", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.06em", transition: "color 0.12s" }}
                   onClick={() => copy(pubkey)}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.25)")}>
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.25)")}>
                   [{copied ? "KOPYALANdı ✓" : "COPY_PUBKEY"}]
                 </button>
               </div>
@@ -293,9 +293,9 @@ export default function AgentProfilePage() {
                 {isOwn && <button className="btn-ghost" style={{ fontSize: 9, padding: "5px 12px" }}>REINITIALIZE</button>}
                 <button className="btn-accent-ghost" style={{ fontSize: 9, padding: "5px 12px" }}>EXPORT_DATA</button>
                 <a href={explorerAddress(pubkey)} target="_blank" rel="noopener noreferrer"
-                  style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", textDecoration: "none", border: "1px solid var(--bg-border-bright)", padding: "5px 10px", borderRadius: 2, transition: "color 0.12s" }}
+                  style={{ display: "flex", alignItems: "center", gap: 4, fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", textDecoration: "none", border: "1px solid var(--bg-border-bright)", padding: "5px 10px", borderRadius: 2, transition: "color 0.12s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.3)")}>
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.3)")}>
                   <span className="material-symbols-outlined" style={{ fontSize: 10 }}>open_in_new</span>
                   EXPLORER
                 </a>
@@ -310,7 +310,7 @@ export default function AgentProfilePage() {
                 <div className="progress-fill" style={{ width: `${loadPct}%`, background: loadPct > 80 ? "var(--red)" : loadPct > 60 ? "var(--yellow)" : "var(--accent)" }} />
               </div>
               {agent && (
-                <div style={{ marginTop: 10, fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)", letterSpacing: "0.06em" }}>
+                <div style={{ marginTop: 10, fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em" }}>
                   LLM: <span style={{ color: "var(--green)" }}>{llmLabel}</span>
                 </div>
               )}
@@ -323,9 +323,9 @@ export default function AgentProfilePage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
               {[
                 { label: "TOTAL TASKS",   value: Number(totalTasks).toLocaleString(), sub: "▲ +12% vs LW",     subColor: "var(--green)", border: "var(--accent)" },
-                { label: "AVG SCORE",     value: String(avgScore),                    sub: "Ranked Top 0.2%",  subColor: "rgba(227,224,241,0.4)", border: "var(--blue)" },
+                { label: "AVG SCORE",     value: String(avgScore),                    sub: "Ranked Top 0.2%",  subColor: "rgba(var(--text-rgb),0.4)", border: "var(--blue)" },
                 { label: "SUCCESS RATE",  value: `${successRate}%`,                   sub: "✓ Verified",       subColor: "var(--green)", border: "var(--green)" },
-                { label: "TOTAL EARNED",  value: `${Number(totalEarned).toFixed(3)}`, sub: "XLM",       subColor: "rgba(227,224,241,0.4)", border: "var(--yellow)" },
+                { label: "TOTAL EARNED",  value: `${Number(totalEarned).toFixed(3)}`, sub: "XLM",       subColor: "rgba(var(--text-rgb),0.4)", border: "var(--yellow)" },
               ].map((s) => (
                 <div key={s.label} style={{ background: "var(--bg-surface-low)", borderLeft: `2px solid ${s.border}`, padding: "18px 16px", borderRadius: "0 4px 4px 0" }}>
                   <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
@@ -342,7 +342,7 @@ export default function AgentProfilePage() {
                 {agent.capabilities.map((c) => (
                   <span key={c} style={{ fontFamily: "var(--font)", fontSize: 8, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent-border)", padding: "2px 8px", borderRadius: 2, letterSpacing: "0.05em" }}>{c}</span>
                 ))}
-                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)", marginLeft: "auto" }}>
+                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", marginLeft: "auto" }}>
                   x402 harcama: <span style={{ color: "var(--yellow)" }}>{x402Spent.toFixed(4)} XLM</span>
                 </span>
               </div>
@@ -366,7 +366,7 @@ export default function AgentProfilePage() {
                   {/* Filter */}
                   {(["ALL","SUCCESS","REJECTED","PENDING"] as const).map((f) => (
                     <button key={f} onClick={() => setFilter(f)}
-                      style={{ fontFamily: "var(--font)", fontSize: 8, padding: "4px 8px", background: filter === f ? "var(--accent)" : "transparent", color: filter === f ? "var(--bg-base)" : "rgba(227,224,241,0.4)", border: filter === f ? "none" : "1px solid var(--bg-border)", borderRadius: 2, cursor: "pointer", letterSpacing: "0.05em", fontWeight: 700 }}>
+                      style={{ fontFamily: "var(--font)", fontSize: 8, padding: "4px 8px", background: filter === f ? "var(--accent)" : "transparent", color: filter === f ? "var(--bg-base)" : "rgba(var(--text-rgb),0.4)", border: filter === f ? "none" : "1px solid var(--bg-border)", borderRadius: 2, cursor: "pointer", letterSpacing: "0.05em", fontWeight: 700 }}>
                       {f}
                     </button>
                   ))}
@@ -379,7 +379,7 @@ export default function AgentProfilePage() {
               </div>
 
               {filteredRows.length === 0 ? (
-                <div style={{ padding: "40px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.2)" }}>
+                <div style={{ padding: "40px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.2)" }}>
                   TASK_NOT_FOUND
                 </div>
               ) : (
@@ -389,7 +389,7 @@ export default function AgentProfilePage() {
                 ))
               )}
 
-              <div style={{ padding: "9px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.25)", borderTop: "1px solid var(--bg-border)" }}>
+              <div style={{ padding: "9px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.25)", borderTop: "1px solid var(--bg-border)" }}>
                 <span>SHOWING {filteredRows.length} OF {totalTasks.toLocaleString()} TASKS</span>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn-ghost" style={{ padding: "2px 8px", fontSize: 8 }} disabled>[PREVIOUS]</button>
@@ -408,7 +408,7 @@ export default function AgentProfilePage() {
                 { label: "ENCRYPTION_ID", value: "SHA-256_ACTIVE", color: "var(--text-primary)" },
               ].map((d) => (
                 <div key={d.label}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.2)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>{d.label}</div>
+                  <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>{d.label}</div>
                   <div style={{ fontFamily: "var(--font)", fontSize: 10, color: d.color }}>{d.value}</div>
                 </div>
               ))}

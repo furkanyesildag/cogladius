@@ -71,7 +71,7 @@ function Countdown({ deadline }: { deadline: number }) {
     tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
   }, [deadline, ended]);
   return (
-    <span style={{ fontFamily: "var(--font)", fontSize: 10, color: urgent ? "var(--yellow)" : "rgba(227,224,241,0.4)", display: "flex", alignItems: "center", gap: 3 }}>
+    <span style={{ fontFamily: "var(--font)", fontSize: 10, color: urgent ? "var(--yellow)" : "rgba(var(--text-rgb),0.4)", display: "flex", alignItems: "center", gap: 3 }}>
       <span className="material-symbols-outlined" style={{ fontSize: 11 }}>schedule</span>
       {rem}
     </span>
@@ -126,11 +126,11 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
           { label: h.network.replace("Net: ", ""), val: "MAINNET", color: "var(--green)" },
           { label: "OPEN", val: String(openTasks), color: "var(--accent)" },
           { label: "SETTLED", val: String(settledTasks), color: "#40E183" },
-          { label: "AGENTS", val: `${workingCount}/${agents.length}`, color: agents.length > 0 && workingCount > 0 ? "var(--green)" : "rgba(227,224,241,0.4)" },
+          { label: "AGENTS", val: `${workingCount}/${agents.length}`, color: agents.length > 0 && workingCount > 0 ? "var(--green)" : "rgba(var(--text-rgb),0.4)" },
           { label: "x402", val: `${totalX402.toFixed(3)} XLM`, color: "var(--accent)" },
         ].map((s, i) => (
-          <div key={s.label} style={{ flex: 1, padding: "5px 12px", borderRight: i < 4 ? "1px solid rgba(255,255,255,0.04)" : "none", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(227,224,241,0.28)", letterSpacing: "0.12em", marginBottom: 2 }}>{s.label}</div>
+          <div key={s.label} style={{ flex: 1, padding: "5px 12px", borderRight: i < 4 ? "1px solid rgba(var(--white-rgb),0.04)" : "none", textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(var(--text-rgb),0.28)", letterSpacing: "0.12em", marginBottom: 2 }}>{s.label}</div>
             <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: s.color, letterSpacing: "0.04em" }}>{s.val}</div>
           </div>
         ))}
@@ -139,14 +139,14 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
       {/* Center label */}
       <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 2, top: 32 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: workingCount > 0 ? "var(--green)" : "rgba(255,255,255,0.2)", animation: workingCount > 0 ? "pulse 1.5s infinite" : "none" }} />
-          <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.35)", letterSpacing: "0.18em", textTransform: "uppercase" }}>{h.kicker}</span>
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: workingCount > 0 ? "var(--green)" : "rgba(var(--white-rgb),0.2)", animation: workingCount > 0 ? "pulse 1.5s infinite" : "none" }} />
+          <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.35)", letterSpacing: "0.18em", textTransform: "uppercase" }}>{h.kicker}</span>
         </div>
         <div style={{ fontFamily: "var(--font)", fontSize: 18, fontWeight: 900, color: "var(--text-primary)", letterSpacing: "0.06em" }}>{h.title}</div>
       </div>
 
       {/* Agent progress bars */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 14px", background: "linear-gradient(to top, rgba(13,13,24,0.9) 0%, rgba(13,13,24,0.5) 100%)", zIndex: 3, display: "flex", gap: 16 }}>
+      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 14px", background: "linear-gradient(to top, rgba(var(--base-rgb),0.9) 0%, rgba(var(--base-rgb),0.5) 100%)", zIndex: 3, display: "flex", gap: 16 }}>
         {agents.map((agent) => {
           const isWorking = agent.status.startsWith("WORKING");
           const progress = barPct[agent.name] ?? 15;
@@ -155,20 +155,20 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
             <div key={agent.name} style={{ flex: 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div className={isWorking ? "pulse-ring" : ""} style={{ width: 7, height: 7, borderRadius: "50%", background: isWorking ? agent.color : "rgba(255,255,255,0.15)", flexShrink: 0, position: "relative", boxShadow: isWorking ? `0 0 8px ${agent.color}` : "none" }} />
+                  <div className={isWorking ? "pulse-ring" : ""} style={{ width: 7, height: 7, borderRadius: "50%", background: isWorking ? agent.color : "rgba(var(--white-rgb),0.15)", flexShrink: 0, position: "relative", boxShadow: isWorking ? `0 0 8px ${agent.color}` : "none" }} />
                   <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: agent.color, letterSpacing: "0.04em" }}>{agent.name.replace("-", "_")}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {avg > 0 && <span style={{ fontFamily: "var(--font)", fontSize: 9, color: avg >= 70 ? "var(--green)" : "#FFD166" }}>◈{avg}</span>}
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isWorking ? agent.color : "rgba(227,224,241,0.3)" }}>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isWorking ? agent.color : "rgba(var(--text-rgb),0.3)" }}>
                     {isWorking ? h.done(progress) : h.idle}
                   </span>
                 </div>
               </div>
-              <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ height: 3, background: "rgba(var(--white-rgb),0.06)", borderRadius: 2, overflow: "hidden" }}>
                 <div style={{ width: `${progress}%`, height: "100%", background: agent.color, transition: "width 1.2s ease", opacity: isWorking ? 1 : 0.3, boxShadow: isWorking ? `0 0 6px ${agent.color}` : "none" }} />
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.2)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)" }}>
                 <span>{agent.pubkey.substring(0,6)}…{agent.pubkey.slice(-3)}</span>
                 <span>{agent.x402Spending.toFixed(3)} XLM</span>
               </div>
@@ -176,7 +176,7 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
           );
         })}
         {agents.length === 0 && (
-          <div style={{ flex: 1, textAlign: "center", fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.2)", letterSpacing: "0.1em", paddingBottom: 4 }}>
+          <div style={{ flex: 1, textAlign: "center", fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", letterSpacing: "0.1em", paddingBottom: 4 }}>
             NO ACTIVE AGENTS
           </div>
         )}
@@ -202,7 +202,7 @@ function LiveTerminal({ entries, agents }: { entries: FeedEntry[]; agents: Agent
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "10px 0" }} ref={ref}>
       {entries.length === 0 ? (
-        <div style={{ padding: "40px 16px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.25)", lineHeight: 2 }}>
+        <div style={{ padding: "40px 16px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)", lineHeight: 2 }}>
           {tf.emptyLine1}<br />
           <span style={{ fontSize: 10 }}>{tf.emptyLine2}</span>
         </div>
@@ -210,7 +210,7 @@ function LiveTerminal({ entries, agents }: { entries: FeedEntry[]; agents: Agent
         const tag = getTag(e.icon, e.agent);
         return (
           <div key={e.id || i} className="terminal-row feed-entry">
-            <span suppressHydrationWarning style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.3)", flexShrink: 0, minWidth: 64 }}>
+            <span suppressHydrationWarning style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.3)", flexShrink: 0, minWidth: 64 }}>
               [{e.timeStr && e.timeStr !== "--:--:--" ? e.timeStr : new Date(e.time).toLocaleTimeString(undefined, { hour12: false })}]
             </span>
             <span
@@ -261,7 +261,7 @@ function TxColumn({ txLog, onClose }: { txLog: TxEntry[]; onClose?: () => void }
       </header>
       <div style={{ flex: 1, overflowY: "auto" }}>
         {txLog.length === 0 ? (
-          <div style={{ padding: "32px 14px", textAlign: "center", fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.25)", lineHeight: 2 }}>
+          <div style={{ padding: "32px 14px", textAlign: "center", fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.25)", lineHeight: 2 }}>
             {txe.emptyLine1}<br />{txe.emptyLine2}
           </div>
         ) : txLog.map((tx, i) => (
@@ -272,19 +272,19 @@ function TxColumn({ txLog, onClose }: { txLog: TxEntry[]; onClose?: () => void }
                 {tx.amount || (tx.score !== undefined ? `${tx.score}/100` : "")}
               </span>
             </div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.4)", marginBottom: 4 }}>
+            <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", marginBottom: 4 }}>
               {tx.winner ? <span style={{ color: "var(--green)" }}>→ {tx.winner.length > 10 ? shortenAddress(tx.winner) : tx.winner}</span>
                 : tx.agent ? tx.agent.toLowerCase() : tx.judge ? tx.judge.toLowerCase() : null}
-              {tx.taskId ? <span style={{ color: "rgba(227,224,241,0.25)", marginLeft: 6 }}>#{tx.taskId}</span> : null}
+              {tx.taskId ? <span style={{ color: "rgba(var(--text-rgb),0.25)", marginLeft: 6 }}>#{tx.taskId}</span> : null}
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.25)" }}>
+              <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.25)" }}>
                 {tx.ms ? `${tx.ms}ms` : ""}
               </span>
               <a href={explorerTx(tx.hash)} target="_blank" rel="noopener noreferrer"
-                style={{ color: "rgba(227,224,241,0.2)", display: "flex", alignItems: "center", textDecoration: "none", transition: "color 0.12s" }}
+                style={{ color: "rgba(var(--text-rgb),0.2)", display: "flex", alignItems: "center", textDecoration: "none", transition: "color 0.12s" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.2)")}>
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.2)")}>
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>open_in_new</span>
               </a>
             </div>
@@ -618,10 +618,10 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => setSidebarCollapsed((p) => !p)}
-              style={{ width: 26, height: 26, background: "transparent", border: "none", cursor: "pointer", color: "rgba(227,224,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 2, transition: "color 0.12s" }}
+              style={{ width: 26, height: 26, background: "transparent", border: "none", cursor: "pointer", color: "rgba(var(--text-rgb),0.3)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 2, transition: "color 0.12s" }}
               title={sidebarCollapsed ? dash.sidebarExpand : dash.sidebarCollapse}
               onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.3)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.3)")}
               aria-label={sidebarCollapsed ? dash.sidebarExpand : dash.sidebarCollapse}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{sidebarCollapsed ? "chevron_right" : "chevron_left"}</span>
@@ -708,7 +708,7 @@ export default function Dashboard() {
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                         <div
                           className={isWorking ? "pulse-dot pulse-dot-amber" : "pulse-dot"}
-                          style={{ width: 7, height: 7, flexShrink: 0, background: isWorking ? agent.color : "rgba(255,255,255,0.15)" }}
+                          style={{ width: 7, height: 7, flexShrink: 0, background: isWorking ? agent.color : "rgba(var(--white-rgb),0.15)" }}
                         />
                         <span className="kl-agent-name" style={{ color: agent.color }}>{agent.name.toLowerCase()}</span>
                       </div>
@@ -738,7 +738,7 @@ export default function Dashboard() {
                 return (
                   <div key={name} className="kl-judge-row">
                     <span className="material-symbols-outlined" style={{ fontSize: 15, color: isEval ? "var(--blue)" : "var(--text-muted)", flexShrink: 0 }}>{JUDGE_ICONS[name]}</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.6)", flex: 1, fontWeight: 500 }}>{JUDGE_LABELS[name]}</span>
+                    <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.6)", flex: 1, fontWeight: 500 }}>{JUDGE_LABELS[name]}</span>
                     <span className={`kl-judge-pill ${isEval ? "kl-judge-pill-busy" : "kl-judge-pill-ready"}`}>
                       {isEval ? sf.evaluating : sf.ready}
                     </span>
@@ -750,7 +750,7 @@ export default function Dashboard() {
               <div className="kl-x402-table">
                 {agents.map((a) => (
                   <div key={a.name} className="kl-x402-row">
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "rgba(227,224,241,0.5)", textTransform: "lowercase" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "rgba(var(--text-rgb),0.5)", textTransform: "lowercase" }}>
                       <span style={{ width: 6, height: 6, borderRadius: "50%", background: a.color, flexShrink: 0, boxShadow: `0 0 6px ${a.color}99` }} aria-hidden />
                       {a.name.replace(/^agent-/i, "")}
                     </span>
@@ -759,7 +759,7 @@ export default function Dashboard() {
                 ))}
               </div>
               <div className="kl-x402-total">
-                <span style={{ color: "rgba(227,224,241,0.4)", textTransform: "uppercase", letterSpacing: "0.1em", fontSize: 8 }}>{sf.total}</span>
+                <span style={{ color: "rgba(var(--text-rgb),0.4)", textTransform: "uppercase", letterSpacing: "0.1em", fontSize: 8 }}>{sf.total}</span>
                 <span>{totalX402.toFixed(4)} XLM</span>
               </div>
             </div>
@@ -770,18 +770,18 @@ export default function Dashboard() {
           <div style={{ marginTop: "auto", flexShrink: 0 }}>
             <div className="kl-sidebar-footer-row">
               <a href="https://openclaw.ai" target="_blank" rel="noopener noreferrer"
-                style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", textDecoration: "none", letterSpacing: "0.06em", display: "inline-flex", alignItems: "center", gap: 4 }}
+                style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", textDecoration: "none", letterSpacing: "0.06em", display: "inline-flex", alignItems: "center", gap: 4 }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.3)")}>
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.3)")}>
                 <span className="material-symbols-outlined" style={{ fontSize: 12 }}>open_in_new</span>
                 openclaw.ai
               </a>
               <button
                 type="button"
                 onClick={() => router.push("/agents")}
-                style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", background: "transparent", border: "none", cursor: "pointer", letterSpacing: "0.06em", display: "inline-flex", alignItems: "center", gap: 4, marginLeft: "auto" }}
+                style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", background: "transparent", border: "none", cursor: "pointer", letterSpacing: "0.06em", display: "inline-flex", alignItems: "center", gap: 4, marginLeft: "auto" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.3)")}>
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.3)")}>
                 <span className="material-symbols-outlined" style={{ fontSize: 12 }}>group</span>
                 {sf.registry.toUpperCase()}
               </button>
@@ -832,8 +832,8 @@ export default function Dashboard() {
             <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
               {tasks.length === 0 ? (
                 <div style={{ padding: "40px 12px", textAlign: "center" }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 28, color: "rgba(227,224,241,0.1)", display: "block", marginBottom: 8 }}>assignment</span>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.2)", letterSpacing: "0.06em" }}>{pl.emptyMissions}</div>
+                  <span className="material-symbols-outlined" style={{ fontSize: 28, color: "rgba(var(--text-rgb),0.1)", display: "block", marginBottom: 8 }}>assignment</span>
+                  <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", letterSpacing: "0.06em" }}>{pl.emptyMissions}</div>
                   <button type="button" className="btn-primary" style={{ marginTop: 12, fontSize: 9, padding: "5px 12px" }} onClick={() => setShowPostModal(true)}>{ui.sidebar.firstPost}</button>
                 </div>
               ) : tasks.map((task) => {
@@ -843,9 +843,9 @@ export default function Dashboard() {
                 const isSelected = selectedTask?.id === task.id;
                 const isUrgent = task.status === "Disputed";
                 const badgeKey = task.status === "Open" ? "open" : task.status === "UnderReview" ? "review" : task.status === "AwaitingDecision" ? "awaiting" : task.status === "Settled" ? "settled" : task.status === "Disputed" ? "disputed" : "stopped";
-                const statusColor: Record<string, string> = { Open: "var(--green)", UnderReview: "#FFD166", AwaitingDecision: "var(--blue)", Settled: "var(--green)", Disputed: "var(--red)", Resolved: "var(--blue)", Stopped: "rgba(227,224,241,0.15)" };
+                const statusColor: Record<string, string> = { Open: "var(--green)", UnderReview: "#FFD166", AwaitingDecision: "var(--blue)", Settled: "var(--green)", Disputed: "var(--red)", Resolved: "var(--blue)", Stopped: "rgba(var(--text-rgb),0.15)" };
                 const taskTypeIcon: Record<string, string> = { question: "help_outline", research: "lab_research", code: "code", data: "analytics", web: "public", custom: "tune" };
-                const borderColor = statusColor[task.status] ?? "rgba(255,255,255,0.08)";
+                const borderColor = statusColor[task.status] ?? "rgba(var(--white-rgb),0.08)";
                 return (
                   <div key={task.id} style={{ position: "relative" }}>
                     <div
@@ -861,18 +861,18 @@ export default function Dashboard() {
                         </span>
                         {task.taskType && (
                           <span title={task.taskType} style={{ display: "inline-flex", alignItems: "center", background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 3, padding: "1px 5px" }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 10, color: "rgba(227,224,241,0.4)" }}>{taskTypeIcon[task.taskType] ?? "tune"}</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: 10, color: "rgba(var(--text-rgb),0.4)" }}>{taskTypeIcon[task.taskType] ?? "tune"}</span>
                           </span>
                         )}
-                        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.22)", marginLeft: "auto" }}>#{task.id}</span>
+                        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.22)", marginLeft: "auto" }}>#{task.id}</span>
                         {/* Delete button */}
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setDeleteConfirm(deleteConfirm === task.id ? null : task.id); }}
-                          style={{ width: 20, height: 20, background: "transparent", border: "none", cursor: "pointer", color: "rgba(227,224,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 2, transition: "color 0.12s" }}
+                          style={{ width: 20, height: 20, background: "transparent", border: "none", cursor: "pointer", color: "rgba(var(--text-rgb),0.15)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 2, transition: "color 0.12s" }}
                           title={ui.sidebar.removeTitle}
                           onMouseEnter={(e) => (e.currentTarget.style.color = "var(--red)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(227,224,241,0.15)")}>
+                          onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.15)")}>
                           <span className="material-symbols-outlined" style={{ fontSize: 13 }}>delete</span>
                         </button>
                       </div>
@@ -893,7 +893,7 @@ export default function Dashboard() {
                     {deleteConfirm === task.id && (
                       <div style={{ background: "var(--bg-surface-high)", border: "1px solid rgba(255,77,77,0.3)", borderRadius: 4, padding: "8px 10px", marginBottom: 6, marginTop: -4 }}
                         onClick={(e) => e.stopPropagation()}>
-                        <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.6)", marginBottom: 7 }}>{ui.sidebar.removeConfirm}</div>
+                        <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.6)", marginBottom: 7 }}>{ui.sidebar.removeConfirm}</div>
                         <div style={{ display: "flex", gap: 6 }}>
                           <button
                             type="button"
@@ -905,7 +905,7 @@ export default function Dashboard() {
                           <button
                             type="button"
                             onClick={() => setDeleteConfirm(null)}
-                            style={{ flex: 1, background: "transparent", border: "1px solid var(--bg-border)", color: "rgba(227,224,241,0.4)", fontFamily: "var(--font)", fontSize: 8, padding: "4px", cursor: "pointer", borderRadius: 2, letterSpacing: "0.06em" }}
+                            style={{ flex: 1, background: "transparent", border: "1px solid var(--bg-border)", color: "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 8, padding: "4px", cursor: "pointer", borderRadius: 2, letterSpacing: "0.06em" }}
                           >
                             {dash.cancel}
                           </button>
@@ -941,7 +941,7 @@ export default function Dashboard() {
           >
             <span className="material-symbols-outlined" style={{ fontSize: 12, color: "var(--accent)" }}>assignment</span>
             <span className="kl-panel-strip__label">{pl.stripMissions}</span>
-            <span className="material-symbols-outlined" style={{ fontSize: 10, color: "rgba(227,224,241,0.25)" }}>chevron_right</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 10, color: "rgba(var(--text-rgb),0.25)" }}>chevron_right</span>
           </div>
         )}
 
@@ -949,7 +949,7 @@ export default function Dashboard() {
         <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-base)", position: "relative" }}>
           {/* LOGS overlay panel */}
           {logsOpen && (
-            <div style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(13,13,24,0.95)", display: "flex", flexDirection: "column" }}>
+            <div style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(var(--base-rgb),0.95)", display: "flex", flexDirection: "column" }}>
               <header className="kl-panel-header">
                 <div className="kl-panel-header__icon" aria-hidden>
                   <span className="material-symbols-outlined">terminal</span>
@@ -980,26 +980,26 @@ export default function Dashboard() {
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
                 {feed.length === 0 ? (
-                  <div style={{ padding: "40px", textAlign: "center", fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.2)" }}>{dash.logsWaiting}</div>
+                  <div style={{ padding: "40px", textAlign: "center", fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.2)" }}>{dash.logsWaiting}</div>
                 ) : filteredLogFeed.length === 0 ? (
-                  <div style={{ padding: "32px 14px", textAlign: "center", fontFamily: "var(--font)", fontSize: 10, color: "rgba(227,224,241,0.22)" }}>{dash.logFilterEmpty}</div>
+                  <div style={{ padding: "32px 14px", textAlign: "center", fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.22)" }}>{dash.logFilterEmpty}</div>
                 ) : filteredLogFeed.map((entry, i) => {
                   const baseTag: Record<string, { label: string; color: string }> = {
                     alpha: { label: "AGENT_01", color: agents[0]?.color ?? "#40e183" },
                     beta:  { label: "AGENT_02", color: agents[1]?.color ?? "#adc6ff" },
                     tx:    { label: "SYSTEM",   color: "var(--accent)" },
                     net:   { label: "NETWORK",  color: "var(--yellow)" },
-                    debug: { label: "DEBUG",    color: "rgba(227,224,241,0.35)" },
-                    sys:   { label: "SYSTEM",   color: "rgba(227,224,241,0.5)" },
+                    debug: { label: "DEBUG",    color: "rgba(var(--text-rgb),0.35)" },
+                    sys:   { label: "SYSTEM",   color: "rgba(var(--text-rgb),0.5)" },
                     judge: { label: "JURY",     color: "var(--blue)" },
                   };
-                  const tag = baseTag[entry.icon] || { label: "SYS", color: "rgba(227,224,241,0.3)" };
+                  const tag = baseTag[entry.icon] || { label: "SYS", color: "rgba(var(--text-rgb),0.3)" };
                   const tagChipStyle: CSSProperties = tag.color.startsWith("#")
                     ? { color: tag.color, background: `${tag.color}2a`, border: `1px solid ${tag.color}55` }
                     : { color: tag.color, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border-bright)" };
                   return (
-                    <div key={entry.id || i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "5px 14px", borderBottom: "1px solid rgba(255,255,255,0.02)" }}>
-                      <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.2)", flexShrink: 0, marginTop: 1, minWidth: 56 }}>[{entry.timeStr}]</span>
+                    <div key={entry.id || i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "5px 14px", borderBottom: "1px solid rgba(var(--white-rgb),0.02)" }}>
+                      <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", flexShrink: 0, marginTop: 1, minWidth: 56 }}>[{entry.timeStr}]</span>
                       <span
                         style={{
                           fontFamily: "var(--font)",
@@ -1015,7 +1015,7 @@ export default function Dashboard() {
                       >
                         {tag.label}
                       </span>
-                      <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.65)", lineHeight: 1.5 }}>{entry.message}</span>
+                      <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.65)", lineHeight: 1.5 }}>{entry.message}</span>
                     </div>
                   );
                 })}
@@ -1061,7 +1061,7 @@ export default function Dashboard() {
               {/* Task header */}
               <div className="kl-panel-task">
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)" }}>#{selectedTask.id}</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)" }}>#{selectedTask.id}</span>
                   <span className={getTaskBadgeClass(selectedTask.status)}>{(ui.status as Record<string, string>)[selectedTask.status]}</span>
                   <span style={{ fontFamily: "var(--font)", fontSize: 14, color: "var(--accent)", fontWeight: 800, marginLeft: "auto" }}>
                     {(selectedTask.rewardUsdc ?? selectedTask.reward / 1e7).toFixed(4)}
@@ -1079,7 +1079,7 @@ export default function Dashboard() {
                 </div>
                 <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-primary)", lineHeight: 1.6, marginBottom: 6 }}>{selectedTask.description}</p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 2 }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.3)", marginRight: 4, paddingTop: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>{dash.criteria}</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", marginRight: 4, paddingTop: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>{dash.criteria}</span>
                   {selectedTask.criteria.split(",").map((c) => c.trim()).filter(Boolean).map((chip) => (
                     <span key={chip} style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", background: "var(--accent-dim)", border: "1px solid var(--accent-border)", padding: "1px 7px", borderRadius: 2, letterSpacing: "0.03em" }}>{chip}</span>
                   ))}
@@ -1095,7 +1095,7 @@ export default function Dashboard() {
                         key={tab}
                         type="button"
                         onClick={() => setCenterTab(tab)}
-                        style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "5px 12px", letterSpacing: "0.08em", textTransform: "uppercase", color: centerTab === tab ? "var(--accent)" : "rgba(227,224,241,0.3)", borderBottom: centerTab === tab ? "2px solid var(--accent)" : "2px solid transparent", transition: "color 0.12s" }}
+                        style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "5px 12px", letterSpacing: "0.08em", textTransform: "uppercase", color: centerTab === tab ? "var(--accent)" : "rgba(var(--text-rgb),0.3)", borderBottom: centerTab === tab ? "2px solid var(--accent)" : "2px solid transparent", transition: "color 0.12s" }}
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: 11 }}>{ico}</span>
                         {lbl}
@@ -1134,15 +1134,15 @@ export default function Dashboard() {
                         <div key={i} style={{ padding: "8px 12px", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 10 }}>
                           <div style={{ display: "flex", gap: 10, color: "var(--accent)", marginBottom: 3 }}>
                             <span>{shortenAddress(sub.agent)}</span>
-                            <span style={{ color: "rgba(227,224,241,0.3)" }}>{dash.seconds(sub.timeTakenSeconds)}</span>
+                            <span style={{ color: "rgba(var(--text-rgb),0.3)" }}>{dash.seconds(sub.timeTakenSeconds)}</span>
                           </div>
-                          <div style={{ color: "rgba(227,224,241,0.25)" }}>{dash.hashLabel}: {sub.resultHash.substring(0, 20)}…</div>
+                          <div style={{ color: "rgba(var(--text-rgb),0.25)" }}>{dash.hashLabel}: {sub.resultHash.substring(0, 20)}…</div>
                         </div>
                       ))}
                     </div>
                   )}
                   {selectedTask.submissions.length === 0 && (
-                    <div style={{ padding: "32px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.25)" }}>
+                    <div style={{ padding: "32px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)" }}>
                       {selectedTask.status === "Open" ? ui.taskDetail.noSubmissions : ui.taskDetail.taskStopped}
                     </div>
                   )}
@@ -1163,7 +1163,7 @@ export default function Dashboard() {
                       onSaveState={(s) => setAgentPanelStates((p) => ({ ...p, [selectedTask.id]: s }))}
                     />
                   ) : (
-                    <div style={{ padding: 32, textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.25)" }}>
+                    <div style={{ padding: 32, textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)" }}>
                       {ui.taskDetail.assignHint}
                     </div>
                   )}
@@ -1206,7 +1206,7 @@ export default function Dashboard() {
           >
             <span className="material-symbols-outlined" style={{ fontSize: 12, color: "var(--accent)" }}>account_balance_wallet</span>
             <span className="kl-panel-strip__label">{pl.stripTx}</span>
-            <span className="material-symbols-outlined" style={{ fontSize: 10, color: "rgba(227,224,241,0.25)" }}>chevron_left</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 10, color: "rgba(var(--text-rgb),0.25)" }}>chevron_left</span>
           </div>
         )}
 

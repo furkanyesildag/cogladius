@@ -96,7 +96,7 @@ export default function TasksListPage() {
               background: "none",
               border: "none",
               borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent",
-              color: item.active ? "var(--accent)" : "rgba(227,224,241,0.4)",
+              color: item.active ? "var(--accent)" : "rgba(var(--text-rgb),0.4)",
               fontFamily: "var(--font)",
               fontSize: 10,
               fontWeight: 700,
@@ -141,7 +141,7 @@ export default function TasksListPage() {
         )}
 
         {tasks === null ? (
-          <div style={{ fontFamily: "var(--font)", fontSize: 12, color: "rgba(227,224,241,0.35)" }}>{ta.loading}</div>
+          <div style={{ fontFamily: "var(--font)", fontSize: 12, color: "rgba(var(--text-rgb),0.35)" }}>{ta.loading}</div>
         ) : tasks.length === 0 ? (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "72px 24px 48px", gap: 18 }}>
             <div style={{ width: 66, height: 66, borderRadius: 18, background: "var(--accent-dim)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -233,7 +233,7 @@ export default function TasksListPage() {
                   <span className={badgeClass(task.status)} style={{ justifySelf: "start" }}>
                     {statusText}
                   </span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(227,224,241,0.45)" }}>{formatDeadline(task.deadline, locale)}</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.45)" }}>{formatDeadline(task.deadline, locale)}</span>
                 </div>
               );
             })}

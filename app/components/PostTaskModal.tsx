@@ -289,7 +289,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                     <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "var(--text-muted)", lineHeight: 1.4 }}>
                       {d.sub}
                     </div>
-                    <div style={{ fontFamily: "var(--font)", fontSize: 9, color: active ? d.color : "rgba(227,224,241,0.2)", marginTop: 8, letterSpacing: "0.04em" }}>
+                    <div style={{ fontFamily: "var(--font)", fontSize: 9, color: active ? d.color : "rgba(var(--text-rgb),0.2)", marginTop: 8, letterSpacing: "0.04em" }}>
                       {d.rewardRange[0]}–{d.rewardRange[1]} XLM
                     </div>
                   </button>
@@ -307,7 +307,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
                 {L.fieldLabel}
               </label>
-              <span style={{ fontFamily: "var(--font)", fontSize: 9, color: description.length > 450 ? "var(--yellow)" : "rgba(227,224,241,0.2)" }}>
+              <span style={{ fontFamily: "var(--font)", fontSize: 9, color: description.length > 450 ? "var(--yellow)" : "rgba(var(--text-rgb),0.2)" }}>
                 {description.length}/1000
               </span>
             </div>
@@ -366,7 +366,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
                 {L.criteriaSection}
               </label>
-              <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.2)" }}>{criteriaChips.length}/8</span>
+              <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)" }}>{criteriaChips.length}/8</span>
             </div>
             <div style={{ minHeight: 42, background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 4, padding: "7px 8px", display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
               {criteriaChips.map((chip) => (
@@ -380,7 +380,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                   </button>
                 </span>
               ))}
-              {criteriaChips.length === 0 && <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(227,224,241,0.2)" }}>{L.criteriaEmptyHint}</span>}
+              {criteriaChips.length === 0 && <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.2)" }}>{L.criteriaEmptyHint}</span>}
             </div>
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
               <input type="text" value={chipInput}
@@ -389,7 +389,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                 placeholder={L.criteriaPlaceholder}
                 style={{ fontFamily: "var(--font-body)", fontSize: 11, paddingRight: 64 }} />
               <button type="button" onClick={() => addChip(chipInput)}
-                style={{ position: "absolute", right: 8, fontFamily: "var(--font)", fontSize: 8, color: chipInput.trim() ? def.color : "rgba(227,224,241,0.2)", background: "transparent", border: "none", cursor: chipInput.trim() ? "pointer" : "default", letterSpacing: "0.06em", fontWeight: 700 }}>
+                style={{ position: "absolute", right: 8, fontFamily: "var(--font)", fontSize: 8, color: chipInput.trim() ? def.color : "rgba(var(--text-rgb),0.2)", background: "transparent", border: "none", cursor: chipInput.trim() ? "pointer" : "default", letterSpacing: "0.06em", fontWeight: 700 }}>
                 {L.addChip}
               </button>
             </div>
@@ -405,7 +405,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                 <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
                   {L.rewardLabel}
                 </label>
-                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.3)" }}>
+                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)" }}>
                   {L.suggestPrefix} {def.rewardRange[0]}–{def.rewardRange[1]}
                 </span>
               </div>
@@ -414,7 +414,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                 placeholder="0" required
                 style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: def.color }} />
               {usdcBalance !== null && (
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: balanceOk ? "rgba(227,224,241,0.3)" : "var(--red)", marginTop: 4 }}>
+                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: balanceOk ? "rgba(var(--text-rgb),0.3)" : "var(--red)", marginTop: 4 }}>
                   {L.balancePrefix} {usdcBalance.toFixed(4)} XLM {!balanceOk && L.insufficientSuffix}
                 </div>
               )}
