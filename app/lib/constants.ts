@@ -48,8 +48,8 @@ export const EXPLORER_BASE = IS_MAINNET
   : "https://stellar.expert/explorer/testnet";
 
 export const AGENT_NAMES: Record<string, string> = {
-  "7DQy8XZKCbsJuXP3m52Au8PeKLpaa64WKATFWbCYkuxo": "Agent-Alpha",
-  "8TKy9R4MnVtTBrFHzAGiKChbXr7jPj3k3NKedxNtLLpL": "Agent-Beta",
+  "7DQy8XZKCbsJuXP3m52Au8PeKLpaa64WKATFWbCYkuxo": "Nova",
+  "8TKy9R4MnVtTBrFHzAGiKChbXr7jPj3k3NKedxNtLLpL": "Vega",
 };
 
 export const POLL_INTERVAL_MS = 500;

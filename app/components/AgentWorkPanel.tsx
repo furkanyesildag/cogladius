@@ -673,7 +673,7 @@ function AgentBar({ name, pubkey, progress, isWinner, isLoser, phase, bar }: {
     border: "var(--bg-border)",
   };
 
-  const isAlpha = name.includes("alpha");
+  const isAlpha = name.includes("alpha") || name.includes("nova");
   const barColor = isLoser ? S2.tm : isWinner ? S2.green : (isAlpha ? S2.accent : S2.blue);
   const dotColor = isLoser ? S2.tm : isWinner ? S2.green : S2.yellow;
   const label = isLoser ? bar.late : isWinner ?

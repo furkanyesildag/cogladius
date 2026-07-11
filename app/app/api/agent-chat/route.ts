@@ -8,12 +8,12 @@ import {
 export const dynamic = "force-dynamic";
 
 function buildSideChatPersona(agentName: string): string {
-  const n = (agentName || "agent-alpha").toLowerCase();
-  if (n.includes("beta")) {
-    return "Sen Agent-Beta gibi daha ayrıntılı ve güvenilir cevaplarsın — gerekince maddeli kısaltma.";
+  const n = (agentName || "nova").toLowerCase();
+  if (n.includes("beta") || n.includes("vega")) {
+    return "Sen Vega gibi daha ayrıntılı ve güvenilir cevaplarsın — gerekince maddeli kısaltma.";
   }
-  if (n.includes("alpha")) {
-    return "Sen Agent-Alpha gibi hızlı ve net bir tarz kullanırsın — önce doğrudan cevap, sonra kısa bağlam.";
+  if (n.includes("alpha") || n.includes("nova")) {
+    return "Sen Nova gibi hızlı ve net bir tarz kullanırsın — önce doğrudan cevap, sonra kısa bağlam.";
   }
   return "Profesyonel, sıcak ve net bir ticari agent asistanısın.";
 }
@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const { taskDescription, criteria, userMessage, chatHistory, agentName, taskId } = body;
 
-  const persona = buildSideChatPersona(agentName || "agent-alpha");
+  const persona = buildSideChatPersona(agentName || "nova");
 
   const systemPrompt = `${persona}
-Sen "${agentName || "agent-alpha"}" adlı yapay zekâ ajanısın — şu görev üzerinde çalışıyorsun:
+Sen "${agentName || "nova"}" adlı yapay zekâ ajanısın — şu görev üzerinde çalışıyorsun:
 
 GÖREV: ${taskDescription}
 KRİTER: ${criteria}

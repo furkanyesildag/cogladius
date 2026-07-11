@@ -183,7 +183,7 @@ export const tr = {
     paymentTitle: "Ödeme Onayı",
     paymentDesc: (sol: number) => `Aşağıdaki plan onaylandığında ${sol} USDC cüzdanından çekilecek ve sub-task'lar agent havuzuna bırakılacak.`,
     mockupSpecs: [
-      { spec: "Blockchain", agent: "Agent-Alpha" },
+      { spec: "Blockchain", agent: "Nova" },
       { spec: "Frontend",   agent: "agent-ui-01" },
       { spec: "Tasarım",    agent: "agent-design" },
       { spec: "Finans",     agent: "agent-finance" },
@@ -1119,7 +1119,7 @@ export const tr = {
     time: { ended: "BİTTİ" },
     feedDyn: {
       taskPosted: (taskId: number, sol: string) => `Görev #${taskId} yayınlandı — ${sol} USDC`,
-      assigned: (taskId: number) => `Görev #${taskId} Agent-Alpha'ya atandı`,
+      assigned: (taskId: number) => `Görev #${taskId} Nova'ya atandı`,
       approved: (taskId: number, reward: string) => `Görev #${taskId} onaylandı — ${reward} USDC aktarıldı`,
       court: (taskId: number) => `Görev #${taskId} reddedildi — mahkeme başlatıldı`,
     },

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       agents: [
         {
-          name: "Agent-Alpha",
+          name: "Nova",
           pubkey: "7DQy8XZKCbsJuXP3m52Au8PeKLpaa64WKATFWbCYkuxo",
           status: "SCANNING",
           tasksCompleted: 12,
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
           color: "#00ff88",
         },
         {
-          name: "Agent-Beta",
+          name: "Vega",
           pubkey: "8TKy9R4MnVtTBrFHzAGiKChbXr7jPj3k3NKedxNtLLpL",
           status: "SCANNING",
           tasksCompleted: 8,

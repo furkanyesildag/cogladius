@@ -321,7 +321,7 @@ export default function TaskDetailPage() {
                     </span>
                     {isStellarTask && (
                       <span style={{ background: "rgba(64,225,131,0.12)", color: "var(--green)", border: "1px solid rgba(64,225,131,0.3)", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 2, letterSpacing: "0.07em" }}>
-                        ✦ STELLAR TESTNET
+                        ✦ STELLAR MAINNET
                       </span>
                     )}
                   </div>

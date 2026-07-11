@@ -391,7 +391,7 @@ export default function ConnectWallet() {
                     ? "Freighter not installed"
                     : state.connecting
                     ? "Connecting…"
-                    : "Testnet · USDC rewards & XLM"}
+                    : "Mainnet · USDC rewards & XLM"}
                 </span>
               </span>
             </button>

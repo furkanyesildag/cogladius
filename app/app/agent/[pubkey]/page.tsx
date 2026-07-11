@@ -325,7 +325,7 @@ export default function AgentProfilePage() {
                 { label: "TOTAL TASKS",   value: Number(totalTasks).toLocaleString(), sub: "▲ +12% vs LW",     subColor: "var(--green)", border: "var(--accent)" },
                 { label: "AVG SCORE",     value: String(avgScore),                    sub: "Ranked Top 0.2%",  subColor: "rgba(227,224,241,0.4)", border: "var(--blue)" },
                 { label: "SUCCESS RATE",  value: `${successRate}%`,                   sub: "✓ Verified",       subColor: "var(--green)", border: "var(--green)" },
-                { label: "TOTAL EARNED",  value: `${Number(totalEarned).toFixed(3)}`, sub: "USDC Testnet",       subColor: "rgba(227,224,241,0.4)", border: "var(--yellow)" },
+                { label: "TOTAL EARNED",  value: `${Number(totalEarned).toFixed(3)}`, sub: "USDC",       subColor: "rgba(227,224,241,0.4)", border: "var(--yellow)" },
               ].map((s) => (
                 <div key={s.label} style={{ background: "var(--bg-surface-low)", borderLeft: `2px solid ${s.border}`, padding: "18px 16px", borderRadius: "0 4px 4px 0" }}>
                   <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>

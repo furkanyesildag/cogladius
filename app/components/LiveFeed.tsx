@@ -9,8 +9,8 @@ interface LiveFeedProps {
 
 function getSourceStyle(icon: string, agent?: string): { label: string; cls: string } {
   const a = (agent || icon || "").toLowerCase();
-  if (a.includes("alpha"))                         return { label: "ALPHA",  cls: "feed-tag-alpha" };
-  if (a.includes("beta"))                          return { label: "BETA",   cls: "feed-tag-beta" };
+  if (a.includes("alpha") || a.includes("nova"))   return { label: "NOVA",   cls: "feed-tag-alpha" };
+  if (a.includes("beta") || a.includes("vega"))    return { label: "VEGA",   cls: "feed-tag-beta" };
   if (a.includes("hakem") || a.includes("judge"))  return { label: "JUDGE",  cls: "feed-tag-judge" };
   if (a === "tx" || icon === "tx")                 return { label: "TX",     cls: "feed-tag-tx" };
   if (a.includes("poster"))                        return { label: "USER",   cls: "feed-tag-tx" };

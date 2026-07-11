@@ -48,8 +48,8 @@ function logEntryMatchesFilter(entry: FeedEntry, f: LogFilterKey): boolean {
   if (f === "all") return true;
   const ic = (entry.icon || "").toLowerCase();
   const ag = (entry.agent || "").toLowerCase();
-  if (f === "alpha") return ic === "alpha" || ag.includes("alpha");
-  if (f === "beta") return ic === "beta" || ag.includes("beta");
+  if (f === "alpha") return ic === "alpha" || ag.includes("alpha") || ag.includes("nova");
+  if (f === "beta") return ic === "beta" || ag.includes("beta") || ag.includes("vega");
   if (f === "sys") return ["tx", "sys", "judge"].includes(ic) || ag.includes("hakem") || ag === "judge" || ag === "tx";
   if (f === "net") return ic === "net" || ag.includes("network");
   if (f === "debug") return ic === "debug" || ag.includes("debug");
@@ -123,7 +123,7 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
       {/* Top stats strip */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", gap: 0, zIndex: 3, borderBottom: "1px solid rgba(255,86,37,0.08)" }}>
         {[
-          { label: h.network.replace("Net: ", ""), val: "TESTNET", color: "var(--green)" },
+          { label: h.network.replace("Net: ", ""), val: "MAINNET", color: "var(--green)" },
           { label: "OPEN", val: String(openTasks), color: "var(--accent)" },
           { label: "SETTLED", val: String(settledTasks), color: "#40E183" },
           { label: "AGENTS", val: `${workingCount}/${agents.length}`, color: agents.length > 0 && workingCount > 0 ? "var(--green)" : "rgba(227,224,241,0.4)" },
@@ -191,8 +191,8 @@ function LiveTerminal({ entries, agents }: { entries: FeedEntry[]; agents: Agent
   const ref = useRef<HTMLDivElement>(null);
   function getTag(icon: string, agent?: string): { label: string; cls: string; color?: string } {
     const a = (agent || icon || "").toLowerCase();
-    if (a.includes("alpha")) return { label: "AGENT_01", cls: "feed-tag-alpha", color: agents[0]?.color };
-    if (a.includes("beta"))  return { label: "AGENT_02", cls: "feed-tag-beta",  color: agents[1]?.color };
+    if (a.includes("alpha") || a.includes("nova")) return { label: "AGENT_01", cls: "feed-tag-alpha", color: agents[0]?.color };
+    if (a.includes("beta") || a.includes("vega"))  return { label: "AGENT_02", cls: "feed-tag-beta",  color: agents[1]?.color };
     if (a.includes("hakem") || a.includes("judge")) return { label: "SYSTEM", cls: "feed-tag-tx" };
     if (a === "tx" || icon === "tx") return { label: "SYSTEM", cls: "feed-tag-tx" };
     if (a.includes("network")) return { label: "NETWORK", cls: "feed-tag-net" };
@@ -471,7 +471,7 @@ export default function Dashboard() {
     setTasks((p) => p.map((tk) => tk.id === task.id ? { ...tk, status: "UnderReview" } : tk));
     setSelectedTask((p) => p?.id === task.id ? { ...p, status: "UnderReview" } : p);
     setAgentPanelTaskId(task.id); setCenterTab("agent");
-    setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.assigned(task.id), icon: "alpha", agent: "Agent-Alpha" }, ...p]);
+    setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.assigned(task.id), icon: "alpha", agent: "Nova" }, ...p]);
   }
 
   function handleJudgesComplete(taskId: number) {

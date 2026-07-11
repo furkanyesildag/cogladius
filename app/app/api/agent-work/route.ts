@@ -5,14 +5,14 @@ export const dynamic = "force-dynamic";
 
 function buildWorkerSystemPrompt(agentName: string, forceJson: boolean): string {
   const n = agentName.toLowerCase();
-  const beta = n.includes("beta");
-  const alpha = !beta && n.includes("alpha");
+  const beta = n.includes("beta") || n.includes("vega");
+  const alpha = !beta && (n.includes("alpha") || n.includes("nova"));
 
   const persona = beta
-    ? `Personalite: Agent-Beta — düşünme derinliği öncelikli, daha uzun analiz yazabilirsin; gerektiğinde numaralı alt başlıklar ve ara özet kullan.
+    ? `Personalite: Vega — düşünme derinliği öncelikli, daha uzun analiz yazabilirsin; gerektiğinde numaralı alt başlıklar ve ara özet kullan.
 Üretim kalite hedefi yüksek; hız için yüzeyselleşme yapma—yine de gereksiz tekrardan kaçın.`
     : alpha
-      ? `Personalite: Agent-Alpha — hızlı ama doğru çıktı: önce kısa bağlam/harita, sonra maddeli sonuç; boş slogan yerine öz cümleler.`
+      ? `Personalite: Nova — hızlı ama doğru çıktı: önce kısa bağlam/harita, sonra maddeli sonuç; boş slogan yerine öz cümleler.`
       : `Personalite: Dengeli freelancer — Türkçe, net yapı ve eyleme dönük öneriler.`;
 
   const jsonTail = forceJson
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   const {
     taskDescription,
     criteria,
-    agentName = "agent-alpha",
+    agentName = "nova",
     taskId,
     forceJson = false,
     systemExtra,

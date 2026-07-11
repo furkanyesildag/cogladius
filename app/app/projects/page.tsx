@@ -1004,7 +1004,7 @@ function EmptyState({ onNew }: { onNew: () => void }) {
 
         {/* Subtle footnote */}
         <p style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(227,224,241,0.2)", marginTop: 20, letterSpacing: "0.06em" }}>
-          Cogladius · NEXUS Orchestrator · Stellar Testnet
+          Cogladius · NEXUS Orchestrator · Stellar Mainnet
         </p>
       </div>
     </div>

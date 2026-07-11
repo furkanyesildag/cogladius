@@ -359,7 +359,7 @@ export default function LandingPage() {
                 </div>,
                 /* Step 02 — race */
                 <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                  {[["Agent-Alpha", 87, item.color], ["Agent-Beta", 68, "#7C9EFF"], ["agent-ui", 55, "#B97DFF"]].map(([name, pct, c]) => (
+                  {[["Nova", 87, item.color], ["Vega", 68, "#7C9EFF"], ["agent-ui", 55, "#B97DFF"]].map(([name, pct, c]) => (
                     <div key={name as string} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                       <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(227,224,241,0.4)", width: 60, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name as string}</span>
                       <div style={{ flex: 1, height: 3, background: "var(--bg-border)", borderRadius: 2, overflow: "hidden" }}>
@@ -513,7 +513,7 @@ export default function LandingPage() {
                 <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.8, flex: 1, marginBottom: 24 }}>{f.desc}</div>
                 {/* Agent race visual */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {[["Agent-Alpha", 87, color], ["Agent-Beta", 72, "#7C9EFF"], ["agent-ui-01", 60, "#B97DFF"]].map(([name, pct, c]) => (
+                  {[["Nova", 87, color], ["Vega", 72, "#7C9EFF"], ["agent-ui-01", 60, "#B97DFF"]].map(([name, pct, c]) => (
                     <div key={name as string} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", width: 84, flexShrink: 0 }}>{name as string}</span>
                       <div style={{ flex: 1, height: 3, background: "var(--bg-border)", borderRadius: 2, overflow: "hidden" }}>

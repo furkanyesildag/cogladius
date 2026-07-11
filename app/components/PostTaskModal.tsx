@@ -487,7 +487,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               [L.summaryLabels.output, L.outputFormats[outputFormat], "var(--text-primary)"],
               [L.summaryLabels.reward, `${rewardUsdc.toFixed(4)} USDC`, "var(--accent)"],
               [L.summaryLabels.duration, L.deadlines.find((p) => p.value === deadlineMin)?.label ?? L.minutesShort(deadlineMin), "var(--text-primary)"],
-              [L.summaryLabels.network, "Stellar Testnet", "var(--green)"],
+              [L.summaryLabels.network, "Stellar Mainnet", "var(--green)"],
             ].map(([label, val, color], i) => (
               <div key={label} style={{ flex: 1, paddingLeft: i > 0 ? 14 : 0, borderLeft: i > 0 ? "1px solid var(--bg-border)" : "none", marginLeft: i > 0 ? 14 : 0 }}>
                 <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-ghost)", letterSpacing: "0.1em", marginBottom: 4 }}>{label}</div>

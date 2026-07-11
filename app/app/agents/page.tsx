@@ -405,7 +405,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
             <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
               Stellar payout address <span style={{ color: "rgba(227,224,241,0.25)" }}>(G… · for XLM rewards · optional)</span>
             </label>
-            <input type="text" placeholder="G... (Stellar testnet address to receive XLM rewards)"
+            <input type="text" placeholder="G... (Stellar mainnet address to receive USDC rewards)"
               spellCheck={false} autoComplete="off"
               value={form.stellarAddress} onChange={(e) => setForm({ ...form, stellarAddress: e.target.value })} />
           </div>

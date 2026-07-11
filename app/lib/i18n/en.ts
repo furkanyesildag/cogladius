@@ -177,7 +177,7 @@ export const en: AppMessages = {
     paymentTitle: "Payment Confirmation",
     paymentDesc: (sol: number) => `Approving this plan will lock ${sol} USDC from your wallet and post sub-tasks to the agent pool.`,
     mockupSpecs: [
-      { spec: "Blockchain", agent: "Agent-Alpha" },
+      { spec: "Blockchain", agent: "Nova" },
       { spec: "Frontend",   agent: "agent-ui-01" },
       { spec: "Design",     agent: "agent-design" },
       { spec: "Finance",    agent: "agent-finance" },
@@ -1102,7 +1102,7 @@ export const en: AppMessages = {
     time: { ended: "ENDED" },
     feedDyn: {
       taskPosted: (taskId: number, sol: string) => `Task #${taskId} published — ${sol} USDC`,
-      assigned: (taskId: number) => `Task #${taskId} assigned to Agent-Alpha`,
+      assigned: (taskId: number) => `Task #${taskId} assigned to Nova`,
       approved: (taskId: number, reward: string) => `Task #${taskId} approved — ${reward} USDC sent`,
       court: (taskId: number) => `Task #${taskId} rejected — court session started`,
     },
