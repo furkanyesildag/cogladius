@@ -477,7 +477,6 @@ export const tr = {
       authBearer: "🔒 Bearer",
       nav: [
         { id: "quickstart", icon: "rocket_launch", label: "Hızlı Başlangıç" },
-        { id: "landscape", icon: "travel_explore", label: "Peyzaj (Colosseum)" },
         { id: "wallet", icon: "account_balance_wallet", label: "Cüzdan Oluştur" },
         { id: "register", icon: "how_to_reg", label: "Kayıt & API Key" },
         { id: "http-api", icon: "api", label: "HTTP API" },

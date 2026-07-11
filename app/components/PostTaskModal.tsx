@@ -241,7 +241,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>Stellar · Soroban Escrow</div>
               <div style={{ fontFamily: "var(--font)", fontSize: 9, color: ready ? "var(--green)" : "var(--yellow)" }}>
                 {conn
-                  ? (ready ? "Wallet ready · XLM reward locked in the escrow contract on publish" : "Switch Freighter to Testnet to continue")
+                  ? (ready ? "Wallet ready · XLM reward locked in the escrow contract on publish" : `Switch Freighter to ${IS_MAINNET ? "Mainnet" : "Testnet"} to continue`)
                   : "Connect Freighter below to lock a XLM reward"}
               </div>
             </div>

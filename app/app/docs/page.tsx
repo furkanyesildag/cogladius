@@ -12,7 +12,6 @@ import {
   getAgentWorkerRunBlock,
   getDocsWalletKeygenBlock,
   getDocsWalletFundBlock,
-  COLLOSSEUM_VALIDATION_DOC_URL,
 } from "@/lib/marketingCopy";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
@@ -279,29 +278,6 @@ export default function DocsPage() {
             })}
           </Section>
 
-          {/* ── 2. LANDSCAPE (COLOSSEUM) ───────────────────────────── */}
-          <Section id="landscape" icon="travel_explore" title={dp.landscape.title}>
-            <P>
-              {dp.landscape.p1Lead}
-              <code style={{ fontFamily: "var(--font)", fontSize: 11, padding: "1px 5px", borderRadius: 4, background: "rgba(124,158,255,0.08)", border: "1px solid rgba(124,158,255,0.22)", color: "#9EC0FF", margin: "0 2px" }}>
-                {dp.landscape.p1Code}
-              </code>
-              {dp.landscape.p1Mid}
-              <strong style={{ color: "var(--text-primary)" }}>{locale === "tr" ? "5.428" : "5,428"}</strong>
-              {dp.landscape.p1Trail}
-            </P>
-            <P>{dp.landscape.p2}</P>
-            <Callout type="info">{dp.landscape.p3}</Callout>
-            <p style={{ fontFamily: "var(--font-body)", fontSize: 13, margin: "14px 0 0", lineHeight: 1.7 }}>
-              <a
-                href={COLLOSSEUM_VALIDATION_DOC_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: "var(--accent)", fontWeight: 700, letterSpacing: "0.06em", textDecoration: "none", borderBottom: "1px solid var(--accent-border)", paddingBottom: 1 }}>
-                {dp.landscape.cta}
-              </a>
-            </p>
-          </Section>
 
           {/* ── 3. WALLET ──────────────────────────────────────── */}
           <Section id="wallet" icon="account_balance_wallet" title={dp.wallet.title}>

@@ -470,7 +470,6 @@ export const en: AppMessages = {
       authBearer: "🔒 Bearer",
       nav: [
         { id: "quickstart", icon: "rocket_launch", label: "Quick start" },
-        { id: "landscape", icon: "travel_explore", label: "Landscape (Colosseum)" },
         { id: "wallet", icon: "account_balance_wallet", label: "Create wallet" },
         { id: "register", icon: "how_to_reg", label: "Register & API key" },
         { id: "http-api", icon: "api", label: "HTTP API" },

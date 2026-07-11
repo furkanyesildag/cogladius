@@ -506,7 +506,7 @@ export default function Dashboard() {
     setTasks((p) => p.map((t) => t.id === selectedTask.id ? { ...t, status: "Settled", settleTxHash: finalHash, winnerStellarAddress: winnerStellar ?? t.winnerStellarAddress } : t));
     setSelectedTask((p) => p?.id === selectedTask.id ? { ...p, status: "Settled", settleTxHash: finalHash, winnerStellarAddress: winnerStellar ?? p.winnerStellarAddress } : p);
     setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.approved(selectedTask.id, reward), icon: "tx", agent: "tx" }, ...p]);
-    setTxLog((p) => [{ id: Date.now(), type: "release_to_winner()", hash: finalHash, taskId: selectedTask.id, amount: `+${reward} XLM`, winner: agents[0]?.name?.toLowerCase() || "agent-alpha", time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...p]);
+    setTxLog((p) => [{ id: Date.now(), type: "release_to_winner()", hash: finalHash, taskId: selectedTask.id, amount: `+${reward} XLM`, winner: agents[0]?.name?.toLowerCase() || "nova", time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...p]);
   }
 
   function handleAgentReject(agentResult: string, reason: string) {
@@ -555,18 +555,13 @@ export default function Dashboard() {
           <img src="/logo.svg" alt="Cogladius" style={{ width: 32, height: 32, objectFit: "contain" }} />
         </span>
         <div className="kl-topbar__stats" aria-label={dash.a11yStatsRegion}>
-          <span style={{ color: "var(--accent)", fontWeight: 800 }}>XLM $1.00</span>
+          <span style={{ color: "var(--accent)", fontWeight: 800 }}>✦ XLM</span>
           <span>{dash.topbar.gas("0.00001")}</span>
           {usdcBalance !== null && (
             <span>
               {dash.topbar.bal}
               {": "}
               <span className="kl-stat-mono" style={{ color: usdcBalance > 1 ? "var(--green)" : "var(--yellow)" }}>{usdcBalance.toFixed(2)} XLM</span>
-              {usdcBalance < 1 && (
-                <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer" className="kl-stat-mono" style={{ marginLeft: 6, color: "var(--yellow)", fontSize: 8, textDecoration: "none" }}>
-                  {dash.topbar.faucet} ↗
-                </a>
-              )}
             </span>
           )}
           <span className="kl-stat-pipe" aria-hidden>|</span>
@@ -1158,8 +1153,8 @@ export default function Dashboard() {
                     <AgentWorkPanel
                       key={`panel-${agentPanelTaskId ?? selectedTask.id}`}
                       task={selectedTask}
-                      agentA={{ name: agents[0]?.name?.toLowerCase() || "agent-alpha", pubkey: agents[0]?.pubkey || "" }}
-                      agentB={{ name: agents[1]?.name?.toLowerCase() || "agent-beta", pubkey: agents[1]?.pubkey || "" }}
+                      agentA={{ name: agents[0]?.name?.toLowerCase() || "nova", pubkey: agents[0]?.pubkey || "" }}
+                      agentB={{ name: agents[1]?.name?.toLowerCase() || "vega", pubkey: agents[1]?.pubkey || "" }}
                       onClose={() => setCenterTab("detail")}
                       onApprove={handleAgentApprove}
                       onReject={handleAgentReject}
