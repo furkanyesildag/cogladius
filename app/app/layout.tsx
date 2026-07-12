@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from "@vercel/analytics/next";
 import StructuredData from "@/components/StructuredData";
 import Providers from "@/components/Providers";
 import { siteMetadata } from "@/lib/marketingCopy";
