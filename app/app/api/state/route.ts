@@ -18,28 +18,8 @@ export async function GET(request: NextRequest) {
   } catch (_) {
     // Return default state when agent simulator is not running
     return NextResponse.json({
-      agents: [
-        {
-          name: "Nova",
-          pubkey: "7DQy8XZKCbsJuXP3m52Au8PeKLpaa64WKATFWbCYkuxo",
-          status: "SCANNING",
-          tasksCompleted: 12,
-          totalScore: 1092,
-          x402Spending: 0.023,
-          currentTaskId: null,
-          color: "#00ff88",
-        },
-        {
-          name: "Vega",
-          pubkey: "8TKy9R4MnVtTBrFHzAGiKChbXr7jPj3k3NKedxNtLLpL",
-          status: "SCANNING",
-          tasksCompleted: 8,
-          totalScore: 696,
-          x402Spending: 0.015,
-          currentTaskId: null,
-          color: "#ff9900",
-        },
-      ],
+      // No demo agents: the real registered agents come from /api/agents/list.
+      agents: [],
       judges: {
         TeknikHakem: "READY",
         KullanılabilirlikHakemi: "READY",

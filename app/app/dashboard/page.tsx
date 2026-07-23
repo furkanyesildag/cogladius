@@ -414,7 +414,9 @@ export default function Dashboard() {
       try {
         const res = await fetch("/api/state"); if (!res.ok) return;
         const data = await res.json();
-        if (data.agents?.length) setAgents(data.agents);
+        // Agents come solely from /api/agents/list (the real registry). Do not
+        // let the /api/state simulator overwrite them, or the list flip-flops
+        // between real agents and demo agents on every poll.
         if (data.judges) setJudges(data.judges);
         if (data.feed?.length) setFeed((prev) => {
           const ne = data.feed.filter((e: FeedEntry) => !prev.some((p) => p.id === e.id));
