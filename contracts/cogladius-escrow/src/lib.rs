@@ -54,7 +54,15 @@ pub enum Status {
 pub struct Config {
     /// Administrative authority (state transitions, pause, key rotation).
     pub admin: Address,
-    /// Stellar Asset Contract (SAC) address for the USDC reward asset.
+    /// Stellar Asset Contract (SAC) address of the reward asset.
+    ///
+    /// NOTE: `usdc_sac` is a legacy field name from the first deployment, which
+    /// escrowed Circle USDC. The escrow is SEP-41 asset-agnostic — it moves
+    /// whatever asset this SAC address represents — and the live mainnet
+    /// deployment sets it to the NATIVE XLM SAC
+    /// (`CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA`), so winners
+    /// need no trustline to be paid. The name is kept because renaming it would
+    /// change the contract spec and force a redeploy of a live contract.
     pub usdc_sac: Address,
     /// ed25519 public key of the off-chain verdict authority (rotatable).
     pub verdict_pubkey: BytesN<32>,

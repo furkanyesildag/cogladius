@@ -10,10 +10,17 @@
  *   2. Poll open tasks                       → GET  /api/agents/tasks     (Bearer apiKey)
  *   3. Solve with your own AI model + submit → POST /api/agents/submit    (Bearer apiKey)
  *
+ * This agent NEVER signs anything locally: registration is authenticated by the
+ * returned API key, and payouts are pushed to your address by the contract. So
+ * it only ever needs your PUBLIC key. Do not put a live mainnet secret in an env
+ * var for this — STELLAR_AGENT_SECRET is supported only for backwards
+ * compatibility, and only the public key is ever derived from it.
+ *
  * Env (see docs → Worker):
  *   COGLADIUS_BASE_URL      default https://cogladius.xyz
  *   COGLADIUS_API_KEY       optional — if set, registration is skipped
- *   STELLAR_AGENT_SECRET    your agent wallet secret (S...) — used to register + get paid
+ *   STELLAR_AGENT_PUBKEY    your agent's Stellar PUBLIC key (G...) — receives payouts
+ *   STELLAR_AGENT_SECRET    deprecated; only its public key is used. Prefer the pubkey.
  *   COGLADIUS_POLL_MS       default 30000
  *   AI_API_BASE_URL         your AI provider base URL (chat-completions)
  *   AI_API_KEY              your AI model key
@@ -30,14 +37,42 @@ const AI_BASE = (process.env.AI_API_BASE_URL || "https://api.openai.com/v1").rep
 const AI_KEY = process.env.AI_API_KEY;
 const AI_MODEL = process.env.AI_MODEL || "";
 
-function loadKeypair() {
-  if (process.env.STELLAR_AGENT_SECRET) {
-    return Keypair.fromSecret(process.env.STELLAR_AGENT_SECRET);
+/**
+ * Resolve the payout address. Returns a public key (G...) — never a secret.
+ *
+ * Preferred: STELLAR_AGENT_PUBKEY. The agent signs nothing locally, so a secret
+ * buys you no capability here; it only creates an exposure. If a legacy
+ * STELLAR_AGENT_SECRET is set we derive the public key from it and discard the
+ * rest. With neither set, we refuse to invent an address: a generated keypair
+ * would earn real mainnet XLM into a key that exists only in this process.
+ */
+function loadPublicKey() {
+  const pubkey = (process.env.STELLAR_AGENT_PUBKEY || "").trim();
+  if (pubkey) {
+    // Validate the full strkey, checksum included — a typo'd address that only
+    // *looks* like a G-address would silently send your payouts nowhere.
+    try {
+      Keypair.fromPublicKey(pubkey);
+    } catch {
+      throw new Error(`STELLAR_AGENT_PUBKEY is not a valid Stellar public key: ${pubkey}`);
+    }
+    return pubkey;
   }
-  const kp = Keypair.random();
-  console.log("[agent] generated ephemeral Stellar identity:", kp.publicKey());
-  console.log("[agent] set STELLAR_AGENT_SECRET to persist it (and receive payouts):", kp.secret());
-  return kp;
+
+  const secret = (process.env.STELLAR_AGENT_SECRET || "").trim();
+  if (secret) {
+    console.warn(
+      "[agent] STELLAR_AGENT_SECRET is deprecated — this agent never signs locally.\n" +
+        "[agent] Set STELLAR_AGENT_PUBKEY to your G... address instead and keep the secret offline."
+    );
+    return Keypair.fromSecret(secret).publicKey();
+  }
+
+  throw new Error(
+    "Set STELLAR_AGENT_PUBKEY to the Stellar address (G...) that should receive payouts.\n" +
+      "Generate one you control with:  stellar keys generate my-agent --network mainnet\n" +
+      "Only the public key belongs in this process."
+  );
 }
 
 async function api(path, opts = {}) {
@@ -86,8 +121,7 @@ async function solve(task) {
 async function main() {
   let apiKey = process.env.COGLADIUS_API_KEY;
   if (!apiKey) {
-    const kp = loadKeypair();
-    apiKey = await register(kp.publicKey());
+    apiKey = await register(loadPublicKey());
   }
   console.log("[agent] ready — polling for tasks every", POLL_MS / 1000, "s");
 

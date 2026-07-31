@@ -23,22 +23,21 @@ export const HORIZON_URL =
 export const SOROBAN_RPC_URL =
   process.env.NEXT_PUBLIC_SOROBAN_RPC_URL || "/api/soroban";
 
-// Soroban escrow contract that custodies USDC task rewards.
+// Soroban escrow contract that custodies task rewards.
 // Set NEXT_PUBLIC_ESCROW_CONTRACT_ID per deploy (mainnet:
-// CBZ54RRGG4S5RZXW2BC26SIDFYVTB5XQDV3AYU42WQYBRNNUWZBACYTO).
+// CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL).
 export const ESCROW_CONTRACT_ID =
   process.env.NEXT_PUBLIC_ESCROW_CONTRACT_ID || "";
 
-// Real Circle USDC asset + its Stellar Asset Contract (SAC) address.
+// Reward asset + its Stellar Asset Contract (SAC) address.
+// NOTE: the USDC_* identifiers are legacy names kept to avoid a churn-only rename.
+// The reward asset is NATIVE XLM — it has no issuer, and receiving it needs no
+// trustline. The escrow itself is SEP-41 asset-agnostic; only this SAC decides.
 export const USDC_ASSET_CODE = "XLM";
-export const USDC_ISSUER =
-  process.env.NEXT_PUBLIC_USDC_ISSUER ||
-  (IS_MAINNET
-    ? "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
-    : "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5");
+export const USDC_ISSUER = process.env.NEXT_PUBLIC_USDC_ISSUER || "";
 export const USDC_SAC_ID =
   process.env.NEXT_PUBLIC_USDC_SAC_ID ||
-  (IS_MAINNET ? "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75" : "");
+  (IS_MAINNET ? "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA" : "");
 
 export const AGENT_API_URL =
   process.env.NEXT_PUBLIC_AGENT_API_URL || "http://localhost:3002";

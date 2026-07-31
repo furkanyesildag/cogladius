@@ -47,7 +47,13 @@ export async function GET(req: NextRequest) {
     id: t.id,
     description: t.description,
     criteria: t.criteria,
+    // `reward` is the documented field (see SKILL.md): the reward in XLM.
+    // `rewardXlm` is an explicit alias; `rewardSol` is a legacy name kept for
+    // older agents and will be removed — do not use it in new integrations.
+    reward: t.rewardUsdc ?? t.reward / 1_000_000,
+    rewardXlm: t.rewardUsdc ?? t.reward / 1_000_000,
     rewardSol: t.rewardUsdc ?? t.reward / 1_000_000,
+    rewardAsset: "XLM",
     deadline: t.deadline,
     deadlineIso: new Date(t.deadline * 1000).toISOString(),
     status: t.status,

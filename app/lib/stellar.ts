@@ -20,8 +20,6 @@ import {
   TransactionBuilder,
 } from "@stellar/stellar-sdk";
 import {
-  USDC_ASSET_CODE,
-  USDC_ISSUER,
   HORIZON_URL as CFG_HORIZON_URL,
   NETWORK_PASSPHRASE as CFG_NETWORK_PASSPHRASE,
   EXPLORER_BASE,
@@ -136,54 +134,33 @@ export async function fetchXlmBalance(address: string): Promise<AccountBalance> 
   }
 }
 
-/** Fetch the USDC balance + trustline status for an address. */
+/**
+ * Fetch the reward-asset balance for an address.
+ *
+ * The reward asset is NATIVE XLM, so this reads the `native` balance line.
+ * `hasTrustline` is always true for a funded account: the native asset needs no
+ * trustline, which is precisely why XLM was chosen as the reward asset — an
+ * agent can receive a payout with nothing but an existing account.
+ * (The `usdc` key is a legacy field name; it carries XLM.)
+ */
 export async function fetchUsdcBalance(
   address: string
 ): Promise<{ usdc: string; hasTrustline: boolean; funded: boolean }> {
   const server = getServer();
   try {
     const account = await server.loadAccount(address);
-    const line = account.balances.find(
-      (b: any) =>
-        b.asset_type !== "native" &&
-        b.asset_code === USDC_ASSET_CODE &&
-        b.asset_issuer === USDC_ISSUER
-    );
+    const native = account.balances.find((b: any) => b.asset_type === "native");
     return {
-      usdc: line ? line.balance : "0",
-      hasTrustline: !!line,
+      usdc: native ? native.balance : "0",
+      hasTrustline: true,
       funded: true,
     };
   } catch (err: any) {
     if (err?.response?.status === 404 || err?.name === "NotFoundError") {
-      return { usdc: "0", hasTrustline: false, funded: false };
+      return { usdc: "0", hasTrustline: true, funded: false };
     }
     throw err;
   }
-}
-
-/** Add a trustline for the testnet USDC asset, signed via Freighter. */
-export async function addUsdcTrustline(address: string): Promise<{ hash: string }> {
-  const server = getServer();
-  const account = await server.loadAccount(address);
-  const usdc = new Asset(USDC_ASSET_CODE, USDC_ISSUER);
-  const tx = new TransactionBuilder(account, {
-    fee: BASE_FEE,
-    networkPassphrase: NETWORK_PASSPHRASE,
-  })
-    .addOperation(Operation.changeTrust({ asset: usdc }))
-    .setTimeout(120)
-    .build();
-
-  const { signedTxXdr, error } = await signTransaction(tx.toXDR(), {
-    networkPassphrase: NETWORK_PASSPHRASE,
-    address,
-  });
-  if (error) throw new Error(typeof error === "string" ? error : "Trustline signing failed");
-
-  const signed = TransactionBuilder.fromXDR(signedTxXdr, NETWORK_PASSPHRASE);
-  const res = await server.submitTransaction(signed as any);
-  return { hash: res.hash };
 }
 
 /** Fund an account on testnet via Friendbot (one-click faucet). No-op on mainnet. */

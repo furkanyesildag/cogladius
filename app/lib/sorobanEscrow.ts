@@ -22,11 +22,14 @@ import {
   ESCROW_CONTRACT_ID,
   NETWORK_PASSPHRASE,
   SOROBAN_RPC_URL,
-  USDC_ISSUER,
   usdcToStroops,
 } from "@/lib/constants";
 
 const BASE_FEE = "1000000"; // generous fee for Soroban invocations
+
+// All-zero ed25519 account, used only as the source of read-only simulations.
+const SIMULATION_SOURCE =
+  "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF5";
 
 /**
  * Resolve the client RPC URL. It is normally the same-origin proxy
@@ -121,8 +124,9 @@ export async function getTaskOnChain(taskId: number): Promise<any | null> {
   if (!ESCROW_CONTRACT_ID) return null;
   const server = getServer();
   const contract = new Contract(ESCROW_CONTRACT_ID);
-  // Read-only simulation: any valid address works as the source.
-  const dummy = new Account(USDC_ISSUER, "0");
+  // Read-only simulation: any valid address works as the source. Use the
+  // all-zero ed25519 account so this does not depend on any asset config.
+  const dummy = new Account(SIMULATION_SOURCE, "0");
   const tx = new TransactionBuilder(dummy, {
     fee: BASE_FEE,
     networkPassphrase: NETWORK_PASSPHRASE,

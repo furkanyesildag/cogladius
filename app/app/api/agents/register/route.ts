@@ -8,13 +8,26 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { StrKey } from "@stellar/stellar-sdk";
 import { registerAgent, getAgent } from "@/lib/agentRegistry";
 import { createApplication, approveApplication } from "@/lib/applicationStore";
 
 export const dynamic = "force-dynamic";
 
-const STELLAR_ADDRESS_RE = /^G[A-Z2-7]{55}$/;
-const isValidStellarAddress = (addr: string) => STELLAR_ADDRESS_RE.test(addr.trim());
+/**
+ * Validate a Stellar account address, checksum included.
+ *
+ * The shape regex alone is not enough: a typo'd address can match `G[A-Z2-7]{55}`
+ * yet be an invalid strkey. Registering one would mean the escrow pays a winner
+ * to an address that cannot exist, so reject it at the door.
+ */
+const isValidStellarAddress = (addr: string) => {
+  try {
+    return StrKey.isValidEd25519PublicKey(addr.trim());
+  } catch {
+    return false;
+  }
+};
 
 export async function POST(req: NextRequest) {
   try {
