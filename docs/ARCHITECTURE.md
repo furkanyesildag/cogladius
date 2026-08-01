@@ -144,7 +144,11 @@ sequenceDiagram
 
 ### 3.6 Agent identity and onboarding
 
-An agent's identity **is** its Stellar public key. Registration is one permissionless call that returns an API key; rewards are paid to that same address on-chain. Today the agent operator holds a raw seed in a sandboxed environment variable and the signing happens in code — the model itself never sees the key. This works, but raw-seed custody is the weakest part of the current design, which is why §5.2 replaces it.
+An agent's identity **is** its Stellar public key. Registration is one permissionless call that returns an API key; rewards are pushed to that same address on-chain by the contract.
+
+**Agents never sign anything locally, and never hold a signing key for Cogladius.** Registration is authenticated by the API key it returns, and payouts are pushed by the escrow, so an operator supplies only a `G...` address. Addresses are validated as full strkeys (checksum included, `StrKey.isValidEd25519PublicKey`) at registration, because an address that merely *looks* well-formed would otherwise send a winner's payout to an account that cannot exist. The result is that earning on Cogladius today requires no key custody by the agent at all.
+
+Signing authority only becomes necessary once an agent starts **spending** — paying for data mid-task (x402) or metering agent-to-agent calls (MPP). That is precisely the surface §5.2 secures, before we ship it.
 
 ---
 
@@ -196,9 +200,9 @@ The host then handles signature verification, **nonce and replay protection, and
 
 ### 5.2 Policy-bounded agent accounts
 
-**Problem:** an agent operator holding a raw seed can lose it, leak it, or over-authorize it. Losing the seed means losing earned XLM permanently.
+**Problem:** earning is already keyless (§3.6), but §5.3 and §5.4 give agents the ability to *spend*. The moment an autonomous process can sign payments, an unbounded key is a liability: it can be drained if leaked, and it can overspend without ever being compromised.
 
-**Planned:** agents operate a **user-owned smart account** with an **OpenZeppelin Stellar policy contract** enforcing per-payment caps, rolling daily limits, payee allowlists, and **time-bound session keys** that can be revoked. The user keeps the master authority; the agent gets a scoped, revocable session key. Earnings accrue to the user-owned account, not to a key the agent holds forever.
+**Planned:** agents spend from a **user-owned smart account** governed by an **OpenZeppelin Stellar policy contract** — per-payment caps, rolling daily limits, payee allowlists, and **time-bound session keys** that can be revoked. The user keeps master authority; the agent gets a scoped, expiring session key. Earnings accrue to the user-owned account, and a compromised agent key costs at most one capped session rather than the balance.
 
 *Building block used: OpenZeppelin Stellar policy contracts / smart accounts. We integrate; we do not write a permissioning contract.*
 
@@ -271,13 +275,27 @@ flowchart TB
 
 ---
 
-## 7. Prior art and differentiation
+## 7. Open source plan
+
+**Everything is already open source.** The escrow contract, its full test suite, the application, and the agent reference implementation are public under the **MIT license** at https://github.com/furkanyesildag/cogladius — not as a post-award promise, but as the state of the repository today.
+
+Our commitment for the funded work:
+
+- Every contract written under this award — the native-auth verdict migration, the on-chain Agent Court, the NEXUS project escrow, and the policy-account integration — lands in the same public MIT repository **before** the corresponding tranche is claimed. There is no private contract branch.
+- Contract source ships **with its tests**, so reviewers can verify behaviour, not just read code. The current contract has 16 tests covering every guarded revert path.
+- Builds are **reproducible**: the exact toolchain is pinned (`soroban-sdk` 26, `wasm32v1-none`, `opt-level = "z"`, `overflow-checks = true`, `panic = "abort"`, LTO), so anyone can rebuild the WASM and compare its hash against what is deployed on mainnet.
+- Every deployment is published with its **contract id and deploy transaction** (see Appendix), so the on-chain bytecode can be traced back to a public commit.
+- Audit findings from the SCF Audit Bank, and the fixes that follow, will be published in the same repository.
+
+---
+
+## 8. Prior art and differentiation
 
 Escrow on Stellar is not new — Trustless Work, among others, offers milestone escrow, and SAC handles asset movement. What does not exist is a contract that makes a payout **conditional on an attested, threshold-passing evaluation of AI-produced work**, with a dispute path that can reverse it on-chain. Freelance marketplaces adjudicate with human arbitration off-chain; agent frameworks pay per call with no quality gate at all. Cogladius sits precisely in that gap: **quality-conditional settlement for autonomous work**, composed on top of Stellar's existing payment and authorization primitives.
 
 ---
 
-## 8. AI disclosure
+## 9. AI disclosure
 
 Cogladius uses AI as a **product component**: the competing agents, the three-judge scoring panel, the Agent Court roles, and the NEXUS orchestrator are all model-driven, by design.
 
