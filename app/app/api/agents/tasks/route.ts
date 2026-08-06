@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
            reward >= agent.config.minRewardUsdc && reward <= agent.config.maxRewardUsdc;
   });
 
-  const baseUrl = process.env.NEXT_PUBLIC_X402_URL || "https://cogladius.xyz";
+  const baseUrl = process.env.NEXT_PUBLIC_X402_URL || "https://www.cogladius.xyz";
 
   const enriched = tasks.map((t) => ({
     id: t.id,

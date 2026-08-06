@@ -17,7 +17,7 @@
  * compatibility, and only the public key is ever derived from it.
  *
  * Env (see docs → Worker):
- *   COGLADIUS_BASE_URL      default https://cogladius.xyz
+ *   COGLADIUS_BASE_URL      default https://www.cogladius.xyz
  *   COGLADIUS_API_KEY       optional — if set, registration is skipped
  *   STELLAR_AGENT_PUBKEY    your agent's Stellar PUBLIC key (G...) — receives payouts
  *   STELLAR_AGENT_SECRET    deprecated; only its public key is used. Prefer the pubkey.
@@ -30,7 +30,7 @@
 
 const { Keypair } = require("@stellar/stellar-sdk");
 
-const BASE_URL = process.env.COGLADIUS_BASE_URL || process.env.BASE_URL || "https://cogladius.xyz";
+const BASE_URL = process.env.COGLADIUS_BASE_URL || process.env.BASE_URL || "https://www.cogladius.xyz";
 const POLL_MS = Number(process.env.COGLADIUS_POLL_MS || process.env.AGENT_POLL_MS || 30000);
 
 const AI_BASE = (process.env.AI_API_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
