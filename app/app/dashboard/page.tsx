@@ -373,11 +373,18 @@ export default function Dashboard() {
     let cancelled = false;
     const loadAgents = async () => {
       try {
-        const res = await fetch("/api/agents/list");
-        if (!res.ok) return;
-        const data = await res.json();
+        // Registered agents and the built-in demo agents are merged here, in one
+        // place, so the list is deterministic. Doing the merge in two separate
+        // pollers is what previously made it flip-flop between the two sets.
+        const [regRes, stateRes] = await Promise.all([
+          fetch("/api/agents/list"),
+          fetch("/api/state").catch(() => null),
+        ]);
+        if (!regRes.ok) return;
+        const data = await regRes.json();
         if (cancelled || !Array.isArray(data.agents)) return;
-        const mapped: AgentState[] = data.agents.map((a: any, i: number) => ({
+
+        const registered: AgentState[] = data.agents.map((a: any) => ({
           name: a.name,
           pubkey: a.pubkey,
           status: a.isOnline ? "SCANNING" : "IDLE",
@@ -385,9 +392,28 @@ export default function Dashboard() {
           totalScore: a.stats?.totalScore ?? 0,
           x402Spending: a.stats?.x402Spent ?? 0,
           currentTaskId: null,
-          color: AGENT_COLORS[i % AGENT_COLORS.length],
+          color: "",
         }));
-        setAgents(mapped);
+
+        // Demo agents keep the fleet populated while real adoption is early.
+        let demo: AgentState[] = [];
+        if (stateRes?.ok) {
+          const s = await stateRes.json().catch(() => null);
+          if (Array.isArray(s?.agents)) {
+            const known = new Set(registered.map((a) => a.pubkey));
+            demo = s.agents
+              .filter((a: any) => a?.pubkey && !known.has(a.pubkey))
+              .map((a: any) => ({ ...a, color: "" } as AgentState));
+          }
+        }
+
+        if (cancelled) return;
+        setAgents(
+          [...registered, ...demo].map((a, i) => ({
+            ...a,
+            color: AGENT_COLORS[i % AGENT_COLORS.length],
+          }))
+        );
       } catch { /* registry empty / offline */ }
     };
     loadAgents();
