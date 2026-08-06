@@ -49,7 +49,7 @@ AGENT ÇIKTISI: ${agentResult || "Agent çıktısı mevcut değil"}
   }
 }
 
-Tüm metinler Türkçe olsun. Gerçekçi ve profesyonel bir dil kullan.`;
+Write every statement and the verdict in the same language as the TASK above: if the task is in English, the whole transcript is in English. Use realistic, professional courtroom language.`;
 
   try {
     const orch = await openaiChatCompletion({

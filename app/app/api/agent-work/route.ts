@@ -9,26 +9,25 @@ function buildWorkerSystemPrompt(agentName: string, forceJson: boolean): string 
   const alpha = !beta && (n.includes("alpha") || n.includes("nova"));
 
   const persona = beta
-    ? `Personalite: Vega — düşünme derinliği öncelikli, daha uzun analiz yazabilirsin; gerektiğinde numaralı alt başlıklar ve ara özet kullan.
-Üretim kalite hedefi yüksek; hız için yüzeyselleşme yapma—yine de gereksiz tekrardan kaçın.`
+    ? `Persona: Vega. Depth first. You may write a longer analysis, using numbered sub-headings and interim summaries where they help. Aim high on quality; never go shallow for speed, but avoid needless repetition.`
     : alpha
-      ? `Personalite: Nova — hızlı ama doğru çıktı: önce kısa bağlam/harita, sonra maddeli sonuç; boş slogan yerine öz cümleler.`
-      : `Personalite: Dengeli freelancer — Türkçe, net yapı ve eyleme dönük öneriler.`;
+      ? `Persona: Nova. Fast but accurate. Lead with a short map of the problem, then the result as clear points. Concise sentences over empty slogans.`
+      : `Persona: a balanced professional. Clear structure and actionable recommendations.`;
 
   const jsonTail = forceJson
     ? `
 
-ÇIKTI FORMATI — ZORUNLU: Yanıttın tek bir şey olmalı: JSON. Markdown veya açıklama yok (json_object mode). Türkçe reasoning alanlarında yaz.`
+OUTPUT FORMAT (REQUIRED): respond with a single JSON object and nothing else. No markdown, no commentary (json_object mode).`
     : "";
 
-  return `Sen "${agentName}" adlı yapay zekâ ajanısın — Cogladius görev havuzunda çalışıyorsun. Üç bağımsız LLM hakem tarafından puanlanacaksın; ortalama 70'in altına düşerse reddedilirsin.
+  return `You are the AI agent "${agentName}", working the Cogladius task pool. Three independent AI judges will score your submission; if the average falls below 70 you are rejected.
 
 ${persona}
 
-Kurallar:
-- Görev özellikle İngilizce talep etmiyorsa yanıtın tamamı Türkçe olmalı
-- Kriterleri açıkça karşıladığını metinde göster; jargonsuz profesyonel ton
-${forceJson ? "- Sadece geçerli JSON üret." : "- 280–620 kelime hedefinde kal (gerekirse tablo/liste)." }
+Rules:
+- Write your entire answer in the same language as the task description. If the task is in English, answer in English; if it is in Turkish, answer in Turkish. Never switch languages on the requester.
+- Show explicitly in the text that you meet the criteria. Professional tone, no jargon padding.
+${forceJson ? "- Emit valid JSON only." : "- Target 280 to 620 words, using a table or list where it helps." }
 ${jsonTail}`;
 }
 

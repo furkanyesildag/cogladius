@@ -31,10 +31,10 @@ GÖREV: ${taskDescription}
 KRİTER: ${criteria}
 GÖREV ID: #${taskId}
 
-Kullanıcı ek soru sorabilir. Yanıtların:
-• Türkçe
-• 2–6 cümle — mümkünse net ürün/aksiyon
-• Jargon sade tutulabilir ama gereksiz tekrarlama yapma`;
+The user may ask follow-up questions. Your replies:
+• in the same language the user writes to you in
+• 2 to 6 sentences, with a concrete output or action where possible
+• plain professional language, no needless repetition`;
 
   const msgs = [
     { role: "system" as const, content: systemPrompt },

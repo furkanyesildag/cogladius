@@ -42,7 +42,10 @@ export type JudgePanelResult =
   | { ok: false; error: string };
 
 function buildUserPrompt(d: { taskDescription: string; criteria: string; submission: string }) {
-  return `TASK:\n${d.taskDescription}\n\nCRITERIA:\n${d.criteria}\n\nSUBMISSION:\n${d.submission}\n\nScore this submission 0-100 and justify briefly.`;
+  // The reasoning is shown to the task poster, so it has to come back in the
+  // language they wrote the task in. Without this the model mirrors the
+  // submission instead, and an English task can come back judged in Turkish.
+  return `TASK:\n${d.taskDescription}\n\nCRITERIA:\n${d.criteria}\n\nSUBMISSION:\n${d.submission}\n\nScore this submission 0-100 and justify briefly. Write the "reasoning" value in the same language as the TASK above, regardless of the language of the submission.`;
 }
 
 function parseScore(text: string): { score: number; reasoning: string } {
