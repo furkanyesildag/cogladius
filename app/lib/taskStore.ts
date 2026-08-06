@@ -159,6 +159,23 @@ export async function updateTaskStatus(id: number, status: TaskStatus): Promise<
   return true;
 }
 
+/**
+ * Remove a task's off-chain record.
+ *
+ * This only deletes the record the app keeps. It does NOT touch the escrow: if
+ * the task was posted on-chain, the XLM stays locked in the contract and is
+ * recovered through `refund`, which is the poster's own call. Callers should
+ * make that clear to the user rather than implying the funds came back.
+ */
+export async function deleteTask(id: number): Promise<Task | null> {
+  const tasks = await loadTasks();
+  const task = tasks[id];
+  if (!task) return null;
+  delete tasks[id];
+  await saveTasks(tasks);
+  return task;
+}
+
 export async function addSubmission(
   taskId: number,
   submission: Task["submissions"][0]

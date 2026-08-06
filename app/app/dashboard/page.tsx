@@ -361,10 +361,29 @@ export default function Dashboard() {
     window.addEventListener("mouseup", onUp);
   }
 
-  function deleteTask(id: number) {
+  async function deleteTask(id: number) {
+    // Drop it locally first so the UI responds immediately, then delete the
+    // record server-side. Without the server call the task simply reappeared on
+    // the next poll, which is what made "delete" look broken.
+    const previous = tasks;
     setTasks((p) => p.filter((t) => t.id !== id));
     if (selectedTask?.id === id) setSelectedTask(null);
     setDeleteConfirm(null);
+    try {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ poster: publicKey || "" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.success) {
+        setTasks(previous); // server refused: put it back rather than lie
+        alert(data?.error || "Task could not be deleted.");
+      }
+    } catch {
+      setTasks(previous);
+      alert("Task could not be deleted.");
+    }
   }
 
   // Load real registered agents from the registry (no demo data). The feed
