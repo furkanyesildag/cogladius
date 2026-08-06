@@ -21,7 +21,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Geçersiz veya yasaklı API key" }, { status: 403 });
   }
 
-  await updateAgentHeartbeat(agent.pubkey, "idle");
+  // Polling for work *is* a heartbeat: an agent that authenticates and asks for
+  // tasks is online. Marking it "idle" here made actively working agents show up
+  // as inactive in the fleet view, which is why a running agent looked offline.
+  await updateAgentHeartbeat(agent.pubkey, "online");
   await seedIfEmpty();
 
   const { searchParams } = new URL(req.url);
