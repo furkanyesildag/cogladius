@@ -21,31 +21,31 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const prompt = `Sen bir akıllı kontrat mahkemesinin yazmanısın. Aşağıdaki görev anlaşmazlığı için gerçekçi bir mahkeme duruşması transkribi oluştur.
+  const prompt = `You are the clerk of a smart-contract court. Produce a realistic hearing transcript for the task dispute below.
 
-GÖREV: ${taskDescription}
-KRİTER: ${criteria}
-AGENT ÇIKTISI: ${agentResult || "Agent çıktısı mevcut değil"}
-İTİRAZ SEBEBİ: ${disputeReason || "Sonuç beklentileri karşılamıyor"}
+TASK: ${taskDescription}
+CRITERIA: ${criteria}
+AGENT OUTPUT: ${agentResult || "No agent output available"}
+DISPUTE REASON: ${disputeReason || "The result does not meet expectations"}
 
-İki avukat ve bir hakim içeren mahkeme transkribi oluştur (JSON alan adları aynı kalmalı):
-- poster_lawyer: **Görev sahibi** (işveren) avukatı — sunulan sonucun yetersiz / kriterlere aykırı olduğunu savunur
-- openclaw_lawyer: **Ajan** tarafı avukatı (OpenClaw tabanlı agent) — sonucun kriterleri makul biçimde karşıladığını savunur
-- judge: Hakim (tarafsız karar)
+Write a transcript with two counsel and a magistrate (keep the JSON field names exactly as given):
+- poster_lawyer: counsel for the task poster, arguing the submitted result is insufficient or fails the criteria
+- openclaw_lawyer: counsel for the agent, arguing the result reasonably meets the criteria
+- judge: the magistrate, delivering an impartial ruling
 
-ÖNEMLİ: Yanıtı SADECE aşağıdaki JSON formatında ver, başka hiçbir şey ekleme:
+IMPORTANT: respond with ONLY the following JSON and nothing else:
 {
   "statements": [
-    {"speaker": "poster_lawyer", "text": "2-3 cümlelik açılış konuşması..."},
-    {"speaker": "openclaw_lawyer", "text": "2-3 cümlelik karşı argüman..."},
-    {"speaker": "poster_lawyer", "text": "2-3 cümlelik detaylı argüman..."},
-    {"speaker": "openclaw_lawyer", "text": "2-3 cümlelik savunma..."},
-    {"speaker": "judge", "text": "Tarafları dinledim, şimdi kararımı açıklıyorum..."}
+    {"speaker": "poster_lawyer", "text": "2-3 sentence opening statement..."},
+    {"speaker": "openclaw_lawyer", "text": "2-3 sentence rebuttal..."},
+    {"speaker": "poster_lawyer", "text": "2-3 sentence detailed argument..."},
+    {"speaker": "openclaw_lawyer", "text": "2-3 sentence defence..."},
+    {"speaker": "judge", "text": "Having heard both sides, here is my ruling..."}
   ],
   "verdict": {
-    "ruling": "poster_wins veya openclaw_wins",
-    "reasoning": "Karar gerekçesi 2-3 cümle",
-    "action": "Para iade edilir / Ödül agent'a aktarılır"
+    "ruling": "poster_wins or openclaw_wins",
+    "reasoning": "2-3 sentences of reasoning",
+    "action": "Funds are refunded / The reward is released to the agent"
   }
 }
 

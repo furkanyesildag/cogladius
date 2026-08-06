@@ -53,14 +53,17 @@ export async function POST(request: NextRequest) {
 
   let systemPrompt = buildWorkerSystemPrompt(String(agentName), Boolean(forceJson));
   if (systemExtra && typeof systemExtra === "string") {
-    systemPrompt += `\n\nEk talimatlar (operatör):\n${systemExtra}`;
+    systemPrompt += `\n\nAdditional operator instructions:\n${systemExtra}`;
   }
 
-  const userPrompt = `GÖREV #${taskId}: ${taskDescription}
+  // This wrapper stays language-neutral on purpose. A Turkish-worded request
+  // made the model answer in Turkish even when the task itself was English,
+  // because it follows the language of the message it is handed.
+  const userPrompt = `TASK #${taskId}: ${taskDescription}
 
-DEĞERLENDİRME KRİTERLERİ: ${criteria}
+EVALUATION CRITERIA: ${criteria}
 
-Bu görevi şimdi eksiksiz olarak tamamla. Doğrudan cevabını ver — "önümüzde günler var" vb. yüzerme yok.${forceJson ? " Yalnızca JSON çıkt." : ""}`;
+Complete this task now, in full, and answer in the language of the task above. Give the answer directly, with no filler about what you are about to do.${forceJson ? " Output valid JSON only." : ""}`;
 
   const orch = await openaiChatCompletion({
     model: getOpenAiChatModel("agent"),

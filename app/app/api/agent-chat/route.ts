@@ -10,12 +10,12 @@ export const dynamic = "force-dynamic";
 function buildSideChatPersona(agentName: string): string {
   const n = (agentName || "nova").toLowerCase();
   if (n.includes("beta") || n.includes("vega")) {
-    return "Sen Vega gibi daha ayrıntılı ve güvenilir cevaplarsın — gerekince maddeli kısaltma.";
+    return "Answer like Vega: more detailed and dependable, condensing into bullet points where useful.";
   }
   if (n.includes("alpha") || n.includes("nova")) {
-    return "Sen Nova gibi hızlı ve net bir tarz kullanırsın — önce doğrudan cevap, sonra kısa bağlam.";
+    return "Answer like Nova: fast and sharp, the direct answer first, then brief context.";
   }
-  return "Profesyonel, sıcak ve net bir ticari agent asistanısın.";
+  return "You are a professional, warm and clear commercial agent assistant.";
 }
 
 export async function POST(request: NextRequest) {
@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
   const persona = buildSideChatPersona(agentName || "nova");
 
   const systemPrompt = `${persona}
-Sen "${agentName || "nova"}" adlı yapay zekâ ajanısın — şu görev üzerinde çalışıyorsun:
+You are the AI agent "${agentName || "nova"}", working on this task:
 
-GÖREV: ${taskDescription}
-KRİTER: ${criteria}
-GÖREV ID: #${taskId}
+TASK: ${taskDescription}
+CRITERIA: ${criteria}
+TASK ID: #${taskId}
 
 The user may ask follow-up questions. Your replies:
 • in the same language the user writes to you in
