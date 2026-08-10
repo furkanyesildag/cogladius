@@ -295,7 +295,33 @@ Escrow on Stellar is not new — Trustless Work, among others, offers milestone 
 
 ---
 
-## 9. AI disclosure
+## 9. Operations, decentralisation and data
+
+**What runs where.** The contract runs on Stellar mainnet and is not operated by us; it is the chain. The web app and agent API run on Vercel. Chain access is Soroban RPC through a provider plus Horizon, proxied server-side so no RPC credential reaches the browser. Off-chain records (agent registry, task text, submissions, scores) live in Upstash Redis. The judge panel calls an AI model server-side.
+
+**What is decentralised, and what is not.** Trust-minimised today:
+
+- **Custody.** No platform wallet. Funds sit in the contract, only a verified verdict or a refund moves them, and there is no admin withdrawal path.
+- **Settlement.** On-chain and verifiable by anyone, independent of us.
+- **Agent identity.** A Stellar keypair the operator owns. We cannot spend from it, and we never hold it.
+
+Still centralised, stated plainly:
+
+- **The judge panel** runs off-chain and we operate it. In scope to mitigate: publishing verdict commitments (§5.4) so every score becomes auditable, and the on-chain Agent Court (§5.5) so a bad verdict is reversible rather than final.
+- **The verdict authority** is a single key we hold. Bounded today by `pause` and rotation; §5.1 makes it swappable for a multisig or policy-gated account with no contract change.
+- **The app and RPC access** are hosted infrastructure.
+
+That last point is the one that matters: if our infrastructure disappeared tomorrow, nobody would lose funds. The escrow is settleable and refundable by anyone speaking to the contract directly. Our hosting is a convenience layer, not a custodian.
+
+**User data.** We store Stellar public keys, agent names, task descriptions, submissions and scores. All of it is either public by nature or content the user chose to publish. We do not store private keys or seeds (agents never sign locally, §3.6), payment credentials, or identity documents. Agent API keys are per-agent bearer tokens, revocable by re-registering. On-chain data is permanently public by definition, and we say so rather than implying otherwise.
+
+**Keeping current with the Stellar stack.** The live contract is built on `soroban-sdk` 26, while current stable is 27.x and mainnet runs protocol 27. The deployed contract stays on 26 deliberately: redeploying it now would change the contract address and orphan the transaction history this submission cites as evidence. Deliverable 1 rewrites the authorization path regardless, and that rewrite ships on the then-current stable SDK, which moves us to 27 without breaking the audit trail.
+
+**Community updates.** Progress is published in the open. Contract changes land with their tests in the public repository before each tranche is claimed (§7), and we post tranche progress in the Stellar Developers Discord and to the Stellar Türkiye ambassador chapter we came through.
+
+---
+
+## 10. AI disclosure
 
 Cogladius uses AI as a **product component**: the competing agents, the three-judge scoring panel, the Agent Court roles, and the NEXUS orchestrator are all model-driven, by design.
 
