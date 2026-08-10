@@ -47,15 +47,33 @@
 
 ## On-chain proof (mainnet)
 
-A full task lifecycle executed on Stellar **mainnet**, independently verifiable. These transactions ran against the **earlier USDC deployment** (`CBZ54RRG…CYTO`), before the reward asset was switched to native XLM; the contract logic they exercise is byte-for-byte the same code now running on `CAC5EDF7…K75PL` — only the SAC address in `__constructor` changed.
+A full task lifecycle executed on the **live XLM escrow** (`CAC5EDF7…K75PL`) on Stellar **mainnet**, with **real XLM**, independently verifiable:
 
 | Step | Transaction | What it shows |
 |---|---|---|
-| `post_task` | [`4e2054c5…4fe6d`](https://stellar.expert/explorer/public/tx/4e2054c5aed47cc0fb48c156eb6bcf0d26034809bccd10053a85d651e084fe6d) | 0.2 units of the reward asset locked from the poster into the escrow contract via the SAC |
-| `release_to_winner` | [`b8a11114…bb1099`](https://stellar.expert/explorer/public/tx/b8a11114ab65ff5b6385809dd4630c9d749d85236130df5991a6417a49bb1099) | Verdict ed25519 signature verified on-chain; reward paid to the winner (a forged signature was rejected with `Crypto/InvalidInput`) |
-| `refund` | [`6c71170a…a6ae9a`](https://stellar.expert/explorer/public/tx/6c71170a65fab89a7f61603a45b99e75f7eeb863b360b2d6e782670980a6ae9a) | Reward returned to the poster on cancel |
+| `post_task` | [`faef88b8…33c87c`](https://stellar.expert/explorer/public/tx/faef88b8eea647a1c204013aac29ae2fea61b74ffa5ce079f026cef5df33c87c) | 1 XLM locked from the poster into the escrow contract via the native SAC |
+| `release_to_winner` | [`7a67b7e5…16c6a7`](https://stellar.expert/explorer/public/tx/7a67b7e5963518e7c5c0b07b040e04e28855af09a5a544cb5b8a00bf0716c6a7) | Verdict ed25519 signature verified on-chain; exactly 1 XLM paid to the winner |
+| `post_task` | [`26f583b3…a315ac`](https://stellar.expert/explorer/public/tx/26f583b3351c87c86cdce877234466845f0e9270c610a5eb79987b6f6a315ac7) | A second task funded, to exercise the cancel path |
+| `refund` | [`6721bd79…23cc76`](https://stellar.expert/explorer/public/tx/6721bd7907f8e47f4adf74705cf2ca8c26649cd4bbcaa6ae069707c04223cc76) | Reward returned to the poster on a poster-authorized cancel |
+
+Before the valid verdict was accepted, the same `release_to_winner` call was attempted with a **forged 64-byte signature** and refused by the contract with `Error(Crypto, InvalidInput)` from `env.crypto().ed25519_verify`. It fails during simulation, so it never reaches the ledger and has no hash.
+
+Balances move exactly as the state machine claims: the winner account went from `9.3649331` to `10.3649331` XLM (`+1.0000000`, no trustline involved since the asset is native), and the escrow's balance returned to its prior figure only after the refund leg completed.
 
 The `release_to_winner` transaction also proves the cross-language verdict scheme: a signature produced in TypeScript ([`app/lib/sorobanServer.ts`](./app/lib/sorobanServer.ts)) is verified inside the Rust contract by `env.crypto().ed25519_verify`.
+
+<details>
+<summary>Earlier proofs on the retired USDC deployment</summary>
+
+These ran against `CBZ54RRG…CYTO` before the reward asset was switched to native XLM. Same contract code, byte-for-byte; only the SAC address passed to `__constructor` differed.
+
+| Step | Transaction |
+|---|---|
+| `post_task` | [`4e2054c5…4fe6d`](https://stellar.expert/explorer/public/tx/4e2054c5aed47cc0fb48c156eb6bcf0d26034809bccd10053a85d651e084fe6d) |
+| `release_to_winner` | [`b8a11114…bb1099`](https://stellar.expert/explorer/public/tx/b8a11114ab65ff5b6385809dd4630c9d749d85236130df5991a6417a49bb1099) |
+| `refund` | [`6c71170a…a6ae9a`](https://stellar.expert/explorer/public/tx/6c71170a65fab89a7f61603a45b99e75f7eeb863b360b2d6e782670980a6ae9a) |
+
+</details>
 
 ## Why Cogladius on Stellar?
 
