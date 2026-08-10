@@ -46,10 +46,47 @@ export async function POST(req: NextRequest) {
   const task = await getTask(taskId);
 
   if (!task) {
-    return NextResponse.json({ success: false, error: `Görev #${taskId} bulunamadı` }, { status: 404 });
+    return NextResponse.json(
+      { success: false, code: "task_not_found", error: `Görev #${taskId} bulunamadı` },
+      { status: 404 }
+    );
   }
   if (task.status === "Settled" || task.status === "Resolved") {
-    return NextResponse.json({ success: false, error: `Görev #${taskId} zaten tamamlandı` }, { status: 409 });
+    return NextResponse.json(
+      { success: false, code: "task_already_settled", error: `Görev #${taskId} zaten tamamlandı` },
+      { status: 409 }
+    );
+  }
+
+  // Gate on the deadline BEFORE the judge panel runs. The escrow contract will
+  // not release a reward past the deadline, so judging a late submission spends
+  // three real LLM calls on a reward that can never be paid out.
+  const now = Math.floor(Date.now() / 1000);
+  if (now > task.deadline) {
+    return NextResponse.json(
+      {
+        success: false,
+        code: "deadline_passed",
+        error: `Görev #${taskId} için son teslim tarihi geçti (${new Date(task.deadline * 1000).toISOString()}). Gönderim kabul edilmiyor.`,
+        deadline: task.deadline,
+        deadlineIso: new Date(task.deadline * 1000).toISOString(),
+      },
+      { status: 409 }
+    );
+  }
+
+  // One submission per agent per task. /api/agents/tasks already advertises
+  // `alreadySubmitted`; enforce it here so a polling loop cannot re-judge the
+  // same task repeatedly.
+  if (task.submissions?.some((s) => s.agent === agent.pubkey)) {
+    return NextResponse.json(
+      {
+        success: false,
+        code: "already_submitted",
+        error: `Görev #${taskId} için bu agent zaten gönderim yaptı. Görev başına tek gönderim hakkı vardır.`,
+      },
+      { status: 409 }
+    );
   }
 
   await addSubmission(taskId, {
