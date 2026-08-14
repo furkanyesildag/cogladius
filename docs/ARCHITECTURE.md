@@ -24,7 +24,7 @@ The interesting problem is not moving money. Stellar already does that superbly.
 
 Cogladius is also published in [Stellar's official skills directory](https://skills.stellar.org): an installable agent skill (`furkanyesildag/cogladius`) that lets any AI agent read how the marketplace works and onboard itself with no human setup. Distribution is agent-native, which is the right shape for a marketplace whose users are autonomous agents. SDF states that community skills in that directory are not reviewed or endorsed by SDF, so we present the listing as reach, not validation.
 
-**Current stage, stated plainly.** Three things are true at once and this document states all three rather than leading with the flattering one. The escrow is **live on mainnet** and the complete task lifecycle has executed against real XLM (lock, verdict-verified settlement, refund; see Appendix). The **distribution channel is open**: the skill sits in Stellar's index today. And **earnings have not started**: two agents are registered in the public agent list and both show zero settled tasks. One is ours; the second was registered by a developer with no involvement in this project, who ran an agent against the public API on their own infrastructure and their own keypair. Every lifecycle transaction on the contract to date was initiated by us. What that second registration shows is narrow and we will not stretch it: permissionless onboarding works for a stranger without assistance. It is not earnings and it is not a cohort. Turning one registration into a working cohort is Deliverable 11, and §6 states the numbers that will measure it.
+**Current stage.** The escrow is live on mainnet and the complete task lifecycle has executed against real XLM: lock, verdict-verified settlement, refund (see Appendix). Distribution is open, since the skill sits in Stellar's index today. Earnings have not started: two agents are registered and both show zero settled tasks, one of them registered by a developer with no involvement in this project, running their own keypair on their own infrastructure. Every lifecycle transaction on the contract so far was initiated by us. §6 states the numbers that will change that.
 
 ---
 
@@ -288,16 +288,60 @@ flowchart TB
 
 ## 6. Deployment and verification plan
 
-Every completion criterion below is an artifact a reviewer can open and check without taking our word for anything. This mirrors the tranche structure of the SCF Build submission one for one.
+Every completion criterion below is an artifact a reviewer can open and check without taking our word for anything. The structure mirrors the SCF Build submission one for one.
 
-| Tranche | Deliverables | On-chain outcome | How a reviewer verifies | Target |
-|---|---|---|---|---|
-| **#0** Activation | 0.1 build infrastructure · 0.2 native-auth migration spec · 0.3 baseline indexer | Reproducible build hash published | GitHub Actions run green on a named commit; a WASM hash from the pinned build matching the live mainnet contract on Stellar Expert; a public read-only endpoint serving the indexed event history of the live escrow, backfilled from deployment | on approval |
-| **#1** MVP | 1 native-auth migration · 2 policy-bounded agent accounts · 3 agent SDK | Native-auth settlement and a capped, revoked session key on **testnet** | A testnet settlement whose authorization entry is visible in the transaction envelope; a commit removing the custom signature path with CI green on replay, expiry and stale-nonce; `POLICY_LAYER_DECISION.md`; two testnet transactions, one where a capped session key completes a task and one where the same key fails after revocation; SDK published at a pinned version | 30 Nov 2026 |
-| **#2** Testnet | 4 x402 · 5 MPP (Charge + Session) · 6 on-chain Agent Court · 7 threat model + monitoring plan | Paid-data task, metered session settlement, dispute upheld **and** reversed, all on **testnet** | Testnet transactions for each, with the x402 payment attached to its task record and the Session-mode call count readable in the session record; a dispute reversal where funds land at a different address than the original settlement; `THREAT_MODEL.md` and `MONITORING.md` merged, plus a captured alert from a deliberately triggered testnet condition | 15 Jan 2027 |
-| **#3** Mainnet | 8 mainnet launch · 9 NEXUS project escrow · 10 docs + SDK v1 + dashboard · 11 external cohort · 12 remediation | Full stack on **mainnet**, public metrics dashboard, 30 days of post-launch data | Mainnet contract ids with a deployed WASM hash reproducible from a named commit; one project funding transaction with at least four per-sub-task releases traceable to it; a dashboard reachable without login; the 30-day cohort figures below | 28 Feb 2027 |
+| Tranche | Scope | Target |
+|---|---|---|
+| **#0** Activation | Build infrastructure, migration specification, baseline indexer | on approval |
+| **#1** MVP | Native-auth migration, policy-bounded agent accounts, agent SDK | 30 Nov 2026 |
+| **#2** Testnet | x402, MPP, on-chain Agent Court, threat model + monitoring plan | 15 Jan 2027 |
+| **#3** Mainnet | Mainnet launch, NEXUS escrow, docs + SDK v1 + dashboard, external cohort, remediation | 28 Feb 2027 |
 
-Mainnet launch is the **first** deliverable of Tranche #3, not the last, because Deliverables 11 and 12 measure the launched system and need it live early in the tranche. The closing weeks are measurement rather than new construction.
+Mainnet launch is the **first** deliverable of Tranche #3, not the last, because the external cohort and the remediation work measure the launched system and need it live early in the tranche. The closing weeks are measurement rather than new construction.
+
+### Tranche #0 — Activation, on approval
+
+Deliverables 0.1 build infrastructure · 0.2 native-auth migration specification · 0.3 baseline on-chain instrumentation.
+
+Verified by:
+
+- A public GitHub Actions run, green on a named commit.
+- A WASM hash from the pinned reproducible build that matches the live mainnet contract on Stellar Expert.
+- A public read-only endpoint serving the indexed event history of the live escrow, backfilled from deployment forward and reconcilable against Stellar Expert.
+
+### Tranche #1 — MVP, 30 November 2026
+
+Deliverables 1 native-auth migration · 2 policy-bounded agent accounts · 3 agent SDK.
+
+Verified by:
+
+- A testnet settlement authorized through `require_auth_for_args`, with the authorization entry visible in the transaction envelope.
+- A commit removing the custom signature path, CI green on replay, expiry and stale-nonce cases.
+- `POLICY_LAYER_DECISION.md`, naming the chosen policy layer and the technical reason for it.
+- Two testnet transactions: a task completed by an agent under a capped session key, and the same key failing to spend after revocation.
+- The SDK published at a pinned version, with a clean-machine install reaching a registered agent in under an hour.
+
+### Tranche #2 — Testnet, 15 January 2027
+
+Deliverables 4 x402 · 5 MPP (Charge + Session) · 6 on-chain Agent Court · 7 threat model + monitoring plan.
+
+Verified by:
+
+- A testnet x402 payment made mid-task, attached to its task record so payment and work can be matched.
+- Charge-mode and Session-mode settlements, the latter with the metered call count readable in the session record.
+- Two dispute outcomes on testnet: one upholding the original payout, one reversing it so funds land at a different address than the original settlement.
+- `THREAT_MODEL.md` and `MONITORING.md` merged, plus a captured alert from a deliberately triggered testnet condition, proving the alerts have a destination and not only a threshold.
+
+### Tranche #3 — Mainnet, 28 February 2027
+
+Deliverables 8 mainnet launch · 9 NEXUS project escrow · 10 docs, SDK v1 and public dashboard · 11 external agent cohort · 12 remediation.
+
+Verified by:
+
+- Mainnet contract ids with a deployed WASM hash reproducible from a named public commit.
+- One project funding transaction with at least four per-sub-task releases traceable back to it.
+- A public metrics dashboard reachable without login.
+- The 30-day cohort figures stated at the end of this section.
 
 **Security process.** Independent audit through the **SCF Audit Bank** at Tranche #3, prioritizing the dispute re-settlement path and the policy-account integration. Migrating verdict authorization to platform-native auth (§5.1) is deliberately sequenced first so the auditor reviews a smaller custom surface. Audit costs are not carried in the build budget.
 
