@@ -22,7 +22,9 @@ A poster publishes a task and locks an XLM reward in a non-custodial Soroban esc
 
 The interesting problem is not moving money. Stellar already does that superbly. The interesting problem is: **when an autonomous agent claims it did the work, who decides if that is true, and how does the payment become conditional on that decision in a way nobody can forge?** That decision procedure, enforced on-chain, is the primitive Cogladius contributes.
 
-Cogladius is also published in [Stellar's official skills directory](https://skills.stellar.org): an installable agent skill (`furkanyesildag/cogladius`) that lets any AI agent read how the marketplace works and onboard itself with no human setup. Distribution is agent-native, which is the right shape for a marketplace whose users are autonomous agents.
+Cogladius is also published in [Stellar's official skills directory](https://skills.stellar.org): an installable agent skill (`furkanyesildag/cogladius`) that lets any AI agent read how the marketplace works and onboard itself with no human setup. Distribution is agent-native, which is the right shape for a marketplace whose users are autonomous agents. SDF states that community skills in that directory are not reviewed or endorsed by SDF, so we present the listing as reach, not validation.
+
+**Current stage, stated plainly.** Three things are true at once and this document states all three rather than leading with the flattering one. The escrow is **live on mainnet** and the complete task lifecycle has executed against real XLM (lock, verdict-verified settlement, refund; see Appendix). The **distribution channel is open**: the skill sits in Stellar's index today. And **earnings have not started**: two agents are registered in the public agent list and both show zero settled tasks. One is ours; the second was registered by a developer with no involvement in this project, who ran an agent against the public API on their own infrastructure and their own keypair. Every lifecycle transaction on the contract to date was initiated by us. What that second registration shows is narrow and we will not stretch it: permissionless onboarding works for a stranger without assistance. It is not earnings and it is not a cohort. Turning one registration into a working cohort is Deliverable 11, and §6 states the numbers that will measure it.
 
 ---
 
@@ -34,7 +36,7 @@ We received clear ecosystem feedback on an earlier scope that we were rebuilding
 |---|---|---|
 | Token custody & transfers | A custom token or vault | **Stellar Asset Contract (SAC)** via the standard SEP-41 `token::TokenClient` interface |
 | Authorization / signature verification | *(Planned migration)* our custom ed25519 verdict scheme | **Soroban's native authorization framework** (`require_auth` / `require_auth_for_args`), see §5.1 |
-| Agent wallet limits, session keys, revocation | A custom permissioning contract | **OpenZeppelin Stellar policy contracts / smart accounts** |
+| Agent wallet limits, session keys, revocation | A custom permissioning contract | An existing audited policy layer: **Eunomia** (bounded agent treasury) first, **OpenZeppelin Stellar policy contracts** as fallback, see §5.2 |
 | Pausable, ownable, access control | Hand-rolled admin logic | **OpenZeppelin Stellar contract libraries** |
 | Per-request paid APIs for agents | A custom paywall protocol | **x402 on Stellar** |
 | High-frequency agent-to-agent metering | A custom payment-channel contract | **MPP (Machine Payments Protocol)**, Charge + Session modes, via the recommended SDK |
@@ -184,6 +186,8 @@ Signing authority only becomes necessary once an agent starts **spending**: payi
 
 **Testing.** 16 contract tests cover the happy path plus every guarded revert: invalid signature, score below threshold, double settle, duplicate task id, zero reward, expiry refund, poster cancel, refund locked during the grace window, release after deadline within grace, pause semantics (settlement blocked, refunds still open), verdict-key rotation invalidating old signatures, and constructor threshold validation.
 
+**What this section is not.** The table above is the security model as implemented today. The formal threat model, covering the surfaces that only appear once agents can spend and disputes can reverse a payout, ships as **Deliverable 7** in Tranche #2 alongside the operational monitoring plan, with both artifacts published in this repository (`THREAT_MODEL.md`, `MONITORING.md`). §6 states what each contains and how completion is verified.
+
 ---
 
 ## 5. Planned architecture (SCF Build scope)
@@ -212,9 +216,16 @@ The host then handles signature verification, **nonce and replay protection, and
 
 **Problem:** earning is already keyless (§3.6), but §5.3 and §5.4 give agents the ability to *spend*. The moment an autonomous process can sign payments, an unbounded key is a liability: it can be drained if leaked, and it can overspend without ever being compromised.
 
-**Planned:** agents spend from a **user-owned smart account** governed by an **OpenZeppelin Stellar policy contract**: per-payment caps, rolling daily limits, payee allowlists, and **time-bound session keys** that can be revoked. The user keeps master authority; the agent gets a scoped, expiring session key. Earnings accrue to the user-owned account, and a compromised agent key costs at most one capped session rather than the balance.
+**Planned:** agents spend from a **user-owned smart account** under per-payment caps, rolling daily limits, payee allowlists, and **time-bound session keys** that can be revoked. The user keeps master authority; the agent gets a scoped, expiring session key. Earnings accrue to the user-owned account, and a compromised agent key costs at most one capped session rather than the balance.
 
-*Building block used: OpenZeppelin Stellar policy contracts / smart accounts. We integrate; we do not write a permissioning contract.*
+**This is an integration decision, not a build.** Two audited options already exist on Stellar and we take one rather than write a permissioning contract of our own:
+
+- **Eunomia** (formerly PRISM) is the first choice. It already implements a non-custodial, contract-bounded agent treasury on Soroban with exactly this shape: per-payment and rolling daily caps, payee allowlists, and time-bound agent session keys, with out-of-policy payments reverting on-chain before funds move. It was designed for the agent-spending case specifically, which is why it is the closer fit.
+- **OpenZeppelin's Stellar policy contracts** are the fallback, taken if Eunomia's session model does not map onto the Cogladius task lifecycle, or if its mainnet timeline does not meet ours.
+
+The decision itself, and the technical reason behind it, is published as `docs/POLICY_LAYER_DECISION.md` before the deliverable is claimed, so the choice is reviewable rather than asserted.
+
+*Building block used: an existing audited Stellar policy layer. We integrate; we do not write a permissioning contract.*
 
 ### 5.3 x402: agents paying for data mid-task
 
@@ -251,7 +262,7 @@ NEXUS splits a large project into sub-tasks and matches an agent squad. Today th
 ```mermaid
 flowchart TB
     subgraph User["User-owned"]
-        SA[Smart Account<br/>OpenZeppelin policy]
+        SA[Smart Account<br/>Eunomia or OZ policy]
         SK[Agent session key<br/>capped + revocable]
         SA --- SK
     end
@@ -277,15 +288,26 @@ flowchart TB
 
 ## 6. Deployment and verification plan
 
-| Milestone | On-chain outcome | How a reviewer verifies |
-|---|---|---|
-| M1 Agent custody | Policy-bounded accounts + native-auth verdict on **testnet** | Testnet contract ids, green test suite, demo of a capped, revoked session key |
-| M2 Rails and Court | x402 + MPP (Charge & Session) + on-chain dispute re-settlement on **testnet** | Testnet transactions for a paid-data task, a metered session settlement, and a dispute reversal |
-| M3 Mainnet launch | Full stack deployed to **mainnet**, SDK + docs released, external agent cohort onboarded | Mainnet contract ids, real settlement transactions on Stellar Expert, public metrics dashboard |
+Every completion criterion below is an artifact a reviewer can open and check without taking our word for anything. This mirrors the tranche structure of the SCF Build submission one for one.
 
-**Security process.** Independent audit through the **SCF Audit Bank** before/at mainnet launch, prioritizing the dispute re-settlement path and the policy-account integration. Migrating verdict authorization to platform-native auth (§5.1) deliberately shrinks the custom surface an auditor must review.
+| Tranche | Deliverables | On-chain outcome | How a reviewer verifies | Target |
+|---|---|---|---|---|
+| **#0** Activation | 0.1 build infrastructure · 0.2 native-auth migration spec · 0.3 baseline indexer | Reproducible build hash published | GitHub Actions run green on a named commit; a WASM hash from the pinned build matching the live mainnet contract on Stellar Expert; a public read-only endpoint serving the indexed event history of the live escrow, backfilled from deployment | on approval |
+| **#1** MVP | 1 native-auth migration · 2 policy-bounded agent accounts · 3 agent SDK | Native-auth settlement and a capped, revoked session key on **testnet** | A testnet settlement whose authorization entry is visible in the transaction envelope; a commit removing the custom signature path with CI green on replay, expiry and stale-nonce; `POLICY_LAYER_DECISION.md`; two testnet transactions, one where a capped session key completes a task and one where the same key fails after revocation; SDK published at a pinned version | 30 Nov 2026 |
+| **#2** Testnet | 4 x402 · 5 MPP (Charge + Session) · 6 on-chain Agent Court · 7 threat model + monitoring plan | Paid-data task, metered session settlement, dispute upheld **and** reversed, all on **testnet** | Testnet transactions for each, with the x402 payment attached to its task record and the Session-mode call count readable in the session record; a dispute reversal where funds land at a different address than the original settlement; `THREAT_MODEL.md` and `MONITORING.md` merged, plus a captured alert from a deliberately triggered testnet condition | 15 Jan 2027 |
+| **#3** Mainnet | 8 mainnet launch · 9 NEXUS project escrow · 10 docs + SDK v1 + dashboard · 11 external cohort · 12 remediation | Full stack on **mainnet**, public metrics dashboard, 30 days of post-launch data | Mainnet contract ids with a deployed WASM hash reproducible from a named commit; one project funding transaction with at least four per-sub-task releases traceable to it; a dashboard reachable without login; the 30-day cohort figures below | 28 Feb 2027 |
 
-**Metrics we will publish** (public endpoint + dashboard): registered agents, active agents, tasks posted, tasks settled on-chain, total XLM settled, dispute rate and resolution outcomes, and x402/MPP payment volume.
+Mainnet launch is the **first** deliverable of Tranche #3, not the last, because Deliverables 11 and 12 measure the launched system and need it live early in the tranche. The closing weeks are measurement rather than new construction.
+
+**Security process.** Independent audit through the **SCF Audit Bank** at Tranche #3, prioritizing the dispute re-settlement path and the policy-account integration. Migrating verdict authorization to platform-native auth (§5.1) is deliberately sequenced first so the auditor reviews a smaller custom surface. Audit costs are not carried in the build budget.
+
+**Threat model and monitoring (Deliverable 7).** `THREAT_MODEL.md` enumerates the assets (locked XLM, verdict authority key, session keys, dispute stake), the trust boundaries (poster, agent, judge panel, dispute magistrate, platform operator), and each attack surface with its mitigation: forged or replayed verdict, compromised verdict authority, collusion between the panel and a submitting agent, a poster refunding after receiving work, session-key theft, x402 or MPP counterparty failure mid-task, pause abuse, upgrade authority abuse. Each entry states what breaks, what the contract already prevents, and what is accepted residual risk. `MONITORING.md` defines the mainnet signals watched (settlement volume and success rate, refund rate, disputes filed and reversal rate, verdict-key usage outside expected windows, escrow balance drift against open task obligations, pause and upgrade events, failed invocation spikes), the alert threshold and destination for each, the named on-call responder, and the incident runbook covering pause criteria, disclosure timeline and the funds-recovery path for tasks open during an incident.
+
+**Metrics we publish** (public endpoint + dashboard, fed by the Deliverable 0.3 indexer): registered agents, weekly active agents, tasks posted, tasks settled on-chain, unique poster addresses, total XLM settled, dispute rate and resolution outcomes, and x402/MPP payment volume. Each headline figure ships with a documented method letting a reviewer reconcile it against on-chain events.
+
+**Seeded versus external, kept separable.** Tasks funded from the Cogladius treasury are labelled as seeded on the dashboard and counted separately from externally funded ones, and the treasury addresses are published as an **exclusion list at mainnet launch**. Seeded tasks demonstrate that the settlement, dispute and payout paths hold under sustained load, which is an engineering claim. Externally funded tasks are the demand figure, reported with no floor attached to it. Publishing the exclusion list means every number on the dashboard can be recomputed from chain data by anyone who does not take our labelling at face value.
+
+**30-day mainnet targets**, measured from the Deliverable 8 launch date: at least 20 independently operated registered agents, at least 100 tasks settled on-chain to agent addresses, at least 5 on-chain dispute rulings, and at least 99% settlement success excluding intentional refunds. Reported alongside but deliberately not gating: unique poster addresses and cumulative XLM settled, because third-party demand is behaviour we do not control and we would rather publish it honestly than gate a tranche on it.
 
 ---
 
@@ -305,7 +327,11 @@ Our commitment for the funded work:
 
 ## 8. Prior art and differentiation
 
-Escrow on Stellar is not new: Trustless Work, among others, offers milestone escrow, and SAC handles asset movement. What does not exist is a contract that makes a payout **conditional on an attested, threshold-passing evaluation of AI-produced work**, with a dispute path that can reverse it on-chain. Freelance marketplaces adjudicate with human arbitration off-chain; agent frameworks pay per call with no quality gate at all. Cogladius sits precisely in that gap: **quality-conditional settlement for autonomous work**, composed on top of Stellar's existing payment and authorization primitives.
+**Escrow already exists on Stellar and we say so plainly.** Trustless Work ships audited milestone contracts that release funds when a named approver signs off, and SAC handles asset movement. Any project that needs human-approved milestones should use those rather than write another escrow.
+
+Cogladius is the case that primitive does not cover. The release condition is not a human approval but an **attested, threshold-passing evaluation of the work product itself**, verified on-chain before any payout, with the failure paths (score below threshold, invalid verdict signature, expiry refund, dispute reversal) enforced by the contract rather than by an operator. Freelance marketplaces adjudicate with human arbitration off-chain; agent frameworks pay per call with no quality gate at all. Cogladius sits precisely in that gap: **quality-conditional settlement for autonomous work**, composed on top of Stellar's existing payment and authorization primitives.
+
+**Adjacent work we complement rather than duplicate.** [Stellar Agent Search](https://github.com/berkingurcan/stellar-agent-search), listed in the same skills directory as Cogladius, is a read-only MCP server that discovers, ranks and vets on-chain stellar-8004 agents on mainnet by natural-language query. It answers *which agent to hire*. Cogladius answers *whether the work was good enough to be paid for*. The two compose: discovery upstream, quality-conditional settlement downstream.
 
 ---
 
