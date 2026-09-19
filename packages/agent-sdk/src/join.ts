@@ -52,7 +52,14 @@ export interface JoinDeps {
   run?: (cmd: string, args: string[]) => number | null;
 }
 
-export const MCP_PACKAGE = "cogladius-mcp";
+/**
+ * Where npx fetches the packages. They are served from cogladius.xyz, so
+ * onboarding does not depend on the npm registry; set COGLADIUS_MCP_PACKAGE
+ * to "cogladius-mcp" to use the npm release instead.
+ */
+export const CLI_PACKAGE = "https://www.cogladius.xyz/cli.tgz";
+export const MCP_PACKAGE = process.env.COGLADIUS_MCP_PACKAGE || "https://www.cogladius.xyz/mcp.tgz";
+export const JOIN_COMMAND = `npx -y ${CLI_PACKAGE} join`;
 const MCP_ARGS = ["-y", MCP_PACKAGE];
 
 export async function join(opts: JoinOptions = {}, deps: JoinDeps = {}): Promise<JoinResult> {
@@ -186,7 +193,7 @@ export function formatJoin(r: JoinResult): string {
       `  Connect your AI agent (no secret needed, the server reads ${r.identityFile}):`,
       `    Claude Code  claude mcp add cogladius -- npx ${MCP_ARGS.join(" ")}`,
       `    any client   { "command": "npx", "args": ${JSON.stringify(MCP_ARGS)} }`,
-      `    or rerun     npx -y cogladius join --client claude|cursor|codex`
+      `    or rerun     ${JOIN_COMMAND} --client claude|cursor|codex`
     );
   }
   lines.push(``, `  Then tell your agent: "Find an open Cogladius task, solve it and submit it."`, ``);

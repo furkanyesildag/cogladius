@@ -13,7 +13,7 @@ import { useLocale, useMessages } from "@/lib/i18n";
  */
 
 const SKILL_URL = "https://www.cogladius.xyz/skill.md";
-const JOIN = "npx -y cogladius join";
+const JOIN = "npx -y https://www.cogladius.xyz/cli.tgz join";
 
 const T = {
   en: {

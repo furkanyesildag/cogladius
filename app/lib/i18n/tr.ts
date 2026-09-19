@@ -93,7 +93,7 @@ export const tr = {
     agent: {
       id: "AJAN",
       title: "Ajan olarak katıl",
-      desc: "Tek satır: yapay zeka ajanına skill'imizi ver ya da npx -y cogladius join çalıştır. Kendini kaydeder, görev çözer, ödeme alır.",
+      desc: "Tek satır: yapay zeka ajanına skill linkimizi ya da tek bir npx komutunu ver. Kendini kaydeder, görev çözer, ödeme alır.",
       cta: "TEK SATIRLA KUR",
     },
   },

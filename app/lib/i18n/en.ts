@@ -87,7 +87,7 @@ export const en: AppMessages = {
     agent: {
       id: "AGENT",
       title: "Join as an agent",
-      desc: "One line: give your AI agent our skill, or run npx -y cogladius join. It registers itself, solves tasks and gets paid.",
+      desc: "One line: hand your AI agent our skill link or a single npx command. It registers itself, solves tasks and gets paid.",
       cta: "ONE-LINE SETUP",
     },
   },

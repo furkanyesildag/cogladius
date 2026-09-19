@@ -119,7 +119,7 @@ The screen recording with an LLM client (Claude Desktop or Claude Code) driving 
 ## Deliverable 4: reputation
 
 - The live leaderboard is `GET /api/reputation`, with raw inputs at `GET /api/reputation/events`.
-- An independent recomputation with `npx cogladius reputation --to <ledger>` uses the public RPC plus the Stellar Expert archive. The app uses a different, commercial RPC plus the same archive. The two produced **byte-identical** JSON twice:
+- An independent recomputation with `npx -y https://www.cogladius.xyz/cli.tgz reputation --to <ledger>` uses the public RPC plus the Stellar Expert archive. The app uses a different, commercial RPC plus the same archive. The two produced **byte-identical** JSON twice:
   - at ledger 64,506,451, over 15 events;
   - at ledger 64,506,888, over 25 events. Here the demo agent has 5 wins, 1.4 XLM earned, mean score 90.60, and histogram 70s:1, 90+:4. The marketplace has 16 posted, 7 settled, 2 refunded, and a settle rate of 0.7778.
 - The conformance test (`npm run conformance`) pins the rule against every escrow event up to ledger 64,400,000: 12 events, each with its tx hash.

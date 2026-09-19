@@ -7,7 +7,18 @@
 
 Both are unscoped, so no npm organisation is needed. `npm pack` of the SDK was verified: a clean-folder `npx` of the packed tarball ran `join` against mainnet.
 
-## Publish
+## Served from cogladius.xyz (current)
+
+Until the npm release is out, both packages are served by the site, and every command in the docs points there:
+
+```bash
+npx -y https://www.cogladius.xyz/cli.tgz join     # SDK + CLI
+npx -y https://www.cogladius.xyz/mcp.tgz          # MCP server (what `join --client` wires in)
+```
+
+After changing either package, run `./pack-to-site.sh` (builds, tests, packs into `app/public/`) and deploy the app. When the npm packages are published, set `CLI_PACKAGE` / `MCP_PACKAGE` in `agent-sdk/src/join.ts` to `cogladius` / `cogladius-mcp` and switch the docs back to the short commands.
+
+## Publish to npm
 
 ```bash
 npm login                                   # once; opens the browser
