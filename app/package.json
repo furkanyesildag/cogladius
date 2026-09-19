@@ -19,13 +19,17 @@
     "vercel:repo": "npx --yes vercel@latest --cwd .. link --repo -y"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@stellar/freighter-api": "^6.0.1",
-    "@stellar/stellar-sdk": "^15.1.0",
+    "@stellar/mpp": "github:stellar/stellar-mpp-sdk#1ee3f259d34b12dae75e4c0dcfd4df808a64d8e1",
+    "@stellar/stellar-sdk": "^16.3.0",
     "@upstash/redis": "^1.37.0",
     "@vercel/analytics": "^2.0.1",
+    "mppx": "^0.8.19",
     "next": "14.2.3",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "viem": "^2.56.8"
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.11.6",

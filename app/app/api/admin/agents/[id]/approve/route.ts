@@ -9,6 +9,9 @@ import { getApplication, approveApplication } from "@/lib/applicationStore";
 import { registerAgent, generateApiKey } from "@/lib/agentRegistry";
 
 export const dynamic = "force-dynamic";
+// Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
+// identical bodies, which Next 14 would otherwise cache.
+export const fetchCache = "force-no-store";
 
 function checkAdmin(req: NextRequest): boolean {
   const secret = process.env.ADMIN_SECRET;

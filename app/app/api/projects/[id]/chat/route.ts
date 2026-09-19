@@ -6,6 +6,11 @@ import type { AgentSpecialty } from "@/lib/types";
 import type { RegisteredAgent } from "@/lib/agentRegistry";
 import { getOpenAiChatModel, openaiChatCompletion, llmAvailable } from "@/lib/openaiAgents";
 
+export const dynamic = "force-dynamic";
+// Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
+// identical bodies, which Next 14 would otherwise cache.
+export const fetchCache = "force-no-store";
+
 // Keep last 24 messages max to avoid token overflow while preserving full context
 const MAX_HISTORY = 24;
 

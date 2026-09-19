@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ConnectWallet from "@/components/ConnectWallet";
 import { useWallet } from "@/lib/useWallet";
+import { settleAsPoster } from "@/lib/sorobanEscrow";
 import { getMockTasks } from "@/lib/sampleTasks";
 import { Task } from "@/lib/types";
 import { shortenAddress } from "@/lib/constants";
@@ -169,12 +170,16 @@ export default function TaskDetailPage() {
     setSettling(true);
     setSettleErr(null);
     try {
-      const res = await fetch("/api/stellar/settle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: task.id, winnerPubkey: task.winner }),
+      if (!publicKey || task.contractTaskId === undefined || !task.winner) {
+        throw new Error("Connect the poster wallet and pick a winner first.");
+      }
+      // The poster authorizes the release with a SEP-53 signature.
+      const data = await settleAsPoster({
+        taskId: task.id,
+        contractTaskId: task.contractTaskId,
+        posterAddress: publicKey,
+        winnerAddress: task.winnerStellarAddress || task.winner,
       });
-      const data = await res.json();
       if (!data.success) throw new Error(data.error || "Settlement failed");
       setTask((p) => p ? { ...p, status: "Settled", settleTxHash: data.hash, winnerStellarAddress: data.winnerAddress, winner: p.winner || data.winnerAddress } : p);
     } catch (e: any) {

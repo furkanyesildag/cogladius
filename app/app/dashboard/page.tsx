@@ -16,6 +16,7 @@ import { useMessages, useLocale } from "@/lib/i18n";
 import { Task, AgentState, JudgeState, FeedEntry, TxEntry } from "@/lib/types";
 import { AGENT_API_POLL_MS, POLL_INTERVAL_MS, shortenAddress, explorerAddress, explorerTx, usdcToStroops } from "@/lib/constants";
 import { fetchUsdcBalance, EXPLORER_TX } from "@/lib/stellar";
+import { settleAsPoster } from "@/lib/sorobanEscrow";
 
 // Real registered agents are loaded from /api/agents/list; no demo agents.
 const DEFAULT_AGENTS: AgentState[] = [];
@@ -537,12 +538,17 @@ export default function Dashboard() {
     let explorerUrl = "";
     let winnerStellar: string | undefined;
     try {
-      const res = await fetch("/api/stellar/settle", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: selectedTask.id, winnerPubkey: agents[0]?.pubkey }),
+      const winner = agents[0]?.pubkey;
+      if (!publicKey || selectedTask.contractTaskId === undefined || !winner) {
+        throw new Error("poster wallet, escrowed task and winner are required");
+      }
+      // The poster authorizes the release with a SEP-53 signature.
+      const data = await settleAsPoster({
+        taskId: selectedTask.id,
+        contractTaskId: selectedTask.contractTaskId,
+        posterAddress: publicKey.toString(),
+        winnerAddress: winner,
       });
-      const data = await res.json();
       if (data.success) {
         finalHash = data.hash;
         explorerUrl = data.explorerUrl || EXPLORER_TX(data.hash);

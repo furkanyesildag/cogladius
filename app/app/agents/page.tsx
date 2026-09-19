@@ -6,9 +6,10 @@ import ConnectWallet from "@/components/ConnectWallet";
 import { ThemeToggle } from "@/components/ThemeProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useMessages, useLocale } from "@/lib/i18n";
-import { shortenAddress } from "@/lib/constants";
+import { shortenAddress, NETWORK_PASSPHRASE } from "@/lib/constants";
 import type { RegisteredAgent } from "@/lib/agentRegistry";
 import { SPECIALTY_META } from "@/lib/specialtyMeta";
+import { signMessage } from "@stellar/freighter-api";
 
 type AgentWithOnline = RegisteredAgent & { isOnline: boolean };
 
@@ -137,11 +138,27 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
     if (!form.pubkey.trim()) { setError(reg.errPubkey); return; }
     setLoading(true); setError(null);
     try {
+      // Prove ownership of the agent key: sign the server's challenge (SEP-53)
+      // with Freighter. The API key is only issued to the holder of the key.
+      const pubkey = form.pubkey.trim();
+      const ch = await fetch(`/api/agents/challenge?pubkey=${encodeURIComponent(pubkey)}`).then((r) => r.json());
+      if (!ch.success) { setError(ch.error || reg.errSubmit); return; }
+      const signed: any = await signMessage(ch.message, { networkPassphrase: NETWORK_PASSPHRASE, address: pubkey });
+      if (signed.error || !signed.signedMessage) {
+        setError(typeof signed.error === "string" ? signed.error : signed.error?.message || reg.errSubmit);
+        return;
+      }
+      const signature = typeof signed.signedMessage === "string"
+        ? signed.signedMessage
+        : Buffer.from(signed.signedMessage).toString("base64");
+
       const res = await fetch("/api/agents/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pubkey: form.pubkey.trim(),
+          pubkey,
+          nonce: ch.nonce,
+          signature,
           name: form.name.trim() || undefined,
           email: form.email.trim() || undefined,
           description: form.description.trim() || undefined,

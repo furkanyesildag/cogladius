@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useWallet } from "@/lib/useWallet";
 import { Task } from "@/lib/types";
 import { explorerTx } from "@/lib/constants";
+import { disputeAsPoster } from "@/lib/sorobanEscrow";
 import { useMessages } from "@/lib/i18n";
 
 interface DisputePanelProps {
@@ -18,7 +19,7 @@ export default function DisputePanel({
   onDisputed,
 }: DisputePanelProps) {
   const dp = useMessages().ui.disputePanel;
-  const { connected } = useWallet();
+  const { connected, address } = useWallet();
 
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -42,12 +43,14 @@ export default function DisputePanel({
     try {
       // Flag the task as disputed on-chain (Soroban). Full Agent Court
       // resolution on Stellar is a deferred deliverable.
-      const res = await fetch("/api/stellar/dispute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: task.id }),
+      // The poster signs the dispute (SEP-53); the server checks it against the
+      // escrow's recorded poster before the platform key flags the task.
+      if (task.contractTaskId === undefined) throw new Error(dp.errors.txFailed);
+      const data = await disputeAsPoster({
+        taskId: task.id,
+        contractTaskId: task.contractTaskId,
+        posterAddress: address!,
       });
-      const data = await res.json();
       if (!data?.success) throw new Error(data?.error || dp.errors.txFailed);
       setTxHash(data.hash);
       onDisputed(data.hash);

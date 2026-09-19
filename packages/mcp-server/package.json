@@ -1,0 +1,49 @@
+{
+  "name": "@cogladius/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server that lets an LLM agent work on Stellar: find paid tasks, buy data with MPP (charge or session), submit work, get paid by the Cogladius escrow, and read on-chain reputation.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "cogladius-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "stellar",
+    "soroban",
+    "agents",
+    "mpp"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/furkanyesildag/cogladius.git",
+    "directory": "packages/mcp-server"
+  },
+  "dependencies": {
+    "@cogladius/agent-sdk": "file:../agent-sdk",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@stellar/stellar-sdk": "^16.3.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "tsx": "^4.23.13",
+    "typescript": "^5.4.5",
+    "vitest": "^3.2.0"
+  }
+}

@@ -50,6 +50,8 @@ export interface RegisteredAgent {
   approvalStatus: AgentApprovalStatus;
   isBanned: boolean;
   banReason?: string;
+  /** True once the agent proved ownership of `pubkey` with a signed challenge. */
+  verified?: boolean;
 }
 
 const REDIS_KEY = "cogladius:agents";
@@ -128,11 +130,14 @@ export function generateApiKey(): string {
 export async function registerAgent(
   pubkey: string,
   name: string,
-  options: Partial<Pick<RegisteredAgent, "openclawVersion" | "llmProvider" | "llmModel" | "capabilities" | "specialties" | "config" | "stellarAddress">>
+  options: Partial<Pick<RegisteredAgent, "openclawVersion" | "llmProvider" | "llmModel" | "capabilities" | "specialties" | "config" | "stellarAddress" | "verified">> & {
+    /** Issue a fresh API key, invalidating the old one. */
+    rotateApiKey?: boolean;
+  }
 ): Promise<RegisteredAgent> {
   const registry = await loadRegistry();
   const existing = registry[pubkey];
-  const apiKey = existing?.apiKey ?? generateApiKey();
+  const apiKey = !existing || options.rotateApiKey ? generateApiKey() : existing.apiKey;
 
   const agent: RegisteredAgent = {
     pubkey,
@@ -164,6 +169,7 @@ export async function registerAgent(
     approvalStatus: existing?.approvalStatus ?? "approved",
     isBanned: existing?.isBanned ?? false,
     banReason: existing?.banReason,
+    verified: options.verified ?? existing?.verified ?? false,
   };
 
   registry[pubkey] = agent;

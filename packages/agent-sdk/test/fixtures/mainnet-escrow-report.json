@@ -1,0 +1,59 @@
+{
+  "rule": "cogladius-reputation/1",
+  "contractId": "CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL",
+  "fromLedger": 63493457,
+  "toLedger": 64400000,
+  "eventCount": 12,
+  "agents": [
+    {
+      "rank": 1,
+      "agent": "GCW5KN2IOPLUC4P6KHBBO3JAF7SSUBEICFT5Y54CJW7FP5FG5GJEX7DW",
+      "tasksWon": 2,
+      "totalEarned": "15000000",
+      "scores": {
+        "count": 2,
+        "meanX100": 8500,
+        "median": 80,
+        "min": 80,
+        "max": 90,
+        "histogram": {
+          "<70": 0,
+          "70-79": 0,
+          "80-89": 1,
+          "90-100": 1
+        }
+      },
+      "disputedWins": 0,
+      "firstLedger": 63493477,
+      "lastLedger": 63892772,
+      "settleTxs": [
+        "c0bd63ab2936e0d1ad5e64382ff793ed7a925f9945eb007d35fc2e9b75ba22f3",
+        "7a67b7e5963518e7c5c0b07b040e04e28855af09a5a544cb5b8a00bf0716c6a7"
+      ]
+    }
+  ],
+  "posters": [
+    {
+      "poster": "GAI44BS6US2GQR627S2OYG47C3BE573AZEDK3UIKK526FJPXWTK3ZBDM",
+      "posted": 4,
+      "settled": 2,
+      "refunded": 2,
+      "totalPosted": "27000000"
+    },
+    {
+      "poster": "GC47EEGZTZWBN7ULYGBJ4RRSR5VZLMUNAKB2MOWD36WDGT74UJNDG53F",
+      "posted": 4,
+      "settled": 0,
+      "refunded": 0,
+      "totalPosted": "60000000"
+    }
+  ],
+  "market": {
+    "posted": 8,
+    "settled": 2,
+    "refunded": 2,
+    "disputed": 0,
+    "settleRate": "0.5000",
+    "totalPaid": "15000000"
+  }
+}

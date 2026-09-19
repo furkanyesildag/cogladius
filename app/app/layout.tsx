@@ -5,6 +5,11 @@ import StructuredData from "@/components/StructuredData";
 import Providers from "@/components/Providers";
 import { siteMetadata } from "@/lib/marketingCopy";
 
+// Never cache server-side fetches in pages. stellar-sdk 16 talks to Soroban RPC
+// over fetch with identical JSON-RPC POST bodies, which Next 14 would cache.
+// (Route handlers under app/api set fetchCache themselves.)
+export const fetchCache = "default-no-store";
+
 export const metadata: Metadata = siteMetadata;
 
 export const viewport: Viewport = {

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -18,7 +19,12 @@
       }
     ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@cogladius/agent-sdk/*": ["../packages/agent-sdk/src/*"],
+      "@stellar/stellar-sdk": ["./node_modules/@stellar/stellar-sdk"],
+      "@stellar/mpp": ["./node_modules/@stellar/mpp/dist/index.d.ts"],
+      "@stellar/mpp/*": ["./node_modules/@stellar/mpp/dist/*/index.d.ts"],
+      "mppx": ["./node_modules/mppx/dist/index.d.ts"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
