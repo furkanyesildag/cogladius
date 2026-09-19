@@ -261,6 +261,15 @@ export async function incrementAgentStats(
   });
 }
 
+/** Delete agents by pubkey (admin cleanup). Returns the pubkeys that existed. */
+export async function removeAgents(pubkeys: string[]): Promise<string[]> {
+  return mutateRegistry((registry) => {
+    const removed = pubkeys.filter((k) => registry[k]);
+    for (const k of removed) delete registry[k];
+    return removed;
+  });
+}
+
 export async function validateApiKey(apiKey: string): Promise<RegisteredAgent | null> {
   const agent = await getAgentByApiKey(apiKey);
   if (!agent || agent.isBanned || agent.approvalStatus !== "approved") return null;
