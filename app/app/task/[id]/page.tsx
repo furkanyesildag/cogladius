@@ -6,7 +6,7 @@ import ConnectWallet from "@/components/ConnectWallet";
 import { useWallet } from "@/lib/useWallet";
 import { settleAsPoster } from "@/lib/sorobanEscrow";
 import { Task } from "@/lib/types";
-import { shortenAddress } from "@/lib/constants";
+import { shortenAddress, IS_MAINNET, ESCROW_CONTRACT_ID } from "@/lib/constants";
 import JudgePanel from "@/components/JudgePanel";
 import DisputePanel from "@/components/DisputePanel";
 import { ThemeToggle } from "@/components/ThemeProvider";
@@ -105,18 +105,16 @@ function Timeline({ status }: { status: string }) {
 function FinalistTable({ task }: { task: Task }) {
   const router = useRouter();
   const ta = useMessages().ui.taskArenaPage;
-  const finalists = task.submissions.length > 0 ? task.submissions.map((s, i) => ({
-    name: s.agent.length > 12 ? `Agent_${s.agent.slice(-4)}` : s.agent,
+  // Only real submissions: the agent's own address, the time it reported and the
+  // hash of its result. Nothing is invented when a task has no submissions yet.
+  const finalists = task.submissions.map((s) => ({
+    name: shortenAddress(s.agent, 6),
     pubkey: s.agent,
-    latency: `${s.timeTakenSeconds * 1000 / 10 + 142}ms`,
-    hashrate: s.resultHash.substring(0, 10) + "...",
-    status: i === 0 ? ta.statusLeader : ta.statusCandidate,
-    isLeader: i === 0,
-  })) : [
-    { name: "NeonRacer_v4",  pubkey: "7DQy8XZKCbsJuXP3m52Au8PeKLpaa64WKATFWbCYkuxo", latency: "142ms", hashrate: "0x882...a3f", status: ta.statusLeader, isLeader: true },
-    { name: "SolStreamer_X",  pubkey: "8TKy9R4MnVtTBrFHzAGiKChbXr7jPj3k3NKedxNtLLpL", latency: "168ms", hashrate: "0x441...bc1", status: ta.statusCandidate,  isLeader: false },
-    { name: "GhostIndexer",  pubkey: "9UJy0SBKxMsZ7VmWPuQnMEdj8CmrQkv4oKJfFCpVBbPP", latency: "215ms", hashrate: "0x992...22e", status: ta.statusCandidate,  isLeader: false },
-  ];
+    latency: Number.isFinite(s.timeTakenSeconds) && s.timeTakenSeconds > 0 ? `${Math.round(s.timeTakenSeconds)}s` : "—",
+    hashrate: s.resultHash.substring(0, 10) + "…",
+    status: task.winner === s.agent ? ta.statusLeader : ta.statusCandidate,
+    isLeader: task.winner === s.agent,
+  }));
   return (
     <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, overflow: "hidden" }}>
       <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -127,6 +125,11 @@ function FinalistTable({ task }: { task: Task }) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 100px 80px", padding: "8px 18px", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
         <span>{ta.colSignature}</span><span>{ta.colLatency}</span><span>{ta.colHashrate}</span><span>{ta.colStatus}</span>
       </div>
+      {finalists.length === 0 && (
+        <div style={{ padding: "16px 18px", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)" }}>
+          {ta.noSubmissionsYet}
+        </div>
+      )}
       {finalists.map((f) => (
         <div key={f.name}
           onClick={() => router.push(`/agent/${f.pubkey}`)}
@@ -134,7 +137,7 @@ function FinalistTable({ task }: { task: Task }) {
           onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface-high)")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
           <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: f.isLeader ? "var(--green)" : "var(--text-primary)" }}>{f.name}</span>
-          <span style={{ fontFamily: "var(--font)", fontSize: 11, color: f.latency === "142ms" ? "var(--green)" : "var(--yellow)" }}>{f.latency}</span>
+          <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.55)" }}>{f.latency}</span>
           <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)" }}>{f.hashrate}</span>
           <span>
             <span style={{ background: f.isLeader ? "rgba(64,225,131,0.15)" : "var(--bg-surface-high)", color: f.isLeader ? "var(--green)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 2, border: f.isLeader ? "1px solid rgba(64,225,131,0.3)" : "none" }}>
@@ -282,8 +285,12 @@ export default function TaskDetailPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--accent)" }}>memory</span>
               </div>
               <div>
-                <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.05em" }}>OPERATOR_01</div>
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--green)", letterSpacing: "0.08em" }}>SOL_TESTNET</div>
+                <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.05em" }}>
+                  {publicKey ? shortenAddress(String(publicKey), 5) : "NOT CONNECTED"}
+                </div>
+                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--green)", letterSpacing: "0.08em" }}>
+                  {IS_MAINNET ? "STELLAR MAINNET" : "STELLAR TESTNET"}
+                </div>
               </div>
             </div>
           </div>
@@ -387,8 +394,10 @@ export default function TaskDetailPage() {
                 <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", gap: 8 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--accent)" }}>gavel</span>
                   <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{ta.juryPanel}</span>
-                  {(currentStep >= 2) && (
-                    <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 8, color: "var(--yellow)", letterSpacing: "0.06em" }}>{ta.evaluating}</span>
+                  {currentStep >= 2 && (
+                    <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 8, color: task.verdicts.length > 0 ? "var(--green)" : "var(--yellow)", letterSpacing: "0.06em" }}>
+                      {task.verdicts.length > 0 ? ta.juryDone : ta.evaluating}
+                    </span>
                   )}
                 </div>
                 <div style={{ padding: "16px 18px" }}>
@@ -520,12 +529,12 @@ export default function TaskDetailPage() {
       {/* Status bar */}
       <div className="kl-statusbar">
         <div style={{ display: "flex", gap: 20 }}>
-          <span>LATENCY: 42ms</span><span>NODES: 1,422 ACTIVE</span>
+          <span>ESCROW: {shortenAddress(ESCROW_CONTRACT_ID, 4)}</span><span>{IS_MAINNET ? "STELLAR MAINNET" : "STELLAR TESTNET"}</span>
         </div>
         <div style={{ display: "flex", gap: 20 }}>
-          <span>VERSION: 0.8.4-ALPHA</span>
-          <span style={{ color: "var(--accent)" }}>SYSTEM_LOAD: 12.4%</span>
-          <span>BUILD: CLW_3321</span>
+          <span>REWARD ASSET: XLM</span>
+          <span style={{ color: "var(--accent)" }}>SETTLEMENT: ON-CHAIN</span>
+          <span>JUDGES: 3</span>
         </div>
       </div>
     </div>
