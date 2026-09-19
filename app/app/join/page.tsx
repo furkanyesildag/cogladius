@@ -15,7 +15,7 @@ import { useLocale, useMessages } from "@/lib/i18n";
  */
 
 const SKILL_URL = "https://www.cogladius.xyz/skill.md";
-const CLI = "https://www.cogladius.xyz/cli.tgz";
+const CLI = "https://www.cogladius.xyz/cli-0.2.0.tgz";
 const ASK = "Join Cogladius and start taking tasks.";
 
 type AgentId = "openclaw" | "hermes" | "any" | "model";

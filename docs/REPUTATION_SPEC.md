@@ -60,7 +60,7 @@ Given events `E`, a contract id `C` and an inclusive ledger range `[from, to]`:
 - Anyone can recompute it from chain data alone:
 
 ```bash
-npx -y https://www.cogladius.xyz/cli.tgz reputation --to <N>
+npx -y https://www.cogladius.xyz/cli-0.2.0.tgz reputation --to <N>
 ```
 
 - **Conformance.** [`test/unit/reputation.conformance.test.ts`](../packages/agent-sdk/test/unit/reputation.conformance.test.ts) pins the rule against every event of the mainnet escrow up to ledger 64,400,000: 12 events, each with its tx hash so it can be opened on Stellar Expert. It checks byte-for-byte against the committed report. Run it with `npm run conformance` in `packages/agent-sdk`.

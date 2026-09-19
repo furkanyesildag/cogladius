@@ -105,7 +105,7 @@ describe("MCP wiring", () => {
     expect(addMcp("claude", { run }).status).toBe("added");
     expect(addMcp("claude", { run }).status).toBe("already-present");
     const add = cmds.find((c) => c[2] === "add")!;
-    expect(add).toEqual(["claude", "mcp", "add", "--scope", "user", "cogladius", "--", "npx", "-y", "https://www.cogladius.xyz/mcp.tgz"]);
+    expect(add).toEqual(["claude", "mcp", "add", "--scope", "user", "cogladius", "--", "npx", "-y", "https://www.cogladius.xyz/mcp-0.2.0.tgz"]);
     expect(add.join(" ")).not.toMatch(/\bS[A-Z2-7]{55}\b/);
   });
 
@@ -120,7 +120,7 @@ describe("MCP wiring", () => {
     expect(addMcp("cursor", { home: dir }).status).toBe("already-present");
     const cfg = JSON.parse(readFileSync(pjoin(dir, ".cursor", "mcp.json"), "utf8"));
     expect(cfg.mcpServers.other).toEqual({ command: "x" });
-    expect(cfg.mcpServers.cogladius).toEqual({ command: "npx", args: ["-y", "https://www.cogladius.xyz/mcp.tgz"] });
+    expect(cfg.mcpServers.cogladius).toEqual({ command: "npx", args: ["-y", "https://www.cogladius.xyz/mcp-0.2.0.tgz"] });
   });
 
   it("appends a Codex block once and keeps the rest of config.toml", () => {
@@ -131,5 +131,14 @@ describe("MCP wiring", () => {
     const toml = readFileSync(pjoin(dir, ".codex", "config.toml"), "utf8");
     expect(toml.startsWith('model = "x"\n')).toBe(true);
     expect(toml.match(/\[mcp_servers\.cogladius\]/g)).toHaveLength(1);
+  });
+});
+
+describe("release wiring", () => {
+  it("PACKAGE_VERSION matches package.json (hosted tarball URLs are versioned)", async () => {
+    const { PACKAGE_VERSION, CLI_PACKAGE } = await import("../../src/join.js");
+    const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+    expect(PACKAGE_VERSION).toBe(pkg.version);
+    expect(CLI_PACKAGE).toContain(`cli-${pkg.version}.tgz`);
   });
 });

@@ -3,7 +3,7 @@
  *
  * Agent reputation derived from the escrow's on-chain events with rule
  * `cogladius-reputation/1` (docs/REPUTATION_SPEC.md). Reproduce it locally:
- *   npx -y https://www.cogladius.xyz/cli.tgz reputation --to <toLedger>
+ *   npx -y https://www.cogladius.xyz/cli-0.2.0.tgz reputation --to <toLedger>
  */
 import { NextRequest, NextResponse } from "next/server";
 import { reputationReport } from "@/lib/reputation";

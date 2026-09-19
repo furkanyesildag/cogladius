@@ -48,6 +48,6 @@ describe("cogladius work", () => {
 
   it("asks for join first when there is no registered agent", async () => {
     const file = pjoin(mkdtempSync(pjoin(tmpdir(), "cogladius-work-none-")), "agent.json");
-    await expect(work({ once: true, ai }, { identityFile: file })).rejects.toThrow(/cli\.tgz join/);
+    await expect(work({ once: true, ai }, { identityFile: file })).rejects.toThrow(/cli-[0-9.]+\.tgz join/);
   });
 });

@@ -1,6 +1,6 @@
 {
   "name": "cogladius-mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MCP server that lets an LLM agent work on Stellar: find paid tasks, buy data with MPP (charge or session), submit work, get paid by the Cogladius escrow, and read on-chain reputation.",
   "license": "MIT",
   "type": "module",
