@@ -1,16 +1,13 @@
 /**
  * Stellar testnet helpers — Level 1 White Belt dApp.
- * Wraps Freighter (wallet) + Horizon (chain) for connect, balance, payment, faucet, history.
+ * Wraps Stellar Wallets Kit (wallet) + Horizon (chain) for connect, balance, payment, faucet, history.
  */
 import {
-  isConnected as freighterIsConnected,
-  isAllowed as freighterIsAllowed,
-  setAllowed as freighterSetAllowed,
-  requestAccess,
-  getAddress,
-  getNetworkDetails,
+  getRememberedAddress,
+  getWalletNetwork,
+  openWalletPicker,
   signTransaction,
-} from "@stellar/freighter-api";
+} from "@/lib/walletKit";
 import {
   Asset,
   BASE_FEE,
@@ -38,15 +35,12 @@ export function getServer(): Horizon.Server {
   return new Horizon.Server(HORIZON_URL);
 }
 
-/** True if the Freighter extension is installed/available. */
+/**
+ * Wallets Kit lists every supported wallet (and install links for missing
+ * ones), so there is always something to pick from in the browser.
+ */
 export async function isFreighterAvailable(): Promise<boolean> {
-  try {
-    const res = await freighterIsConnected();
-    if (res.error) return false;
-    return res.isConnected;
-  } catch {
-    return false;
-  }
+  return typeof window !== "undefined";
 }
 
 export type WalletConnection = {
@@ -56,54 +50,26 @@ export type WalletConnection = {
   isTestnet: boolean;
 };
 
-/** Prompt the user to connect Freighter and return their account + network. */
-export async function connectFreighter(): Promise<WalletConnection> {
-  const installed = await isFreighterAvailable();
-  if (!installed) {
-    throw new Error(
-      "Freighter extension not found. Install it from freighter.app and reload."
-    );
-  }
-
-  const allowed = await freighterIsAllowed();
-  if (!allowed.isAllowed) {
-    const set = await freighterSetAllowed();
-    if (set.error) throw new Error(friendlyError(set.error));
-  }
-
-  const access = await requestAccess();
-  if (access.error) throw new Error(friendlyError(access.error));
-  if (!access.address) throw new Error("No account returned by Freighter.");
-
-  const details = await getNetworkDetails();
-  if (details.error) throw new Error(friendlyError(details.error));
-
+async function toConnection(address: string): Promise<WalletConnection> {
+  const details = await getWalletNetwork();
   return {
-    address: access.address,
+    address,
     network: details.network,
     networkPassphrase: details.networkPassphrase,
     isTestnet: details.networkPassphrase === NETWORK_PASSPHRASE,
   };
 }
 
-/** Re-read the current address without prompting (for silent reconnect). */
+/** Open the wallet picker and return the chosen account + its network. */
+export async function connectFreighter(): Promise<WalletConnection> {
+  return toConnection(await openWalletPicker());
+}
+
+/** Re-read the remembered address without prompting (for silent reconnect). */
 export async function getActiveConnection(): Promise<WalletConnection | null> {
   try {
-    const allowed = await freighterIsAllowed();
-    if (allowed.error || !allowed.isAllowed) return null;
-
-    const addr = await getAddress();
-    if (addr.error || !addr.address) return null;
-
-    const details = await getNetworkDetails();
-    if (details.error) return null;
-
-    return {
-      address: addr.address,
-      network: details.network,
-      networkPassphrase: details.networkPassphrase,
-      isTestnet: details.networkPassphrase === NETWORK_PASSPHRASE,
-    };
+    const address = await getRememberedAddress();
+    return address ? await toConnection(address) : null;
   } catch {
     return null;
   }
@@ -199,7 +165,7 @@ export type SendPaymentArgs = {
 };
 
 /**
- * Build, sign (via Freighter) and submit a native XLM payment on testnet.
+ * Build, sign (via the connected wallet) and submit a native XLM payment on testnet.
  * Returns the transaction hash on success.
  */
 export async function sendXlmPayment({
@@ -314,11 +280,11 @@ export function shortAddress(addr: string, lead = 5, tail = 5): string {
 }
 
 function friendlyError(error: unknown): string {
-  if (!error) return "Unknown Freighter error.";
+  if (!error) return "Unknown wallet error.";
   if (typeof error === "string") return error;
   const anyErr = error as { message?: string; code?: number };
   if (anyErr.message) return anyErr.message;
-  return "Freighter request was rejected or failed.";
+  return "Wallet request was rejected or failed.";
 }
 
 /** Turn Horizon submit errors into a readable message. */

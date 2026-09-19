@@ -19,6 +19,7 @@
     "vercel:repo": "npx --yes vercel@latest --cwd .. link --repo -y"
   },
   "dependencies": {
+    "@creit.tech/stellar-wallets-kit": "^2.6.0",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/stellar-sdk": "^15.1.0",
     "@upstash/redis": "^1.37.0",

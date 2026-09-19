@@ -5,7 +5,8 @@
  *
  * Posters connect Freighter, set a USDC reward, and sign a single
  * `post_task` contract call that locks the reward in the escrow contract.
- * Everything here runs in the browser and signs through Freighter (SEP-43).
+ * Everything here runs in the browser and signs through the connected wallet
+ * (Stellar Wallets Kit: Freighter, xBull, Albedo, Lobstr, ...).
  */
 
 import {
@@ -17,7 +18,7 @@ import {
   scValToNative,
   rpc,
 } from "@stellar/stellar-sdk";
-import { signTransaction } from "@stellar/freighter-api";
+import { signTransaction } from "@/lib/walletKit";
 import {
   ESCROW_CONTRACT_ID,
   NETWORK_PASSPHRASE,

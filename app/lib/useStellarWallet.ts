@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { WatchWalletChanges } from "@stellar/freighter-api";
+import { disconnectWallet, onWalletChange } from "./walletKit";
 import {
   connectFreighter,
   fetchXlmBalance,
   getActiveConnection,
   isFreighterAvailable,
-  NETWORK_PASSPHRASE,
   type WalletConnection,
 } from "./stellar";
 
@@ -31,7 +30,7 @@ export function useStellarWallet() {
     balanceLoading: false,
     error: null,
   });
-  const watcherRef = useRef<WatchWalletChanges | null>(null);
+  const unwatchRef = useRef<(() => void) | null>(null);
 
   const refreshBalance = useCallback(async (address?: string) => {
     const addr = address ?? state.connection?.address;
@@ -64,14 +63,15 @@ export function useStellarWallet() {
       setState((s) => ({
         ...s,
         connecting: false,
-        error: e?.message || "Failed to connect Freighter.",
+        error: e?.message || "Failed to connect the wallet.",
       }));
     }
   }, [refreshBalance]);
 
   const disconnect = useCallback(() => {
-    watcherRef.current?.stop();
-    watcherRef.current = null;
+    unwatchRef.current?.();
+    unwatchRef.current = null;
+    void disconnectWallet();
     setState((s) => ({
       ...s,
       connection: null,
@@ -85,7 +85,7 @@ export function useStellarWallet() {
     setState((s) => ({ ...s, error: null }));
   }, []);
 
-  // Detect Freighter availability + attempt a silent reconnect on mount.
+  // Detect wallet availability + attempt a silent reconnect on mount.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -104,37 +104,28 @@ export function useStellarWallet() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Watch for account/network switches in the extension while connected.
+  // Follow account switches made through the wallet kit while connected.
   useEffect(() => {
     if (!state.connection) return;
-    const watcher = new WatchWalletChanges(2500);
-    watcherRef.current = watcher;
-    watcher.watch(({ address, networkPassphrase, error }) => {
-      if (error || !address) return;
-      setState((s) => {
-        if (!s.connection) return s;
-        if (
-          s.connection.address === address &&
-          s.connection.networkPassphrase === networkPassphrase
-        ) {
-          return s;
-        }
-        return {
-          ...s,
-          connection: {
-            ...s.connection,
-            address,
-            networkPassphrase,
-            isTestnet: networkPassphrase === NETWORK_PASSPHRASE,
-          },
-        };
-      });
+    let cancelled = false;
+    void onWalletChange((address) => {
+      if (!address) return;
+      setState((s) =>
+        !s.connection || s.connection.address === address
+          ? s
+          : { ...s, connection: { ...s.connection, address } }
+      );
+    }).then((unwatch) => {
+      if (cancelled) unwatch();
+      else unwatchRef.current = unwatch;
     });
     return () => {
-      watcher.stop();
-      watcherRef.current = null;
+      cancelled = true;
+      unwatchRef.current?.();
+      unwatchRef.current = null;
     };
-  }, [state.connection?.address]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!state.connection]);
 
   // Refresh balance when the watched address changes.
   useEffect(() => {

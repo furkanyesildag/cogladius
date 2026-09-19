@@ -8,6 +8,7 @@ import {
   shortAddress,
 } from "@/lib/stellar";
 import StellarSendForm from "@/components/StellarSendForm";
+import SwapForm from "@/components/SwapForm";
 import { IS_MAINNET } from "@/lib/constants";
 
 const overlay: React.CSSProperties = {
@@ -47,6 +48,7 @@ export default function ConnectWallet() {
   const [chooserOpen, setChooserOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  const [swapOpen, setSwapOpen] = useState(false);
   const [funding, setFunding] = useState(false);
   const [fundMsg, setFundMsg] = useState<string | null>(null);
 
@@ -182,6 +184,27 @@ export default function ConnectWallet() {
                     }}
                   >
                     Send XLM
+                  </button>
+                  <button
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      setSwapOpen(true);
+                    }}
+                    title="Swap XLM ↔ USDC via Soroswap"
+                    style={{
+                      flex: 1,
+                      fontFamily: "var(--font)",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "9px",
+                      borderRadius: 9,
+                      cursor: "pointer",
+                      background: "transparent",
+                      color: "var(--text-primary)",
+                      border: "1px solid var(--accent-border)",
+                    }}
+                  >
+                    Swap
                   </button>
                   <button
                     onClick={() => refreshBalance(stellarConn.address)}
@@ -377,7 +400,7 @@ export default function ConnectWallet() {
                     color: "var(--text-primary)",
                   }}
                 >
-                  Stellar — Freighter
+                  Stellar wallet
                 </span>
                 <span
                   style={{
@@ -388,10 +411,10 @@ export default function ConnectWallet() {
                   }}
                 >
                   {state.available === false
-                    ? "Freighter not installed"
+                    ? "Wallets unavailable"
                     : state.connecting
                     ? "Connecting…"
-                    : "Mainnet · XLM rewards"}
+                    : "Freighter · xBull · Lobstr · Albedo · Hana …"}
                 </span>
               </span>
             </button>
@@ -447,6 +470,24 @@ export default function ConnectWallet() {
               </button>
             </div>
             <StellarSendForm compact onSent={() => { /* balance auto-refreshes */ }} />
+          </div>
+        </div>
+      )}
+
+      {/* SOROSWAP MODAL */}
+      {swapOpen && stellarConn && (
+        <div style={overlay} onClick={() => setSwapOpen(false)}>
+          <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontFamily: "var(--font-head)", fontSize: 18 }}>Swap</h3>
+              <button
+                onClick={() => setSwapOpen(false)}
+                style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 18 }}
+              >
+                ✕
+              </button>
+            </div>
+            <SwapForm />
           </div>
         </div>
       )}

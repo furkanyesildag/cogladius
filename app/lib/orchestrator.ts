@@ -16,6 +16,7 @@ import { setSubTasks, setSubTaskTaskId, updateProject } from "./projectStore";
 export { SPECIALTY_META } from "./specialtyMeta";
 import { SPECIALTY_META } from "./specialtyMeta";
 import { getOpenAiChatModel, openaiChatCompletion } from "./openaiAgents";
+import { jevAnalyze } from "./jevOrchestrator";
 
 const VALID_SPECIALTIES = new Set(Object.keys(SPECIALTY_META) as AgentSpecialty[]);
 const SPECIALTIES_LIST = Object.keys(SPECIALTY_META).join(", ");
@@ -255,8 +256,11 @@ export async function analyzeProject(
 ): Promise<OrchestratorResult> {
   await updateProject(projectId, { status: "analyzing" });
 
-  // 1. Analyze (LLM first, keyword fallback)
-  let breakdown = await llmAnalyze(description, totalBudget);
+  // 1. Analyze: Jev (typed, calibrated) -> LLM -> keyword fallback
+  let breakdown = await jevAnalyze(description, normalizeBreakdown, totalBudget);
+  if (!breakdown || breakdown.length === 0) {
+    breakdown = await llmAnalyze(description, totalBudget);
+  }
   if (!breakdown || breakdown.length === 0) {
     breakdown = keywordAnalyze(description, totalBudget);
   }
