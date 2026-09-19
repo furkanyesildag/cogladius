@@ -26,6 +26,22 @@ import {
 
 const BASE_FEE = "1000000"; // generous fee for Soroban invocations
 
+/**
+ * Defensive retry for XDR decode errors from RPC (seen when mainnet nodes began
+ * returning CAP-71 `AddressV2` auth before this app moved to stellar-sdk 16).
+ * The failure happens before anything is signed or sent, so retrying is safe.
+ */
+async function retryXdr<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      if (i >= attempts - 1 || !/XDR Read Error/i.test(String(err?.message))) throw err;
+      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+}
+
 // Server code talks to the real upstream RPC directly (the client goes through
 // the /api/soroban proxy). SOROBAN_RPC_URL_SERVER holds the secret mainnet URL;
 // fall back to the public var only if it is a real absolute URL.
@@ -101,6 +117,76 @@ export function signVerdict(
   return verdictKeypair().sign(msg); // raw 64-byte ed25519 signature
 }
 
+// All-zero ed25519 account, used only as the source of read-only simulations.
+const SIMULATION_SOURCE =
+  "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+
+async function simulateRead(fn: string, ...args: any[]): Promise<any | null> {
+  if (!ESCROW_CONTRACT_ID) return null;
+  const server = getRpcServer();
+  const { Contract, scValToNative } = await import("@stellar/stellar-sdk");
+  const tx = new TransactionBuilder(new Account(SIMULATION_SOURCE, "0"), {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(new Contract(ESCROW_CONTRACT_ID).call(fn, ...args))
+    .setTimeout(30)
+    .build();
+  const sim = await retryXdr(() => server.simulateTransaction(tx));
+  if (rpc.Api.isSimulationError(sim)) {
+    throw new Error(`${fn} simulation failed: ${sim.error}`);
+  }
+  const retval = sim.result?.retval;
+  return retval ? scValToNative(retval) : null;
+}
+
+export type EscrowStatus = "Open" | "Active" | "Completed" | "Disputed" | "Refunded";
+const STATUS_NAMES: EscrowStatus[] = ["Open", "Active", "Completed", "Disputed", "Refunded"];
+
+export interface OnchainTask {
+  poster: string;
+  reward: bigint;
+  deadline: number;
+  status: EscrowStatus;
+  winner: string | null;
+}
+
+/**
+ * Read a task straight from the escrow contract. Returns null when the task id
+ * has never been posted. Throws on RPC failure, so callers never mistake an
+ * outage for "task does not exist".
+ */
+export async function getOnchainTask(taskId: number): Promise<OnchainTask | null> {
+  const raw = await simulateRead("get_task", nativeToScVal(BigInt(taskId), { type: "u64" }));
+  if (!raw) return null;
+  // scValToNative renders a unit enum as either a number or a one-element array.
+  const s = Array.isArray(raw.status) ? raw.status[0] : raw.status;
+  const status = typeof s === "number" ? STATUS_NAMES[s] : (s as EscrowStatus);
+  return {
+    poster: String(raw.poster),
+    reward: BigInt(raw.reward),
+    deadline: Number(raw.deadline),
+    status,
+    winner: raw.winner ? String(raw.winner) : null,
+  };
+}
+
+export async function getEscrowConfig(): Promise<{
+  admin: string;
+  passThreshold: number;
+  settleGrace: number;
+  paused: boolean;
+} | null> {
+  const raw = await simulateRead("get_config");
+  if (!raw) return null;
+  return {
+    admin: String(raw.admin),
+    passThreshold: Number(raw.pass_threshold),
+    settleGrace: Number(raw.settle_grace ?? 0),
+    paused: !!raw.paused,
+  };
+}
+
 async function waitForTx(server: rpc.Server, hash: string): Promise<void> {
   for (let i = 0; i < 30; i++) {
     const res = await server.getTransaction(hash);
@@ -150,7 +236,7 @@ export async function releaseToWinner(
     .setTimeout(60)
     .build();
 
-  const prepared = await server.prepareTransaction(tx);
+  const prepared = await retryXdr(() => server.prepareTransaction(tx));
   prepared.sign(submitter);
 
   const sent = await server.sendTransaction(prepared);
@@ -185,7 +271,7 @@ export async function flagDisputed(taskId: number): Promise<{ hash: string }> {
     .setTimeout(60)
     .build();
 
-  const prepared = await server.prepareTransaction(tx);
+  const prepared = await retryXdr(() => server.prepareTransaction(tx));
   prepared.sign(submitter);
   const sent = await server.sendTransaction(prepared);
   if (sent.status === "ERROR") {

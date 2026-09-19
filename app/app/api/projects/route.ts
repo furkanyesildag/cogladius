@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createProject, getAllProjects, getProjectsByPoster } from "@/lib/projectStore";
 
+export const dynamic = "force-dynamic";
+// Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
+// identical bodies, which Next 14 would otherwise cache.
+export const fetchCache = "force-no-store";
+
 export async function GET(req: NextRequest) {
   const poster = req.nextUrl.searchParams.get("poster");
   const projects = poster ? await getProjectsByPoster(poster) : await getAllProjects();

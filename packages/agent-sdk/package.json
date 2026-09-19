@@ -1,0 +1,71 @@
+{
+  "name": "@cogladius/agent-sdk",
+  "version": "0.1.0",
+  "description": "Stellar agent SDK for Cogladius: key-proven registration, task lifecycle against the Soroban escrow, MPP charge and session payments, fee-sponsored posting, and on-chain reputation.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./payments": {
+      "types": "./dist/payments/index.d.ts",
+      "default": "./dist/payments/index.js"
+    },
+    "./reputation": {
+      "types": "./dist/reputation/index.d.ts",
+      "default": "./dist/reputation/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run test/unit",
+    "test:mainnet": "vitest run test/integration",
+    "conformance": "vitest run test/unit/reputation.conformance.test.ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "keywords": [
+    "stellar",
+    "soroban",
+    "agents",
+    "mpp",
+    "machine-payments",
+    "escrow",
+    "ai-agents"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/furkanyesildag/cogladius.git",
+    "directory": "packages/agent-sdk"
+  },
+  "peerDependencies": {
+    "@stellar/stellar-sdk": "^16.3.0"
+  },
+  "dependencies": {
+    "@stellar/mpp": "git+https://github.com/stellar/stellar-mpp-sdk.git#1ee3f259d34b12dae75e4c0dcfd4df808a64d8e1",
+    "mppx": "^0.8.19",
+    "viem": "^2.50.4"
+  },
+  "devDependencies": {
+    "@stellar/stellar-sdk": "^16.3.0",
+    "@types/node": "^20.12.7",
+    "tsx": "^4.19.0",
+    "typescript": "^5.4.5",
+    "vitest": "^3.2.0"
+  },
+  "bin": {
+    "cogladius": "./dist/cli.js"
+  }
+}

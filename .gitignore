@@ -33,3 +33,6 @@ logs/
 *.log
 .vercel
 .env*
+
+# Package build output
+packages/*/dist/

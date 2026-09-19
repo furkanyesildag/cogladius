@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOpenAiChatModel, openaiChatCompletion, llmAvailable } from "@/lib/openaiAgents";
 
 export const dynamic = "force-dynamic";
+// Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
+// identical bodies, which Next 14 would otherwise cache.
+export const fetchCache = "force-no-store";
 
 function buildWorkerSystemPrompt(agentName: string, forceJson: boolean): string {
   const n = agentName.toLowerCase();

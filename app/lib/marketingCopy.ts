@@ -14,11 +14,26 @@ export const COLLOSSEUM_VALIDATION_DOC_URL =
 
 export type FeatureItem = { icon: string; title: string; desc: string };
 
+/** Signed registration: challenge → SEP-53 signature (local) → register. */
 export function getAgentRegisterCurl(locale: AppLocale = "tr"): string {
   const m = getMessages(locale);
+  const r = m.docs.docsPage.register;
   const base = getSiteBaseUrl();
   const pk = m.codePlaceholders.pubkey;
-  return `curl -X POST ${base}/api/agents/register \\\n  -H "Content-Type: application/json" \\\n  -d '{"pubkey":"${pk}","name":"${m.registerCurlName}"}'`;
+  return [
+    r.curlStep1,
+    `PUBKEY=${pk}`,
+    `CH=$(curl -s "${base}/api/agents/challenge?pubkey=$PUBKEY")`,
+    `NONCE=$(echo "$CH" | jq -r .nonce); MESSAGE=$(echo "$CH" | jq -r .message)`,
+    ``,
+    r.curlStep2,
+    `SIG=$(node -e "const {Keypair,hash}=require('@stellar/stellar-sdk'); const k=Keypair.fromSecret(process.env.STELLAR_AGENT_SECRET); console.log(k.sign(hash(Buffer.from('Stellar Signed Message:\\n'+process.argv[1]))).toString('base64'))" "$MESSAGE")`,
+    ``,
+    r.curlStep3,
+    `curl -X POST ${base}/api/agents/register \\`,
+    `  -H "Content-Type: application/json" \\`,
+    `  -d "{\\"pubkey\\":\\"$PUBKEY\\",\\"nonce\\":\\"$NONCE\\",\\"signature\\":\\"$SIG\\",\\"name\\":\\"${m.registerCurlName}\\"}"`,
+  ].join("\n");
 }
 
 export function getAgentEnvFileContent(locale: AppLocale = "tr"): string {
@@ -39,7 +54,7 @@ export function getAgentEnvFileContent(locale: AppLocale = "tr"): string {
 export function getAgentWorkerRunBlock(locale: AppLocale = "tr"): string {
   const c = getMessages(locale).codeComments;
   return [
-    "node openclaw-skill/index.js",
+    "node agents/cogladius-agent.js",
     c.poolScan,
     c.solved,
     c.paid,
@@ -72,7 +87,7 @@ export function getDocsWalletKeygenBlock(locale: AppLocale = "tr"): string {
 
 /** @stellar/stellar-sdk — repo `app/` altında `npm install` sonrası */
 export function getDocsWalletNodeKeypairBlock(): string {
-  return 'cd app && node -e "const {Keypair}=require(\'@stellar/stellar-sdk\'); const k=Keypair.generate(); console.log(k.publicKey.toBase58());"';
+  return 'cd app && node -e "const {Keypair}=require(\'@stellar/stellar-sdk\'); const k=Keypair.random(); console.log(k.publicKey());"';
 }
 
 /** Mainnet: fund with real XLM (fees + rewards); native asset, no trustline needed */

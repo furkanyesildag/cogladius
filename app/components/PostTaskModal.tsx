@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import ConnectWallet from "@/components/ConnectWallet";
 import { TaskType, OutputFormat } from "@/lib/types";
 import { ESCROW_CONTRACT_ID, IS_MAINNET } from "@/lib/constants";
-import { postTaskOnChain } from "@/lib/sorobanEscrow";
+import { postTaskOnChain, postTaskSponsored, relayerInfo } from "@/lib/sorobanEscrow";
 import { fetchXlmBalance, EXPLORER_TX } from "@/lib/stellar";
 import { useMessages, useLocale } from "@/lib/i18n";
 import type { AppMessages } from "@/lib/i18n";
@@ -81,7 +81,17 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
   const [trustLoading, setTrustLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [taskId] = useState(() => Math.floor(Date.now() / 1000) % 100000);
+  // Random 47-bit id: JSON-safe, and collisions with existing escrow tasks are negligible.
+  const [taskId] = useState(() => Math.floor(Math.random() * 2 ** 47) + 1);
+  const [sponsorAvailable, setSponsorAvailable] = useState(false);
+  const [sponsored, setSponsored] = useState(false);
+  const [relayFee, setRelayFee] = useState<string | null>(null);
+  useEffect(() => {
+    relayerInfo().then((r) => {
+      setSponsorAvailable(!!r);
+      setSponsored(!!r);
+    });
+  }, []);
   const [usdcBalance, setUsdcBalance] = useState<number | null>(null);
   const [hasTrustline, setHasTrustline] = useState<boolean>(true);
 
@@ -131,12 +141,22 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
     try {
       const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
       // 1) Lock the XLM reward in the Soroban escrow contract (real on-chain).
-      const { hash } = await postTaskOnChain({
-        posterAddress: conn.address,
-        taskId,
-        rewardUsdc,
-        deadline,
-      });
+      // Sponsored: the poster signs only the authorization entry and the relayer
+      // pays the network fee. Otherwise the poster signs and pays as before.
+      // Some wallets (xBull, Albedo, Lobstr, Rabet) can't sign auth entries;
+      // for them fall back to the poster-paid path instead of failing.
+      const postArgs = { posterAddress: conn.address, taskId, rewardUsdc, deadline };
+      const { hash } = sponsored
+        ? await postTaskSponsored(postArgs)
+            .then((r) => {
+              setRelayFee(r.feePaidByRelayer);
+              return r;
+            })
+            .catch((err) => {
+              if (/does not support/i.test(String(err?.message))) return postTaskOnChain(postArgs);
+              throw err;
+            })
+        : await postTaskOnChain(postArgs);
 
       // 2) Persist the task server-side so agents/judges/UI can see it.
       let serverId = taskId;
@@ -193,6 +213,11 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
           </div>
           <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.7, marginBottom: 20 }}>
             {L.successBody}
+            {relayFee && (
+              <div style={{ marginTop: 8, fontSize: 12, color: "var(--green)" }}>
+                {locale === "tr" ? `Ağ ücreti (${relayFee} XLM) Cogladius tarafından ödendi.` : `Network fee (${relayFee} XLM) paid by Cogladius.`}
+              </div>
+            )}
           </div>
           <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 6, padding: "12px 14px", marginBottom: 20 }}>
             <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-ghost)", letterSpacing: "0.1em", marginBottom: 8 }}>{L.txHashLabel}</div>
@@ -468,6 +493,16 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               </div>
             ))}
           </div>
+
+          {/* Fee sponsorship */}
+          {sponsorAvailable && (
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)" }}>
+              <input type="checkbox" checked={sponsored} onChange={(e) => setSponsored(e.target.checked)} />
+              {locale === "tr"
+                ? "Ağ ücretini Cogladius ödesin (yalnızca yetkilendirmeyi imzalarsın, cüzdanından sadece ödül çıkar)"
+                : "Let Cogladius pay the network fee (you sign only the authorization; only the reward leaves your wallet)"}
+            </label>
+          )}
 
           {/* Error */}
           {error && (

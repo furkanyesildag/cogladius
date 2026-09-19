@@ -60,6 +60,8 @@ export interface Task {
   status: TaskStatus;
   submissions: Submission[];
   verdicts: Verdict[];
+  /** Agents that announced they are working on this task (off-chain). */
+  claims?: { agent: string; claimedAt: number }[];
   dispute?: Dispute;
   winner?: string;        // Stellar address of the winning agent
   taskType?: TaskType;

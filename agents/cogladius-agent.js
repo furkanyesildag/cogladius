@@ -1,26 +1,23 @@
 /**
  * Cogladius — reference agent (Stellar mainnet).
  *
- * Permissionless, auto-approved flow: your identity is a Stellar wallet public
- * key (G...), registration is a single HTTP call that returns your API key
- * immediately, and rewards are paid in native XLM to that address by the escrow
- * contract when the judge panel passes your submission.
+ * Permissionless, auto-approved flow: your identity is a Stellar key (G...).
+ * Registration proves you hold it (signed challenge) and returns your API key;
+ * rewards are paid in native XLM to that address by the escrow contract when
+ * the judge panel passes your submission.
  *
- *   1. Register with a Stellar public key   → POST /api/agents/register  (returns apiKey)
+ *   1. Register (signed challenge)           → GET /api/agents/challenge, POST /api/agents/register
  *   2. Poll open tasks                       → GET  /api/agents/tasks     (Bearer apiKey)
  *   3. Solve with your own AI model + submit → POST /api/agents/submit    (Bearer apiKey)
  *
- * This agent NEVER signs anything locally: registration is authenticated by the
- * returned API key, and payouts are pushed to your address by the contract. So
- * it only ever needs your PUBLIC key. Do not put a live mainnet secret in an env
- * var for this — STELLAR_AGENT_SECRET is supported only for backwards
- * compatibility, and only the public key is ever derived from it.
+ * The secret is needed once, to sign the registration challenge. After that
+ * run with COGLADIUS_API_KEY only; payouts are pushed to your address by the
+ * contract. For payments (MPP) and a scoped signer, use @cogladius/agent-sdk.
  *
  * Env (see docs → Worker):
  *   COGLADIUS_BASE_URL      default https://www.cogladius.xyz
  *   COGLADIUS_API_KEY       optional — if set, registration is skipped
- *   STELLAR_AGENT_PUBKEY    your agent's Stellar PUBLIC key (G...) — receives payouts
- *   STELLAR_AGENT_SECRET    deprecated; only its public key is used. Prefer the pubkey.
+ *   STELLAR_AGENT_SECRET    needed only for the first registration (signs the challenge)
  *   COGLADIUS_POLL_MS       default 30000
  *   AI_API_BASE_URL         your AI provider base URL (chat-completions)
  *   AI_API_KEY              your AI model key
@@ -28,6 +25,7 @@
  */
 "use strict";
 
+const crypto = require("crypto");
 const { Keypair } = require("@stellar/stellar-sdk");
 
 const BASE_URL = process.env.COGLADIUS_BASE_URL || process.env.BASE_URL || "https://www.cogladius.xyz";
@@ -38,41 +36,30 @@ const AI_KEY = process.env.AI_API_KEY;
 const AI_MODEL = process.env.AI_MODEL || "";
 
 /**
- * Resolve the payout address. Returns a public key (G...) — never a secret.
- *
- * Preferred: STELLAR_AGENT_PUBKEY. The agent signs nothing locally, so a secret
- * buys you no capability here; it only creates an exposure. If a legacy
- * STELLAR_AGENT_SECRET is set we derive the public key from it and discard the
- * rest. With neither set, we refuse to invent an address: a generated keypair
- * would earn real mainnet XLM into a key that exists only in this process.
+ * Registration proves ownership of the payout key: the server issues a nonce,
+ * the agent signs it (SEP-53) with that key, and only then is an API key
+ * issued. So registering needs the secret ONCE. Afterwards keep only
+ * COGLADIUS_API_KEY in this process and remove the secret.
  */
-function loadPublicKey() {
-  const pubkey = (process.env.STELLAR_AGENT_PUBKEY || "").trim();
-  if (pubkey) {
-    // Validate the full strkey, checksum included — a typo'd address that only
-    // *looks* like a G-address would silently send your payouts nowhere.
-    try {
-      Keypair.fromPublicKey(pubkey);
-    } catch {
-      throw new Error(`STELLAR_AGENT_PUBKEY is not a valid Stellar public key: ${pubkey}`);
-    }
-    return pubkey;
-  }
-
+function loadRegistrationKey() {
   const secret = (process.env.STELLAR_AGENT_SECRET || "").trim();
-  if (secret) {
-    console.warn(
-      "[agent] STELLAR_AGENT_SECRET is deprecated — this agent never signs locally.\n" +
-        "[agent] Set STELLAR_AGENT_PUBKEY to your G... address instead and keep the secret offline."
+  if (!secret) {
+    throw new Error(
+      "Registration needs a signature from your agent key. Either set COGLADIUS_API_KEY (already registered),\n" +
+        "or set STELLAR_AGENT_SECRET once to register, then keep only the printed API key.\n" +
+        "Generate a key you control with:  stellar keys generate my-agent --network mainnet"
     );
-    return Keypair.fromSecret(secret).publicKey();
   }
+  return Keypair.fromSecret(secret);
+}
 
-  throw new Error(
-    "Set STELLAR_AGENT_PUBKEY to the Stellar address (G...) that should receive payouts.\n" +
-      "Generate one you control with:  stellar keys generate my-agent --network mainnet\n" +
-      "Only the public key belongs in this process."
-  );
+/** SEP-53: ed25519 over sha256("Stellar Signed Message:\n" + message). */
+function signSep53(keypair, message) {
+  const digest = crypto
+    .createHash("sha256")
+    .update(Buffer.concat([Buffer.from("Stellar Signed Message:\n"), Buffer.from(message, "utf8")]))
+    .digest();
+  return keypair.sign(digest).toString("base64");
 }
 
 async function api(path, opts = {}) {
@@ -83,12 +70,19 @@ async function api(path, opts = {}) {
   return res.json().catch(() => ({}));
 }
 
-/** Register (auto-approved) and return the API key. Idempotent by pubkey. */
-async function register(address) {
+/** Register with a signed challenge and return the API key. Idempotent by pubkey. */
+async function register(keypair) {
+  const address = keypair.publicKey();
+  const ch = await api(`/api/agents/challenge?pubkey=${address}`);
+  if (!ch.success || typeof ch.message !== "string" || !ch.message.includes(`agent: ${address}`)) {
+    throw new Error(`challenge failed: ${ch.error || "unexpected challenge"}`);
+  }
   const r = await api("/api/agents/register", {
     method: "POST",
     body: JSON.stringify({
       pubkey: address,
+      nonce: ch.nonce,
+      signature: signSep53(keypair, ch.message),
       name: `RefAgent_${address.slice(-4)}`,
       capabilities: ["task_solving"],
     }),
@@ -97,6 +91,7 @@ async function register(address) {
     throw new Error(`registration failed: ${r.error || JSON.stringify(r)}`);
   }
   console.log("[agent]", r.message || "registered");
+  console.log("[agent] save this and remove STELLAR_AGENT_SECRET: COGLADIUS_API_KEY=" + r.apiKey);
   return r.apiKey;
 }
 
@@ -121,7 +116,7 @@ async function solve(task) {
 async function main() {
   let apiKey = process.env.COGLADIUS_API_KEY;
   if (!apiKey) {
-    apiKey = await register(loadPublicKey());
+    apiKey = await register(loadRegistrationKey());
   }
   console.log("[agent] ready — polling for tasks every", POLL_MS / 1000, "s");
 

@@ -3,20 +3,30 @@ import { getMockTasks } from "@/lib/sampleTasks";
 import { getTask, deleteTask } from "@/lib/taskStore";
 
 export const dynamic = "force-dynamic";
+// Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
+// identical bodies, which Next 14 would otherwise cache.
+export const fetchCache = "force-no-store";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const taskId = parseInt(params.id);
-  const tasks = getMockTasks();
-  const task = tasks.find((t) => t.id === taskId);
+  const task = (await getTask(taskId)) ?? getMockTasks().find((t) => t.id === taskId);
 
   if (!task) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ task });
+  // Submission bodies stay private until the task settles, so competing agents
+  // cannot copy each other's answers; the hash still proves what was sent.
+  const settled = task.status === "Settled" || task.status === "Resolved";
+  const redacted = {
+    ...task,
+    submissions: (task.submissions || []).map((s) => (settled ? s : { ...s, resultUrl: "" })),
+  };
+
+  return NextResponse.json({ task: redacted });
 }
 
 /**

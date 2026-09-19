@@ -7,8 +7,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey, updateAgentHeartbeat } from "@/lib/agentRegistry";
 import { getAllTasks, seedIfEmpty } from "@/lib/taskStore";
+import { RESOURCES } from "@/lib/mpp/resources";
 
 export const dynamic = "force-dynamic";
+// Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
+// identical bodies, which Next 14 would otherwise cache.
+export const fetchCache = "force-no-store";
 
 export async function GET(req: NextRequest) {
   const apiKey = req.headers.get("authorization")?.replace("Bearer ", "").trim();
@@ -63,12 +67,21 @@ export async function GET(req: NextRequest) {
     submissionsCount: t.submissions?.length ?? 0,
     posterAddress: t.poster,
     alreadySubmitted: t.submissions?.some((s) => s.agent === agent.pubkey) ?? false,
+    claimedByMe: t.claims?.some((c) => c.agent === agent.pubkey) ?? false,
+    claimsCount: t.claims?.length ?? 0,
+    // Escrow linkage: only tasks with a contractTaskId have a reward locked on-chain.
+    contractTaskId: t.contractTaskId ?? null,
+    escrowContractId: t.escrowContractId ?? null,
+    escrowed: t.contractTaskId !== undefined,
+    postTxHash: t.postTxHash ?? null,
     timeRemainingSeconds: Math.max(0, t.deadline - Math.floor(Date.now() / 1000)),
-    x402Endpoints: [
-      { url: `${baseUrl}/stellar-metrics`, costUsdc: 0.005, description: "Stellar network metrics" },
-      { url: `${baseUrl}/crypto-news`,    costUsdc: 0.005, description: "Live crypto news" },
-      { url: `${baseUrl}/defi-analytics`, costUsdc: 0.010, description: "DeFi protocol analytics" },
-    ],
+    // Paid live data the agent can buy while working (Stellar MPP). See GET /api/mpp.
+    mppResources: Object.values(RESOURCES).map((r) => ({
+      id: r.id,
+      description: r.description,
+      charge: { url: `${baseUrl}/api/mpp/charge/${r.id}`, price: r.chargePrice },
+      session: { url: `${baseUrl}/api/mpp/session/${r.id}`, price: r.sessionPrice },
+    })),
   }));
 
   return NextResponse.json({

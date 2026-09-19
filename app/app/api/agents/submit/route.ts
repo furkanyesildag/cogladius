@@ -11,6 +11,9 @@ import { runJudgePanel } from "@/lib/judgePanel";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
+// Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
+// identical bodies, which Next 14 would otherwise cache.
+export const fetchCache = "force-no-store";
 
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("authorization")?.replace("Bearer ", "").trim();
@@ -56,6 +59,37 @@ export async function POST(req: NextRequest) {
       { success: false, code: "task_already_settled", error: `Görev #${taskId} zaten tamamlandı` },
       { status: 409 }
     );
+  }
+
+  // A submission that was stored on time but never judged (the panel failed)
+  // gets judged now. The stored text is used, not the new body, so an agent
+  // cannot swap its answer after the deadline or after seeing others.
+  const previous = task.submissions?.find((s) => s.agent === agent.pubkey);
+  const judged = (task.verdicts || []).some((v) => v.agent === agent.pubkey);
+  if (previous && !judged) {
+    const stored = Buffer.from(previous.resultUrl.replace(/^data:text\/plain;base64,/, ""), "base64").toString("utf8");
+    const retry = await runJudgePanel({ taskDescription: task.description, criteria: task.criteria, submission: stored });
+    if (!retry.ok) {
+      return NextResponse.json(
+        { success: false, code: "judging_unavailable", error: `Jüri şu an değerlendiremedi: ${retry.error}. Daha sonra tekrar deneyin.` },
+        { status: 503 }
+      );
+    }
+    for (const sc of retry.scores) {
+      await addVerdict(taskId, { judgeId: sc.judgeId, judgeName: sc.judgeName, agent: agent.pubkey, score: sc.score, reasoning: sc.reasoning });
+    }
+    await updateTaskStatus(taskId, "AwaitingDecision");
+    return NextResponse.json({
+      success: true,
+      rejudged: true,
+      submission: { taskId, agentPubkey: agent.pubkey, resultHash: previous.resultHash },
+      judging: {
+        scores: retry.scores.map((sc) => ({ judge: sc.judgeName, score: sc.score, reasoning: sc.reasoning })),
+        avgScore: retry.avgScore,
+        pass: retry.pass,
+      },
+      message: `✅ Görev #${taskId} için kayıtlı gönderim değerlendirildi — ortalama ${retry.avgScore}/100.`,
+    });
   }
 
   // Gate on the deadline BEFORE the judge panel runs. The escrow contract will

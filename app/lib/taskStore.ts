@@ -105,6 +105,8 @@ export async function createTask(data: {
   contractTaskId?: number;
   escrowContractId?: string;
   postTxHash?: string;
+  /** Absolute deadline (unix seconds); overrides deadlineMinutes when set. */
+  deadline?: number;
 }): Promise<Task> {
   const tasks = await loadTasks();
   const id = nextId(tasks);
@@ -118,7 +120,7 @@ export async function createTask(data: {
     criteria: data.criteria,
     reward: data.reward ?? Math.round(rewardUsdc * 1e7),
     rewardUsdc,
-    deadline: now + data.deadlineMinutes * 60,
+    deadline: data.deadline ?? now + data.deadlineMinutes * 60,
     status: "Open",
     submissions: [],
     verdicts: [],
@@ -191,6 +193,19 @@ export async function addSubmission(
   if (tasks[taskId].status === "Open") tasks[taskId].status = "UnderReview";
   await saveTasks(tasks);
   return true;
+}
+
+/** Record that `agent` is working on a task. Idempotent per agent. */
+export async function addClaim(taskId: number, agent: string): Promise<Task | null> {
+  const tasks = await loadTasks();
+  const task = tasks[taskId];
+  if (!task) return null;
+  task.claims = task.claims ?? [];
+  if (!task.claims.some((c) => c.agent === agent)) {
+    task.claims.push({ agent, claimedAt: Math.floor(Date.now() / 1000) });
+    await saveTasks(tasks);
+  }
+  return task;
 }
 
 export async function addVerdict(

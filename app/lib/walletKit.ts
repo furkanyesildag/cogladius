@@ -91,10 +91,24 @@ export async function onWalletChange(cb: (address: string | undefined) => void):
 
 type SignOpts = { networkPassphrase?: string; address?: string };
 
+/**
+ * Run a kit call; if no wallet has been picked yet (e.g. agent registration
+ * signs before any "connect"), open the picker once and retry.
+ */
+async function withWallet<T>(fn: (kit: Kit) => Promise<T>): Promise<T> {
+  const kit = await loadKit();
+  try {
+    return await fn(kit);
+  } catch (err: any) {
+    if (!/set the wallet first/i.test(String(err?.message))) throw err;
+    await kit.authModal();
+    return fn(kit);
+  }
+}
+
 export async function signTransaction(xdr: string, opts: SignOpts = {}) {
   try {
-    const kit = await loadKit();
-    const r = await kit.signTransaction(xdr, { networkPassphrase: NETWORK_PASSPHRASE, ...opts });
+    const r = await withWallet((kit) => kit.signTransaction(xdr, { networkPassphrase: NETWORK_PASSPHRASE, ...opts }));
     return { signedTxXdr: r.signedTxXdr, signerAddress: r.signerAddress ?? "", error: undefined };
   } catch (err) {
     return { signedTxXdr: "", signerAddress: "", error: errorMessage(err) };
@@ -104,8 +118,7 @@ export async function signTransaction(xdr: string, opts: SignOpts = {}) {
 /** Not every wallet can sign auth entries (Albedo, xBull, Lobstr, Rabet can't). */
 export async function signAuthEntry(entryXdr: string, opts: SignOpts = {}) {
   try {
-    const kit = await loadKit();
-    const r = await kit.signAuthEntry(entryXdr, { networkPassphrase: NETWORK_PASSPHRASE, ...opts });
+    const r = await withWallet((kit) => kit.signAuthEntry(entryXdr, { networkPassphrase: NETWORK_PASSPHRASE, ...opts }));
     return { signedAuthEntry: r.signedAuthEntry, signerAddress: r.signerAddress ?? "", error: undefined };
   } catch (err) {
     return { signedAuthEntry: null, signerAddress: "", error: errorMessage(err) };
@@ -114,8 +127,7 @@ export async function signAuthEntry(entryXdr: string, opts: SignOpts = {}) {
 
 export async function signMessage(message: string, opts: SignOpts = {}) {
   try {
-    const kit = await loadKit();
-    const r = await kit.signMessage(message, { networkPassphrase: NETWORK_PASSPHRASE, ...opts });
+    const r = await withWallet((kit) => kit.signMessage(message, { networkPassphrase: NETWORK_PASSPHRASE, ...opts }));
     return { signedMessage: r.signedMessage, signerAddress: r.signerAddress ?? "", error: undefined };
   } catch (err) {
     return { signedMessage: null, signerAddress: "", error: errorMessage(err) };
