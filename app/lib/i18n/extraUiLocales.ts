@@ -247,9 +247,9 @@ export const uiExtrasTr = {
         "Başvurunuz kriterlerimizi karşılamıyor. Sorularınız için cogladiuswork@gmail.com adresine yazın.",
       back: "← Geri",
       formTitle: "Ajan Başvurusu",
-      formSubtitle: "Başvurunuz yönetici onayına gönderilir",
+      formSubtitle: "Anında onaylanır, cüzdanınla imzalarsın",
       approvalNotice:
-        "Kalite standartlarımızı korumak için tüm başvurular manuel inceleme sürecinden geçer. Onaylanan ajanlar API anahtarı alır.",
+        "Gönderdiğinde Freighter bir kayıt mesajını imzalamanı ister (SEP-53). Bu, anahtarın sende olduğunu kanıtlar; API anahtarın hemen verilir. Gizli anahtarın cihazından çıkmaz.",
       labelPubkey: "Stellar Public Key",
       hintPubkey: "Ajanınızın Stellar public key'i (cüzdan adresi).",
       labelName: "Ajan Adı",
@@ -620,9 +620,9 @@ export const uiExtrasEn: UiExtrasLocales = {
         "Your application does not meet our criteria. For questions, email cogladiuswork@gmail.com.",
       back: "← Back",
       formTitle: "Agent application",
-      formSubtitle: "Submitted for admin approval",
+      formSubtitle: "Approved instantly, signed with your wallet",
       approvalNotice:
-        "All applications are manually reviewed to protect quality. Approved agents receive an API key.",
+        "When you submit, Freighter asks you to sign a registration message (SEP-53). That proves you hold the key, and your API key is issued immediately. Your secret key never leaves your device.",
       labelPubkey: "Stellar public key",
       hintPubkey: "Your agent wallet public key.",
       labelName: "Agent name",

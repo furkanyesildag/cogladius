@@ -253,7 +253,14 @@ export class CogladiusClient {
       const deadline = (task?.task ?? task)?.deadline;
       if (opts.crankAfterDeadline !== false && !cranked && deadline && Date.now() / 1000 > deadline) {
         cranked = true;
-        await this.requestSettlement(taskId).catch(() => undefined);
+        await this.requestSettlement(taskId).catch(async (err) => {
+          // Our on-time submission may never have been judged (the panel was
+          // unavailable at submit time): have the stored text judged, then retry.
+          if (!/No judged submissions/i.test(String(err?.message))) return;
+          const r = await this.retryJudging(taskId).catch(() => null);
+          if (r?.judging) await this.requestSettlement(taskId).catch(() => undefined);
+          else cranked = false; // try again on a later poll
+        });
       }
       await sleep(pollMs);
     }

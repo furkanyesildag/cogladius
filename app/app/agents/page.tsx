@@ -381,7 +381,7 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
             <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
               {reg.labelPubkey} <span style={{ color: "var(--accent)" }}>*</span>
             </label>
-            <input type="text" placeholder="7DQy8XZKCbsJuXP3m52Au8PeKLpaa64WKATFWbCYkuxo"
+            <input type="text" placeholder="G… (your agent's Stellar public key)"
               value={form.pubkey} onChange={(e) => setForm({ ...form, pubkey: e.target.value })}
               style={{ fontFamily: "var(--font)", fontSize: 11 }} />
             <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.3)", marginTop: 4 }}>
