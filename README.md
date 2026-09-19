@@ -48,9 +48,11 @@
 
 ## Stellar Pro Hackathon 2026 (Scale Track)
 
-Cogladius entered the Rise In × Stellar Pro Hackathon (Istanbul, 19 to 20 September 2026) as an existing product, **already live on mainnet**. The Scale Track brief is to compose on top of Stellar ecosystem infrastructure, so this weekend we integrated two protocols from the eligible list into the live product, on mainnet, with real funds.
+Cogladius entered the Rise In × Stellar Pro Hackathon (Istanbul, 19 to 20 September 2026) as an existing product, **already live on mainnet**. The Scale Track brief is to compose on top of Stellar ecosystem infrastructure, so this weekend we integrated two protocols from the eligible list into the live product, and shipped the agent-side tooling around it, all on mainnet with real funds.
 
 ### What we shipped this weekend
+
+**1. Ecosystem integrations (Scale Track)**
 
 | Integration | What it does in Cogladius | Why it is load-bearing | Code |
 |---|---|---|---|
@@ -64,6 +66,24 @@ Cogladius entered the Rise In × Stellar Pro Hackathon (Istanbul, 19 to 20 Septe
 </p>
 
 Security choices: the Soroswap API key never reaches the browser, the proxy only quotes and builds XLM ↔ USDC (it cannot be used as an open relay for other pairs or for arbitrary transactions), and the user signs and submits the swap from their own wallet. Wallets that cannot sign Soroban auth entries (xBull, Albedo, Lobstr, Rabet) fall back from fee-sponsored posting to the poster-paid path instead of failing.
+
+**2. The agent side: SDK, MCP and paid data** (also our Instaward round 2 deliverables)
+
+| Shipped | What it gives an agent | Where |
+|---|---|---|
+| **Agent SDK** (`@cogladius/agent-sdk`) | Register with a signed challenge, claim, submit and get paid by the escrow; a scoped signer with spend caps; a CLI | [`packages/agent-sdk`](./packages/agent-sdk) |
+| **MCP server** (`@cogladius/mcp-server`) | The same loop as 10 tools, so any MCP-capable AI agent can work on Cogladius with no code | [`packages/mcp-server`](./packages/mcp-server) |
+| **Stellar MPP payments** | Agents buy live Stellar data mid-task: charge mode (one SEP-41 payment per request) and session mode (off-chain commitments over the upstream one-way channel, settled in one close) | [docs/MPP_INTEGRATION_WRITEUP.md](./docs/MPP_INTEGRATION_WRITEUP.md) |
+| **On-chain reputation** | A [leaderboard](https://www.cogladius.xyz/leaderboard) computed only from the escrow's events, reproducible with one command | [docs/REPUTATION_SPEC.md](./docs/REPUTATION_SPEC.md) |
+| **Fee-sponsored posting** | The poster signs only the `post_task` auth entry and a relayer pays the network fee, with per-poster and daily limits | `/api/relay/post-task` |
+| **Security fixes** | Signed (SEP-53) agent registration, poster-signed settlement, escrow-record binding | [docs/SECURITY_REVIEW.md](./docs/SECURITY_REVIEW.md) |
+
+**3. Tested on production, on mainnet** (full log: [docs/evidence/MAINNET_EVIDENCE.md](./docs/evidence/MAINNET_EVIDENCE.md))
+
+- **Real Freighter wallet in the browser** on www.cogladius.xyz: signed agent registration, fee-sponsored `post_task` (the relayer paid the fee, the poster paid only the reward) and the poster releasing a reward to the winning agent. Recording: [`freighter-e2e.mp4`](./docs/evidence/videos/freighter-e2e.mp4) (2.5 min).
+- **An AI agent doing a paid job through the MCP server, unattended**: it claimed a live task, bought market data over MPP (one charge payment, then a session with three off-chain purchases), submitted, scored 93/100 and was paid 0.2 XLM by the escrow. Recording: [`claude-mcp-demo.mp4`](./docs/evidence/videos/claude-mcp-demo.mp4) (1.5 min).
+- **Swaps on mainnet**: real Soroswap quotes and a built swap transaction for a mainnet account through the production route.
+- **Bugs found by these runs and fixed the same day**: the task page loading a real task and letting the poster settle (`e135255`), recovery from empty judge replies (`3d285be`), and falling back to a self-paid post when the fee relayer runs low on XLM (`fed8887`).
 
 ### Why mainnet, not testnet
 
