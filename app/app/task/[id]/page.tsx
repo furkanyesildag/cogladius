@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import ConnectWallet from "@/components/ConnectWallet";
 import { useWallet } from "@/lib/useWallet";
 import { settleAsPoster } from "@/lib/sorobanEscrow";
-import { getMockTasks } from "@/lib/sampleTasks";
 import { Task } from "@/lib/types";
 import { shortenAddress } from "@/lib/constants";
 import JudgePanel from "@/components/JudgePanel";
@@ -148,6 +147,18 @@ function FinalistTable({ task }: { task: Task }) {
   );
 }
 
+/** Agent with the highest average judge score (ties → earliest submission). */
+function topJudgedSubmitter(task: Task): string | null {
+  let best: { agent: string; avg: number; at: number } | null = null;
+  for (const sub of task.submissions || []) {
+    const scores = (task.verdicts || []).filter((v) => v.agent === sub.agent).map((v) => v.score);
+    if (!scores.length) continue;
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    if (!best || avg > best.avg || (avg === best.avg && sub.submittedAt < best.at)) best = { agent: sub.agent, avg, at: sub.submittedAt };
+  }
+  return best?.agent ?? null;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    PAGE
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -170,15 +181,22 @@ export default function TaskDetailPage() {
     setSettling(true);
     setSettleErr(null);
     try {
-      if (!publicKey || task.contractTaskId === undefined || !task.winner) {
-        throw new Error("Connect the poster wallet and pick a winner first.");
+      if (!publicKey || task.contractTaskId === undefined) {
+        throw new Error("Connect the poster wallet first.");
       }
+      if (publicKey !== task.poster) {
+        throw new Error("Only the wallet that posted this task can release its reward.");
+      }
+      // Winner: the one already chosen, else the best judged submission (the
+      // same rule the server applies after the deadline).
+      const winner = task.winner || topJudgedSubmitter(task);
+      if (!winner) throw new Error("No judged submission yet.");
       // The poster authorizes the release with a SEP-53 signature.
       const data = await settleAsPoster({
         taskId: task.id,
         contractTaskId: task.contractTaskId,
         posterAddress: publicKey,
-        winnerAddress: task.winnerStellarAddress || task.winner,
+        winnerAddress: task.winnerStellarAddress || winner,
       });
       if (!data.success) throw new Error(data.error || "Settlement failed");
       setTask((p) => p ? { ...p, status: "Settled", settleTxHash: data.hash, winnerStellarAddress: data.winnerAddress, winner: p.winner || data.winnerAddress } : p);
@@ -189,26 +207,27 @@ export default function TaskDetailPage() {
     }
   }
 
+  // Load the real task and keep it fresh. (It used to start from the empty
+  // offline fallback list, so the page never loaded a real task.)
   useEffect(() => {
     const taskId = Number(params?.id);
-    const tasks = getMockTasks();
-    const found = tasks.find((t) => t.id === taskId);
-    setTask(found || tasks[0] || null);
-  }, [params?.id]);
-
-  useEffect(() => {
-    if (!task) return;
-    const id = setInterval(async () => {
+    if (!Number.isFinite(taskId)) return;
+    let alive = true;
+    const load = async () => {
       try {
-        const res = await fetch("/api/tasks");
+        const res = await fetch(`/api/tasks/${taskId}`);
         if (!res.ok) return;
         const d = await res.json();
-        const updated = d.tasks?.find((t: Task) => t.id === task.id);
-        if (updated) setTask(updated);
+        if (alive && d.task) setTask(d.task);
       } catch (_) {}
-    }, 3000);
-    return () => clearInterval(id);
-  }, [task?.id]);
+    };
+    load();
+    const id = setInterval(load, 3000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [params?.id]);
 
   function copy(text: string) {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); });
