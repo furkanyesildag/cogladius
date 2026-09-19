@@ -8,7 +8,7 @@
 | Escrow contract | [`CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL`](https://stellar.expert/explorer/public/contract/CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL) |
 | Reward asset | Native XLM via SAC [`CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA`](https://stellar.expert/explorer/public/contract/CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA) |
 | Contract stack | Rust, `soroban-sdk` 26, `wasm32v1-none`, `overflow-checks = true`, `panic = abort`, LTO |
-| Client stack | Soroban RPC + Horizon, Freighter (SEP-43), `@stellar/stellar-sdk` |
+| Client stack | Soroban RPC + Horizon, Stellar Wallets Kit v2 (Freighter, xBull, Lobstr, Albedo, …), `@stellar/stellar-sdk`, Soroswap aggregator API |
 | Source | https://github.com/furkanyesildag/cogladius (MIT, 16 passing contract tests) |
 | Ecosystem | Listed in [Stellar's official skills directory](https://skills.stellar.org) as an installable agent skill (`furkanyesildag/cogladius`) |
 
@@ -40,7 +40,9 @@ We received clear ecosystem feedback on an earlier scope that we were rebuilding
 | Pausable, ownable, access control | Hand-rolled admin logic | **OpenZeppelin Stellar contract libraries** |
 | Per-request paid APIs for agents | A custom paywall protocol | **x402 on Stellar** |
 | High-frequency agent-to-agent metering | A custom payment-channel contract | **MPP (Machine Payments Protocol)**, Charge + Session modes, via the recommended SDK |
-| Wallet connection | A custom signer | **Freighter (SEP-43)** |
+| Wallet connection | A custom signer or per-wallet adapters | **Stellar Wallets Kit** (Freighter/SEP-43, xBull, Lobstr, Albedo, Hana, …) |
+| Swaps between the reward asset and USDC | A router or liquidity of our own | **Soroswap aggregator** (Soroswap, Aqua, Phoenix, SDEX) |
+| Fiat (TRY) on/off-ramp | A payment or custody flow of our own | **A licensed anchor over SEP-24** (planned; see README, "The TRY anchor") |
 | Chain data | A custom indexer | **Soroban RPC** (primary) and **Horizon** |
 
 **The single net-new contract we maintain is the adjudication escrow**: a state machine that binds a task's funds to a verified quality verdict. No existing Stellar building block does this. SAC moves assets, but nothing on Stellar makes a payout conditional on an attested, threshold-passing evaluation of *work product*. That is the Open Track primitive, and everything around it is composition, not reinvention.
@@ -51,7 +53,9 @@ We received clear ecosystem feedback on an earlier scope that we were rebuilding
 
 ```mermaid
 flowchart LR
-    P[Poster<br/>Freighter SEP-43] -->|post_task, signs| E[Escrow Contract<br/>Soroban]
+    P[Poster<br/>Stellar Wallets Kit] -->|post_task, signs| E[Escrow Contract<br/>Soroban]
+    P -->|USDC to XLM| SW[Soroswap aggregator]
+    W -->|XLM to USDC| SW
     E <-->|SEP-41 transfer| SAC[XLM SAC]
     A1[Agent A] -->|register / poll / submit| API[Cogladius API]
     A2[Agent B] -->|register / poll / submit| API
@@ -145,7 +149,8 @@ sequenceDiagram
 - **`env.crypto().ed25519_verify`**: verdict verification (migrating to native auth, §5.1).
 - **`env.ledger().timestamp()`**: deadline and grace-window enforcement.
 - **`#[contractevent]`**: typed events for indexing.
-- **Freighter / SEP-43**: the poster signs exactly one `post_task` invocation; no seed ever touches our servers.
+- **Stellar Wallets Kit (Freighter / SEP-43 and others)**: the poster signs exactly one `post_task` invocation; no seed ever touches our servers.
+- **Soroswap aggregator**: XLM ↔ USDC for funding rewards and cashing out. The API key stays server-side; the user's wallet signs and submits.
 - **Soroban RPC + Horizon**: simulation, submission, balances, history. Client traffic is proxied server-side so no RPC credential reaches the browser.
 
 ### 3.6 Agent identity and onboarding
