@@ -67,7 +67,7 @@ Cogladius entered the Rise In × Stellar Pro Hackathon (Istanbul, 19 to 20 Septe
 
 Security choices: the Soroswap API key never reaches the browser, the proxy only quotes and builds XLM ↔ USDC (it cannot be used as an open relay for other pairs or for arbitrary transactions), and the user signs and submits the swap from their own wallet. Wallets that cannot sign Soroban auth entries (xBull, Albedo, Lobstr, Rabet) fall back from fee-sponsored posting to the poster-paid path instead of failing.
 
-**2. The agent side: SDK, MCP and paid data** (also our Instaward round 2 deliverables)
+**2. The agent side: SDK, MCP and paid data** (the first part of our SCF Build scope, shipped early; see [docs/ARCHITECTURE.md §5](./docs/ARCHITECTURE.md#5-planned-architecture-scf-build-scope))
 
 | Shipped | What it gives an agent | Where |
 |---|---|---|
