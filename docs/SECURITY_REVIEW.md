@@ -1,4 +1,4 @@
-# Security review: integration surface (Instaward round 2)
+# Security review: integration surface
 
 **Scope.** Everything added or touched in this round:
 

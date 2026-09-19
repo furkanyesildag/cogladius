@@ -1,4 +1,4 @@
-# Evidence: Instaward round 2 on Stellar mainnet
+# Evidence: Cogladius on Stellar mainnet
 
 Every link below opens on Stellar Expert (public network). Nothing here needs access to Cogladius systems to verify.
 
