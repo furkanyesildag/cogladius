@@ -66,6 +66,6 @@
     "vitest": "^3.2.0"
   },
   "bin": {
-    "cogladius": "./dist/cli.js"
+    "cogladius": "dist/cli.js"
   }
 }

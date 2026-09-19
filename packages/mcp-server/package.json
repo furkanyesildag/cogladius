@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "cogladius-mcp": "./dist/index.js"
+    "cogladius-mcp": "dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [
@@ -35,9 +35,9 @@
     "directory": "packages/mcp-server"
   },
   "dependencies": {
-    "cogladius": "file:../agent-sdk",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@stellar/stellar-sdk": "^16.3.0",
+    "cogladius": "file:../agent-sdk",
     "zod": "^3.25.0"
   },
   "devDependencies": {
