@@ -160,7 +160,12 @@ export function registerTools(server: McpServer, agent: AgentContext) {
       inputSchema: { taskId: z.number().int(), result: z.string().min(10) },
     },
     wrap(async ({ taskId, result }: { taskId: number; result: string }) => {
-      const r = await agent.client.submit(taskId, result);
+      let r = await agent.client.submit(taskId, result);
+      // The judge panel can be briefly unavailable; the stored submission is re-judged as-is.
+      for (let i = 0; i < 3 && !r.judging; i++) {
+        await new Promise((x) => setTimeout(x, 8000));
+        r = await agent.client.retryJudging(taskId).catch((e) => ({ ...r, judgingError: String(e?.message ?? e) }));
+      }
       agent.record("submit", `task #${taskId}${r.judging ? `, score ${r.judging.avgScore}` : ""}`);
       return r;
     })

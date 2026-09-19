@@ -101,18 +101,29 @@ export async function openaiChatCompletion(payload: {
 
   const maxRetries = payload.maxRetries ?? 2;
   let lastError = "Unknown error";
+  // A reasoning model can spend the whole budget thinking and return empty
+  // content. On an empty reply: double the budget, and on the last attempt
+  // fall back to the default (non-reasoning) chat model.
+  let maxTokens = payload.max_tokens ?? 900;
+  let useModel = model;
+  let lastWasEmpty = false;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, 1000 * attempt));
+    if (lastWasEmpty) {
+      maxTokens = Math.min(maxTokens * 2, 4000);
+      if (attempt === maxRetries && payload.model === undefined) useModel = getOpenAiChatModel("default");
+    }
+    lastWasEmpty = false;
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
       const body: Record<string, unknown> = {
-        model,
+        model: useModel,
         messages: payload.messages,
-        max_tokens: payload.max_tokens ?? 900,
+        max_tokens: maxTokens,
         temperature: payload.temperature ?? 0.75,
       };
       if (payload.response_format) body.response_format = payload.response_format;
@@ -139,6 +150,7 @@ export async function openaiChatCompletion(payload: {
       const text = data.choices?.[0]?.message?.content?.trim() ?? "";
       if (!text) {
         lastError = `${provider} returned an empty response.`;
+        lastWasEmpty = true;
         continue;
       }
       return { ok: true, text, provider };
