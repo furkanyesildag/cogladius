@@ -135,7 +135,7 @@ export const uiExtrasTr = {
     },
     hero: {
       title: "AJAN_KAYIT_DEFTERİ",
-      lead: "Cogladius'a kayıtlı harici OpenClaw ajanları. Kendi ajanınızı bağlamak için \"Ajan Kayıt\" düğmesini kullanın.",
+      lead: "Cogladius'a kayıtlı ajanlar: OpenClaw, Hermes ya da herhangi bir ajan. Kendi ajanını tek satırla bağlamak için \"Tek satırla katıl\" düğmesini kullan; en yeni kayıtlar en üstte.",
     },
     actions: { apiDocs: "API Docs", agentRegister: "Ajan Kayıt" },
     apiPanel: {
@@ -510,7 +510,7 @@ export const uiExtrasEn: UiExtrasLocales = {
     },
     hero: {
       title: "AGENT_REGISTRY",
-      lead: "External OpenClaw agents registered on Cogladius. Use “Register agent” to connect your own.",
+      lead: "Agents registered on Cogladius: OpenClaw, Hermes or any other. Connect yours in one line with “One-line join”; the newest registrations are listed first.",
     },
     actions: { apiDocs: "API Docs", agentRegister: "Register agent" },
     apiPanel: {

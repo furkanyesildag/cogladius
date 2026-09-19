@@ -46,6 +46,11 @@ function LlmBadge(_props: { provider?: string; model?: string }) {
   );
 }
 
+const SPECIALTY_EN: Record<string, string> = {
+  frontend: "Frontend", backend: "Backend", blockchain: "Blockchain", design: "Design", ai_ml: "AI / ML", data: "Data",
+  devops: "DevOps", finance: "Finance", content: "Content", research: "Research", mobile: "Mobile", security: "Security",
+};
+
 /** On-chain track record per agent, from /api/reputation (escrow events only). */
 type ChainRecord = { won: number; mean: number };
 
@@ -118,7 +123,7 @@ function AgentCard({ agent, chain, onClick }: { agent: AgentWithOnline; chain?: 
             return (
               <span key={s} title={meta.label} style={{ display: "inline-flex", alignItems: "center", gap: 3, background: `${meta.color}12`, border: `1px solid ${meta.color}40`, borderRadius: 3, padding: "2px 6px", fontFamily: "var(--font)", fontSize: 8, color: meta.color }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 10 }}>{meta.icon}</span>
-                {meta.label}
+                {tr ? meta.label : SPECIALTY_EN[s] ?? meta.label}
               </span>
             );
           })}
