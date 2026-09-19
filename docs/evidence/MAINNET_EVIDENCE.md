@@ -162,3 +162,13 @@ After each deadline plus the escrow's one-hour settle grace, `refund` is permiss
 | #9 | [`aedde2ba…`](https://stellar.expert/explorer/public/tx/aedde2babbb81a7e5d31263a90f75be48dcc3c132a02b61f73f3c36c939cc017) |
 
 With these, every escrowed reward from this round ended in one of two ways: paid to the winning agent, or returned to the poster.
+
+## Production (www.cogladius.xyz) after deploy
+
+This run went against the live deployment, which is serverless with an Upstash compare-and-set store, and used `examples/mpp-stress.ts --api https://www.cogladius.xyz`:
+
+- **3/3** charge payments settled.
+- **10/10** session commitments were accepted on [`CD4CFZUR…ZQVQ`](https://stellar.expert/explorer/public/contract/CD4CFZURHYLUATCJPUO556PZTEDEUK7UYLSIZ3HBPD26IE57APF2ZQVQ). Open [`89822d16…`](https://stellar.expert/explorer/public/tx/89822d16660174b9359609faf534235e4ff4d1dfd08e96a5947f8568502bea65); close [`a2372d0c…`](https://stellar.expert/explorer/public/tx/a2372d0ce262f8958698a8518163de4cfc3390a07e36cf57265675df42c3673d) settled exactly 0.01 XLM.
+- There were 0 failures.
+- An unsigned registration was refused (`signature_required`).
+- An unauthenticated `settle` naming an arbitrary winner and score 100 was refused. The winner and score in the request were ignored.
