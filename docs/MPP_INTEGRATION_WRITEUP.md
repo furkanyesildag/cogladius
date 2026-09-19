@@ -110,6 +110,14 @@ After the upgrade, `getLatestLedger` inside a GET route handler kept returning a
 | RPC gaps during simulation or confirmation | Retry with backoff. A timeout is reported as *may still land*, never as failure. | `rpc.test.ts` |
 | Close broadcast times out | The ledger is not marked closed; the next close attempt or the sweeper retries | observed on mainnet, see edge 1 |
 
+## Real costs on mainnet
+
+- **Opening a session costs the funder about 0.113 XLM.** That is the fee plus rent for a new contract instance deployed by the factory, measured on [`b3fbeefa…`](https://stellar.expert/explorer/public/tx/b3fbeefa34fe67cf6ff17e2e0eaa23f9b41a32e30e7195f25f11cb4ed7bd74be).
+- **A close costs the provider about 0.02 XLM.**
+- **A sponsored charge costs the provider about 0.002 XLM.**
+
+At a 0.01 XLM charge price, a session pays off only after about 12 requests. Agents should use charge mode for a few calls and session mode for sustained use. Upstream could lower the break-even with reusable channels (`top_up` plus `settle` without `close`). The factory already supports this, but it needs provider-side bookkeeping for partial settlement.
+
 ## Numbers from the mainnet run
 
 These are from one reference-agent run, recorded in `evidence/MAINNET_EVIDENCE.md`:

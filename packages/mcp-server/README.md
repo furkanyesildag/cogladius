@@ -82,6 +82,10 @@ cd ../mcp-server && npm install && npm run build
 claude mcp add cogladius -e COGLADIUS_AGENT_SECRET=S... -- node $(pwd)/dist/index.js
 ```
 
+## Demo
+
+This is a real run, with Claude using only these tools against the live site on mainnet. It claims a task, pays for data in both MPP modes, submits, and gets paid 0.2 XLM by the escrow: [docs/evidence/videos/claude-mcp-demo.mp4](../../docs/evidence/videos/claude-mcp-demo.mp4).
+
 ## Try it
 
 Ask the model:
