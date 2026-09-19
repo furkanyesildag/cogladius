@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey, updateAgentHeartbeat, updateAgentStats } from "@/lib/agentRegistry";
+import { validateApiKey, updateAgentHeartbeat, incrementAgentStats } from "@/lib/agentRegistry";
 import { getTask, addSubmission, addVerdict, updateTaskStatus, seedIfEmpty } from "@/lib/taskStore";
 import { runJudgePanel } from "@/lib/judgePanel";
 import crypto from "crypto";
@@ -18,28 +18,28 @@ export const fetchCache = "force-no-store";
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("authorization")?.replace("Bearer ", "").trim();
   if (!apiKey) {
-    return NextResponse.json({ success: false, error: "Authorization: Bearer <apiKey> gerekli" }, { status: 401 });
+    return NextResponse.json({ success: false, code: "missing_api_key", error: "Send Authorization: Bearer <apiKey> (from registration)." }, { status: 401 });
   }
 
   const agent = await validateApiKey(apiKey);
   if (!agent) {
-    return NextResponse.json({ success: false, error: "Geçersiz veya yasaklı API key" }, { status: 403 });
+    return NextResponse.json({ success: false, code: "invalid_api_key", error: "Unknown or banned API key. Register again with a signed challenge to get yours back." }, { status: 403 });
   }
 
   let body: any;
   try { body = await req.json(); }
-  catch { return NextResponse.json({ success: false, error: "Geçersiz JSON body" }, { status: 400 }); }
+  catch { return NextResponse.json({ success: false, code: "invalid_json", error: "Send a JSON body." }, { status: 400 }); }
 
   const { taskId, result, resultHash, timeTakenSeconds, x402Spent } = body;
 
   if (!taskId || typeof taskId !== "number") {
-    return NextResponse.json({ success: false, error: "taskId (number) zorunludur" }, { status: 400 });
+    return NextResponse.json({ success: false, code: "task_id_required", error: "taskId (a number) is required." }, { status: 400 });
   }
   if (!result || typeof result !== "string" || result.length < 10) {
-    return NextResponse.json({ success: false, error: "result (min 10 karakter) zorunludur" }, { status: 400 });
+    return NextResponse.json({ success: false, code: "result_too_short", error: "result is required (at least 10 characters)." }, { status: 400 });
   }
   if (result.length > 100_000) {
-    return NextResponse.json({ success: false, error: "result max 100,000 karakter" }, { status: 400 });
+    return NextResponse.json({ success: false, code: "result_too_long", error: "result may be at most 100,000 characters." }, { status: 400 });
   }
 
   const computedHash = resultHash || crypto.createHash("sha256").update(result).digest("hex");
@@ -50,13 +50,13 @@ export async function POST(req: NextRequest) {
 
   if (!task) {
     return NextResponse.json(
-      { success: false, code: "task_not_found", error: `Görev #${taskId} bulunamadı` },
+      { success: false, code: "task_not_found", error: `Task #${taskId} not found.` },
       { status: 404 }
     );
   }
   if (task.status === "Settled" || task.status === "Resolved") {
     return NextResponse.json(
-      { success: false, code: "task_already_settled", error: `Görev #${taskId} zaten tamamlandı` },
+      { success: false, code: "task_already_settled", error: `Task #${taskId} is already settled.` },
       { status: 409 }
     );
   }
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const retry = await runJudgePanel({ taskDescription: task.description, criteria: task.criteria, submission: stored });
     if (!retry.ok) {
       return NextResponse.json(
-        { success: false, code: "judging_unavailable", error: `Jüri şu an değerlendiremedi: ${retry.error}. Daha sonra tekrar deneyin.` },
+        { success: false, code: "judging_unavailable", error: `The judges could not score it right now (${retry.error}); try again later.`, retryable: true },
         { status: 503 }
       );
     }
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
         avgScore: retry.avgScore,
         pass: retry.pass,
       },
-      message: `✅ Görev #${taskId} için kayıtlı gönderim değerlendirildi — ortalama ${retry.avgScore}/100.`,
+      message: `The stored submission for task #${taskId} was judged: average ${retry.avgScore}/100.`,
     });
   }
 
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         code: "deadline_passed",
-        error: `Görev #${taskId} için son teslim tarihi geçti (${new Date(task.deadline * 1000).toISOString()}). Gönderim kabul edilmiyor.`,
+        error: `The deadline for task #${taskId} has passed (${new Date(task.deadline * 1000).toISOString()}); submissions are closed.`,
         deadline: task.deadline,
         deadlineIso: new Date(task.deadline * 1000).toISOString(),
       },
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
       {
         success: false,
         code: "already_submitted",
-        error: `Görev #${taskId} için bu agent zaten gönderim yaptı. Görev başına tek gönderim hakkı vardır.`,
+        error: `This agent already submitted to task #${taskId}; one submission per agent per task.`,
       },
       { status: 409 }
     );
@@ -131,10 +131,7 @@ export async function POST(req: NextRequest) {
     timeTakenSeconds: timeTaken,
   });
 
-  await updateAgentStats(agent.pubkey, {
-    tasksAttempted: agent.stats.tasksAttempted + 1,
-    x402Spent: agent.stats.x402Spent + (x402Spent ?? 0),
-  });
+  await incrementAgentStats(agent.pubkey, { tasksAttempted: 1, x402Spent: Number(x402Spent) || 0 });
   await updateAgentHeartbeat(agent.pubkey, "idle");
 
   // Run the real three-judge panel now and persist verdicts to the task so the
@@ -175,7 +172,7 @@ export async function POST(req: NextRequest) {
         }
       : { error: panel.error },
     message: panel.ok
-      ? `✅ Görev #${taskId} değerlendirildi — ortalama ${panel.avgScore}/100 (${panel.pass ? "GEÇTİ" : "eşik altı"}). Kazanan seçilince ödül on-chain serbest bırakılır.`
-      : `✅ Görev #${taskId} gönderimi alındı. Jüri şu an değerlendiremedi: ${panel.error}`,
+      ? `Task #${taskId} judged: average ${panel.avgScore}/100 (${panel.pass ? "passing" : "below the threshold"}). The escrow releases the reward on-chain once the winner is settled.`
+      : `Submission for task #${taskId} is stored. The judges could not score it yet (${panel.error}); submit again later to have the stored answer judged.`,
   });
 }

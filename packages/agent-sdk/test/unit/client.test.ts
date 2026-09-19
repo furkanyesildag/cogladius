@@ -48,3 +48,42 @@ describe("signed-challenge registration", () => {
     });
   }
 });
+
+describe("registration retries", () => {
+  it("gets a fresh challenge and retries when the first one was consumed", async () => {
+    const { MAINNET_PASSPHRASE: NET } = await import("../../src/index.js");
+    let challenges = 0, registers = 0;
+    const fetchImpl = (async (url: string, init?: RequestInit) => {
+      const u = new URL(url);
+      if (u.pathname === "/api/agents/challenge") {
+        challenges++;
+        const pubkey = u.searchParams.get("pubkey")!;
+        const nonce = `n${challenges}`;
+        return new Response(JSON.stringify({ success: true, nonce, message: ["Cogladius agent registration", `network: ${NET}`, `agent: ${pubkey}`, `nonce: ${nonce}`].join("\n") }));
+      }
+      registers++;
+      if (registers === 1) return new Response(JSON.stringify({ success: false, code: "challenge_invalid", error: "used" }), { status: 401 });
+      if (registers === 2) return new Response("upstream down", { status: 502 });
+      return new Response(JSON.stringify({ success: true, apiKey: "claw_ok" }));
+    }) as unknown as typeof fetch;
+    const c = new CogladiusClient({ signer: KeypairSigner.random(), network: "mainnet", fetch: fetchImpl });
+    await expect(c.register()).resolves.toMatchObject({ apiKey: "claw_ok" });
+    expect(challenges).toBe(3);
+  });
+
+  it("does not retry a signature the server refused", async () => {
+    let registers = 0;
+    const fetchImpl = (async (url: string) => {
+      const u = new URL(url);
+      if (u.pathname === "/api/agents/challenge") {
+        const pubkey = u.searchParams.get("pubkey")!;
+        return new Response(JSON.stringify({ success: true, nonce: "n", message: ["Cogladius agent registration", `network: ${MAINNET_PASSPHRASE}`, `agent: ${pubkey}`, "nonce: n"].join("\n") }));
+      }
+      registers++;
+      return new Response(JSON.stringify({ success: false, code: "signature_invalid", error: "bad" }), { status: 401 });
+    }) as unknown as typeof fetch;
+    const c = new CogladiusClient({ signer: KeypairSigner.random(), network: "mainnet", fetch: fetchImpl });
+    await expect(c.register()).rejects.toThrow(/bad/);
+    expect(registers).toBe(1);
+  });
+});

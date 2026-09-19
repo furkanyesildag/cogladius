@@ -11,51 +11,7 @@ import type { Task } from "@/lib/types";
 
 /* ── Reputation Grid ──────────────────────────────────────────────────────── */
 const MONTHS = ["OCT_2025","NOV_2025","DEC_2025","JAN_2026","FEB_2026","MAR_2026","APR_2026"];
-const WEEKS  = 28;
-const ROWS   = 7;
 
-function ReputationGrid({ seed }: { seed: number }) {
-  const grid = useState(() =>
-    Array.from({ length: WEEKS }, (_, w) =>
-      Array.from({ length: ROWS }, (_, r) => {
-        const pseudo = Math.sin(seed + w * 7 + r) * 0.5 + 0.5;
-        return pseudo < 0.4 ? 0 : Math.min(4, Math.floor(pseudo * 5));
-      })
-    )
-  )[0];
-
-  return (
-    <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "20px 22px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.12em", textTransform: "uppercase" }}>REPUTATION_TIMELINE</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.05em" }}>INTENSITY</span>
-          {[0, 1, 2, 3, 4].map((v) => {
-            const bg = v === 0 ? "var(--bg-surface-high)" : `rgba(255,86,37,${(0.15 + v * 0.21).toFixed(2)})`;
-            return <div key={v} style={{ width: 10, height: 10, borderRadius: 2, background: bg }} />;
-          })}
-        </div>
-      </div>
-      <div style={{ overflowX: "auto" }}>
-        <div style={{ display: "flex", gap: 3, minWidth: 420 }}>
-          {grid.map((col, w) => (
-            <div key={w} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {col.map((val, r) => {
-                const bg = val === 0 ? "var(--bg-surface-high)" : `rgba(255,86,37,${(0.15 + val * 0.21).toFixed(2)})`;
-                return <div key={r} style={{ width: 12, height: 12, borderRadius: 2, background: bg }} />;
-              })}
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", marginTop: 8 }}>
-          {MONTHS.map((m) => (
-            <span key={m} style={{ flex: 1, fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)", minWidth: 52 }}>{m}</span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ── Task Ledger ──────────────────────────────────────────────────────────── */
 function TaskRow({ taskId, instruction, result, gasFee, time, onClick }: {
@@ -99,6 +55,18 @@ export default function AgentProfilePage() {
   const [search, setSearch]   = useState("");
   const [filter, setFilter]   = useState<"ALL" | "SUCCESS" | "REJECTED" | "PENDING">("ALL");
   const [loadPct]             = useState(42.8);
+  // On-chain record for this agent: derived only from the escrow's events.
+  const [chain, setChain]     = useState<{ won: number; earned: number; mean: number } | null>(null);
+  useEffect(() => {
+    if (!pubkey) return;
+    fetch(`/api/reputation?agent=${encodeURIComponent(pubkey)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        const a = d?.agent ?? (d?.agents ?? []).find((x: any) => x.agent === pubkey);
+        setChain(a ? { won: a.tasksWon ?? 0, earned: Number(a.totalEarned ?? 0) / 1e7, mean: (a.scores?.meanX100 ?? 0) / 100 } : { won: 0, earned: 0, mean: 0 });
+      })
+      .catch(() => setChain({ won: 0, earned: 0, mean: 0 }));
+  }, [pubkey]);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -140,35 +108,27 @@ export default function AgentProfilePage() {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); });
   }
 
-  // Stats: registered agent varsa gerçek veriler, yoksa seed'den türet
-  const seed = pubkey ? (pubkey.charCodeAt(0) + pubkey.charCodeAt(1) + pubkey.charCodeAt(2)) : 42;
-  const agentName   = agent?.name || `OPERATOR_${pubkey.slice(-4).toUpperCase()}`;
-  const totalTasks  = agent?.stats.tasksCompleted ?? (1402 + seed % 200);
-  const avgScore    = agent?.stats.avgScore ?? (9.0 + (seed % 50) / 100).toFixed(2);
-  const successRate = agent?.stats.successRate ?? (99.0 + (seed % 10) / 10).toFixed(1);
-  const x402Spent   = agent?.stats.x402Spent ?? ((20 + seed % 10) * 0.001);
-  const totalEarned = agent?.stats.totalEarned ?? (totalTasks * 0.0008);
+  // Only real numbers: submissions from the registry, wins/earnings/scores from chain events.
+  const agentName   = agent?.name || `AGENT_${pubkey.slice(-4).toUpperCase()}`;
+  const totalTasks  = agent?.stats.tasksAttempted ?? tasks.length;
+  const avgScore    = chain && chain.mean > 0 ? chain.mean.toFixed(1) : "—";
+  const successRate = chain && totalTasks > 0 ? Math.round((chain.won / totalTasks) * 100) : 0;
+  const x402Spent   = agent?.stats.x402Spent ?? 0;
+  const totalEarned = chain?.earned ?? 0;
   const llmLabel    = "AI";
 
   // Build ledger rows from real task submissions
-  const DEMO_ROWS = [
-    { taskId: "#0xFF24A1", instruction: "OPTIMIZE_LIQUIDITY_REALLOCATION_V3",   result: "SUCCESS"  as const, gasFee: "0.000042 XLM", time: "14:22:01" },
-    { taskId: "#0xFF24A0", instruction: "SCAN_MEMPOOL_FRONT_RUN_DETECTION",      result: "SUCCESS"  as const, gasFee: "0.000012 XLM", time: "14:18:55" },
-    { taskId: "#0xFF23F8", instruction: "ARBITRAGE_JUPITER_PHOENIX_SWAP",        result: "REJECTED" as const, gasFee: "0.000005 XLM", time: "13:55:12" },
-    { taskId: "#0xFF23E1", instruction: "GENERATE_ZK_PROOF_AUTH_HANDSHAKE",      result: "SUCCESS"  as const, gasFee: "0.000088 XLM", time: "13:42:00" },
-    { taskId: "#0xFF23D2", instruction: "VALIDATE_CROSS_CHAIN_BRIDGE_ORACLE",    result: "SUCCESS"  as const, gasFee: "0.000015 XLM", time: "13:30:10" },
-  ];
 
   const realRows = tasks.map((t, i) => ({
     taskId: `#${String(t.id).padStart(6, "0")}`,
     instruction: t.description.toUpperCase().replace(/ /g, "_").substring(0, 42),
     result: (t.status === "Settled" || t.status === "Resolved" ? "SUCCESS" : t.status === "Open" || t.status === "UnderReview" ? "PENDING" : "REJECTED") as "SUCCESS" | "REJECTED" | "PENDING",
-    gasFee: `${(0.00004 + i * 0.000015).toFixed(6)} XLM`,
+    gasFee: t.settleTxHash ? "settled" : "—",
     time: new Date(t.deadline * 1000 - 3600000).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
     taskObj: t,
   }));
 
-  const allRows = realRows.length > 0 ? realRows : DEMO_ROWS.map((r) => ({ ...r, taskObj: undefined as any }));
+  const allRows = realRows;
   const filteredRows = allRows.filter((r) => {
     const matchFilter = filter === "ALL" || r.result === filter;
     const matchSearch = !search || r.instruction.toLowerCase().includes(search.toLowerCase()) || r.taskId.includes(search);
@@ -322,10 +282,10 @@ export default function AgentProfilePage() {
             {/* ── BENTO STATS ─────────────────────────────────────────── */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
               {[
-                { label: "TOTAL TASKS",   value: Number(totalTasks).toLocaleString(), sub: "▲ +12% vs LW",     subColor: "var(--green)", border: "var(--accent)" },
-                { label: "AVG SCORE",     value: String(avgScore),                    sub: "Ranked Top 0.2%",  subColor: "rgba(var(--text-rgb),0.4)", border: "var(--blue)" },
-                { label: "SUCCESS RATE",  value: `${successRate}%`,                   sub: "✓ Verified",       subColor: "var(--green)", border: "var(--green)" },
-                { label: "TOTAL EARNED",  value: `${Number(totalEarned).toFixed(3)}`, sub: "XLM",       subColor: "rgba(var(--text-rgb),0.4)", border: "var(--yellow)" },
+                { label: "SUBMISSIONS",   value: Number(totalTasks).toLocaleString(), sub: "tasks this agent answered",        subColor: "rgba(var(--text-rgb),0.4)", border: "var(--accent)" },
+                { label: "AVG SCORE",     value: String(avgScore),                    sub: "judge mean, from escrow events",   subColor: "rgba(var(--text-rgb),0.4)", border: "var(--blue)" },
+                { label: "WIN RATE",      value: `${successRate}%`,                   sub: `${chain?.won ?? 0} paid by the escrow`, subColor: "var(--green)", border: "var(--green)" },
+                { label: "TOTAL EARNED",  value: `${Number(totalEarned).toFixed(3)}`, sub: "XLM, on-chain",                    subColor: "rgba(var(--text-rgb),0.4)", border: "var(--yellow)" },
               ].map((s) => (
                 <div key={s.label} style={{ background: "var(--bg-surface-low)", borderLeft: `2px solid ${s.border}`, padding: "18px 16px", borderRadius: "0 4px 4px 0" }}>
                   <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>{s.label}</div>
@@ -343,13 +303,15 @@ export default function AgentProfilePage() {
                   <span key={c} style={{ fontFamily: "var(--font)", fontSize: 8, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent-border)", padding: "2px 8px", borderRadius: 2, letterSpacing: "0.05em" }}>{c}</span>
                 ))}
                 <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", marginLeft: "auto" }}>
-                  x402 harcama: <span style={{ color: "var(--yellow)" }}>{x402Spent.toFixed(4)} XLM</span>
+                  data spend (MPP): <span style={{ color: "var(--yellow)" }}>{x402Spent.toFixed(4)} XLM</span>
                 </span>
               </div>
             )}
 
             {/* ── REPUTATION TIMELINE ──────────────────────────────────── */}
-            <ReputationGrid seed={seed} />
+            <a href="/leaderboard" style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", textDecoration: "none", letterSpacing: "0.08em" }}>
+              ON-CHAIN TRACK RECORD → LEADERBOARD
+            </a>
 
             {/* ── TASK LEDGER ──────────────────────────────────────────── */}
             <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 6, overflow: "hidden" }}>

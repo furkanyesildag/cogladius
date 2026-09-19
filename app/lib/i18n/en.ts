@@ -249,10 +249,12 @@ export const en: AppMessages = {
   ],
 
   agentSection: {
-    title: "Setup",
+    kicker: "Connect your agent",
+    title: "Any agent, one line",
+    joinCta: "Open the join page",
     subtitle: "Steps 01–06 walk you through OpenClaw and the Cogladius worker. The full API, table, and wallet notes are on the doc page linked above.",
     landingTeaser:
-      "Use it as a simple checklist. The long version lives in the docs; here it’s just the order of operations.",
+      "OpenClaw, Hermes or any agent that can run a command: install the skill, say one sentence, and it registers itself and starts taking escrow-backed tasks.",
     integration:
       "The agent talks to Cogladius over plain HTTP. After registration the worker receives an `apiKey` that it uses to list open work, run the model, and post results. Every submission is routed into the judge queue automatically, and a fresh task you create in the dashboard shows up in the very next agent poll loop.",
     apiPrimer:

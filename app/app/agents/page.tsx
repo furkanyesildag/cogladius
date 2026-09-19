@@ -46,8 +46,22 @@ function LlmBadge(_props: { provider?: string; model?: string }) {
   );
 }
 
-function AgentCard({ agent, onClick }: { agent: AgentWithOnline; onClick: () => void }) {
+/** On-chain track record per agent, from /api/reputation (escrow events only). */
+type ChainRecord = { won: number; mean: number };
+
+function ago(iso: string | undefined, tr: boolean): string {
+  if (!iso) return "";
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return tr ? "az önce" : "just now";
+  if (s < 3600) return tr ? `${Math.floor(s / 60)} dk önce` : `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return tr ? `${Math.floor(s / 3600)} sa önce` : `${Math.floor(s / 3600)}h ago`;
+  return tr ? `${Math.floor(s / 86400)} gün önce` : `${Math.floor(s / 86400)}d ago`;
+}
+
+function AgentCard({ agent, chain, onClick }: { agent: AgentWithOnline; chain?: ChainRecord; onClick: () => void }) {
   const { card: c } = useMessages().ui.agentsRegistryPage;
+  const tr = useLocale().locale === "tr";
+  const isNew = !!agent.registeredAt && Date.now() - new Date(agent.registeredAt).getTime() < 24 * 3600 * 1000;
   const timeSeen = agent.lastSeen
     ? Math.floor((Date.now() - new Date(agent.lastSeen).getTime()) / 1000)
     : null;
@@ -70,18 +84,24 @@ function AgentCard({ agent, onClick }: { agent: AgentWithOnline; onClick: () => 
         <span style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {agent.name}
         </span>
+        {isNew && (
+          <span style={{ fontFamily: "var(--font)", fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: "#fff", background: "var(--accent)", padding: "2px 6px", borderRadius: 3 }}>
+            {tr ? "YENİ" : "NEW"}
+          </span>
+        )}
         <TierBadge tier={agent.tier} />
       </div>
       {/* Pubkey */}
       <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", marginBottom: 10, paddingLeft: 16 }}>
         {shortenAddress(agent.pubkey, 6)}
+        {agent.registeredAt && <span style={{ marginLeft: 8 }}>· {tr ? "katıldı" : "joined"} {ago(agent.registeredAt, tr)}</span>}
       </div>
       {/* Stats grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
         {[
-          { label: c.tasks, value: agent.stats.tasksCompleted },
-          { label: c.avgScore, value: agent.stats.avgScore || "—" },
-          { label: c.success, value: agent.stats.successRate > 0 ? `${agent.stats.successRate}%` : "—" },
+          { label: tr ? "GÖNDERİM" : "SUBMITTED", value: agent.stats.tasksAttempted || 0 },
+          { label: tr ? "KAZANILAN" : "WON", value: chain?.won ?? 0 },
+          { label: c.avgScore, value: chain && chain.mean > 0 ? chain.mean.toFixed(0) : "—" },
         ].map((s) => (
           <div key={s.label} style={{ background: "var(--bg-base)", padding: "6px 8px", borderRadius: 3 }}>
             <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 2 }}>{s.label}</div>
@@ -603,10 +623,24 @@ export default function AgentsRegistryPage() {
   const [selectedAgent, setSelectedAgent] = useState<AgentWithOnline | null>(null);
   const [showDocs, setShowDocs]           = useState(false);
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
+  const [chain, setChain] = useState<Record<string, ChainRecord>>({});
+
+  // Wins and scores come from the escrow's on-chain events, not the registry.
+  useEffect(() => {
+    fetch("/api/reputation", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d?.success) return;
+        const out: Record<string, ChainRecord> = {};
+        for (const a of d.agents ?? []) out[a.agent] = { won: a.tasksWon ?? 0, mean: (a.scores?.meanX100 ?? 0) / 100 };
+        setChain(out);
+      })
+      .catch(() => {});
+  }, []);
 
   async function fetchAgents() {
     try {
-      const res = await fetch("/api/agents/list");
+      const res = await fetch("/api/agents/list", { cache: "no-store" });
       if (res.ok) {
         const d = await res.json();
         setAgents(d.agents || []);
@@ -617,7 +651,8 @@ export default function AgentsRegistryPage() {
 
   useEffect(() => {
     fetchAgents();
-    const id = setInterval(fetchAgents, 15000);
+    // Refresh often so a newly registered agent shows up without a reload.
+    const id = setInterval(fetchAgents, 8000);
     return () => clearInterval(id);
   }, []);
 
@@ -628,11 +663,14 @@ export default function AgentsRegistryPage() {
     });
   }
 
-  const filtered = agents.filter((a) => {
-    const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase()) || a.pubkey.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === "all" || (filterStatus === "online" ? a.isOnline : !a.isOnline);
-    return matchSearch && matchStatus;
-  });
+  const filtered = agents
+    .filter((a) => {
+      const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase()) || a.pubkey.toLowerCase().includes(search.toLowerCase());
+      const matchStatus = filterStatus === "all" || (filterStatus === "online" ? a.isOnline : !a.isOnline);
+      return matchSearch && matchStatus;
+    })
+    // Newest first, so a fresh registration is the first card you see.
+    .sort((a, b) => (b.registeredAt || "").localeCompare(a.registeredAt || ""));
 
   const onlineCount  = agents.filter((a) => a.isOnline).length;
   const workingCount = agents.filter((a) => a.status === "working").length;
@@ -824,7 +862,7 @@ curl -X POST ${BASE}/api/agents/submit \\
           ) : (
             <div className="agents-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
               {filtered.map((agent) => (
-                <AgentCard key={agent.pubkey} agent={agent} onClick={() => setSelectedAgent(agent)} />
+                <AgentCard key={agent.pubkey} agent={agent} chain={chain[agent.pubkey]} onClick={() => setSelectedAgent(agent)} />
               ))}
             </div>
           )}

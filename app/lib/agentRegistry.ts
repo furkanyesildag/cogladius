@@ -6,7 +6,7 @@
  */
 
 import crypto from "crypto";
-import { getRedis } from "./redis";
+import { getRedis, withRedisLock } from "./redis";
 import type { AgentSpecialty } from "./types";
 
 export type AgentTier = "free" | "pro" | "elite";
@@ -112,6 +112,27 @@ async function loadRegistry(): Promise<Record<string, RegisteredAgent>> {
   return localLoad();
 }
 
+/**
+ * Load → change → save under the registry lock. With Redis configured, a failed
+ * read throws instead of falling back to an empty registry: saving that empty
+ * copy would wipe every agent.
+ */
+async function mutateRegistry<T>(fn: (registry: Record<string, RegisteredAgent>) => T | Promise<T>): Promise<T> {
+  return withRedisLock("agents", async () => {
+    const r = getRedis();
+    let registry: Record<string, RegisteredAgent>;
+    if (r) {
+      const data = await r.get<Record<string, RegisteredAgent>>(REDIS_KEY); // throws on failure: nothing is written
+      registry = data ?? {};
+    } else {
+      registry = localLoad();
+    }
+    const out = await fn(registry);
+    await saveRegistry(registry);
+    return out;
+  });
+}
+
 async function saveRegistry(registry: Record<string, RegisteredAgent>) {
   const r = getRedis();
   if (r) {
@@ -135,7 +156,7 @@ export async function registerAgent(
     rotateApiKey?: boolean;
   }
 ): Promise<RegisteredAgent> {
-  const registry = await loadRegistry();
+  return mutateRegistry((registry) => {
   const existing = registry[pubkey];
   const apiKey = !existing || options.rotateApiKey ? generateApiKey() : existing.apiKey;
 
@@ -173,8 +194,8 @@ export async function registerAgent(
   };
 
   registry[pubkey] = agent;
-  await saveRegistry(registry);
   return agent;
+  });
 }
 
 export async function getAgent(pubkey: string): Promise<RegisteredAgent | null> {
@@ -195,26 +216,49 @@ export async function updateAgentHeartbeat(
   pubkey: string,
   status: AgentNetworkStatus = "online"
 ): Promise<void> {
-  const registry = await loadRegistry();
-  if (!registry[pubkey]) return;
-  registry[pubkey].lastSeen = new Date().toISOString();
-  registry[pubkey].status = status;
-  await saveRegistry(registry);
+  // Every task poll is a heartbeat. Skip the write when nothing visible would
+  // change, so polling agents do not queue up behind the registry lock.
+  const current = await getAgent(pubkey);
+  if (!current) return;
+  if (current.status === status && Date.now() - new Date(current.lastSeen).getTime() < 30_000) return;
+  await mutateRegistry((registry) => {
+    if (!registry[pubkey]) return;
+    registry[pubkey].lastSeen = new Date().toISOString();
+    registry[pubkey].status = status;
+  });
 }
 
 export async function updateAgentStats(
   pubkey: string,
   update: Partial<RegisteredAgent["stats"]>
 ): Promise<void> {
-  const registry = await loadRegistry();
-  if (!registry[pubkey]) return;
-  registry[pubkey].stats = { ...registry[pubkey].stats, ...update };
-  const s = registry[pubkey].stats;
-  if (s.tasksCompleted > 0) {
-    s.avgScore = Math.round(s.totalScore / s.tasksCompleted);
-    s.successRate = Math.round((s.tasksCompleted / s.tasksAttempted) * 100);
-  }
-  await saveRegistry(registry);
+  await mutateRegistry((registry) => {
+    if (!registry[pubkey]) return;
+    registry[pubkey].stats = { ...registry[pubkey].stats, ...update };
+    const s = registry[pubkey].stats;
+    if (s.tasksCompleted > 0) {
+      s.avgScore = Math.round(s.totalScore / s.tasksCompleted);
+      s.successRate = Math.round((s.tasksCompleted / s.tasksAttempted) * 100);
+    }
+  });
+}
+
+/** Add to counters atomically (under the registry lock), from the stored values. */
+export async function incrementAgentStats(
+  pubkey: string,
+  delta: Partial<Pick<RegisteredAgent["stats"], "tasksAttempted" | "tasksCompleted" | "totalScore" | "totalEarned" | "x402Spent">>
+): Promise<void> {
+  await mutateRegistry((registry) => {
+    const a = registry[pubkey];
+    if (!a) return;
+    for (const [k, v] of Object.entries(delta) as [keyof typeof delta, number][]) {
+      a.stats[k] = (a.stats[k] ?? 0) + (Number.isFinite(v) ? v : 0);
+    }
+    if (a.stats.tasksCompleted > 0) {
+      a.stats.avgScore = Math.round(a.stats.totalScore / a.stats.tasksCompleted);
+      a.stats.successRate = Math.round((a.stats.tasksCompleted / Math.max(a.stats.tasksAttempted, 1)) * 100);
+    }
+  });
 }
 
 export async function validateApiKey(apiKey: string): Promise<RegisteredAgent | null> {
@@ -237,8 +281,8 @@ export async function updateAgentSpecialties(
   pubkey: string,
   specialties: AgentSpecialty[]
 ): Promise<void> {
-  const registry = await loadRegistry();
-  if (!registry[pubkey]) return;
-  registry[pubkey].specialties = specialties;
-  await saveRegistry(registry);
+  await mutateRegistry((registry) => {
+    if (!registry[pubkey]) return;
+    registry[pubkey].specialties = specialties;
+  });
 }

@@ -15,12 +15,12 @@ export const fetchCache = "force-no-store";
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("authorization")?.replace("Bearer ", "").trim();
   if (!apiKey) {
-    return NextResponse.json({ success: false, error: "Authorization: Bearer <apiKey> gerekli" }, { status: 401 });
+    return NextResponse.json({ success: false, code: "missing_api_key", error: "Send Authorization: Bearer <apiKey> (from registration)." }, { status: 401 });
   }
 
   const agent = await validateApiKey(apiKey);
   if (!agent) {
-    return NextResponse.json({ success: false, error: "Geçersiz veya yasaklı API key" }, { status: 403 });
+    return NextResponse.json({ success: false, code: "invalid_api_key", error: "Unknown or banned API key. Register again with a signed challenge to get yours back." }, { status: 403 });
   }
 
   let status: AgentNetworkStatus = "online";

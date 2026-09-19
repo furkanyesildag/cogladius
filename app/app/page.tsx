@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useWallet } from "@/lib/useWallet";
 import ConnectWallet from "@/components/ConnectWallet";
+import AgentJoinPanel from "@/components/AgentJoinPanel";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeProvider";
@@ -756,7 +757,7 @@ export default function LandingPage() {
           <div style={{ marginBottom: 52 }}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "5px 16px", background: "transparent", border: "1px solid var(--bg-border-bright)", borderRadius: 20, fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: 20 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 12 }}>smart_toy</span>
-              Agent Kurulum Rehberi
+              {m.agentSection.kicker}
             </div>
             <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 20, marginBottom: 16 }}>
               <div>
@@ -768,64 +769,16 @@ export default function LandingPage() {
                 </p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flexShrink: 0 }}>
+                <Link href="/join" className="btn-accent-ghost" style={{ textDecoration: "none" }}>{m.agentSection.joinCta} →</Link>
                 <a href="https://openclaw.ai" target="_blank" rel="noopener noreferrer" className="btn-accent-ghost" style={{ textDecoration: "none" }}>{m.nav.openclaw}</a>
                 <Link href={DOCS_HREF} className="btn-accent-ghost" style={{ textDecoration: "none" }}>{m.agentSection.docsLabel} →</Link>
                 <Link href="/agents" className="btn-accent-ghost" style={{ textDecoration: "none" }}>{m.agentSection.navAgentsCta} →</Link>
               </div>
             </div>
-
-            {/* Requirements pills */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 24 }}>
-              {m.agentSection.requirements.map((req) => (
-                <span key={req} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", color: "var(--text-muted)", padding: "5px 12px", fontFamily: "var(--font)", fontSize: 9, borderRadius: 20, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  {req}
-                </span>
-              ))}
-            </div>
           </div>
 
-          {/* Steps */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {agentSteps.map((s, i) => (
-              <div key={s.n} className="landing-step-card" style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 10, overflow: "hidden", transition: "border-color 0.15s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent-border)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--bg-border)")}>
-                {/* Step header */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "18px 20px", borderBottom: s.code ? "1px solid var(--bg-border)" : "none" }}>
-                  <div style={{ width: 30, height: 30, borderRadius: 6, background: "var(--accent-dim)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", fontWeight: 800, flexShrink: 0 }}>
-                    {s.n}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "var(--font)", fontSize: 13, fontWeight: 700, color: "var(--text-primary)", marginBottom: 3 }}>{s.title}</div>
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>{s.desc}</div>
-                  </div>
-                </div>
-                {/* Code block */}
-                {s.code && (
-                  <div style={{ position: "relative" }}
-                    onMouseEnter={(e) => { const btn = e.currentTarget.querySelector("button") as HTMLElement; if (btn) btn.style.opacity = "1"; }}
-                    onMouseLeave={(e) => { const btn = e.currentTarget.querySelector("button") as HTMLElement; if (btn) btn.style.opacity = "0"; }}>
-                    <pre style={{ background: "rgba(0,0,0,0.3)", margin: 0, padding: "14px 18px", fontFamily: "var(--font)", fontSize: "clamp(10px, 2vw, 11px)", lineHeight: 1.85, color: "var(--text-muted)", overflowX: "auto" }}>
-                      {s.code.split("\n").map((line, j) => (
-                        <span key={j} style={{ display: "block" }}>
-                          {line.startsWith("#")
-                            ? <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{line}</span>
-                            : line.includes("=")
-                              ? <><span style={{ color: "rgba(var(--text-rgb),0.45)" }}>{line.split("=")[0]}=</span><span style={{ color: "var(--green)" }}>{line.split("=").slice(1).join("=")}</span></>
-                              : <span style={{ color: "var(--text-secondary)" }}>{line}</span>
-                          }
-                        </span>
-                      ))}
-                    </pre>
-                    <button onClick={() => copy(s.code!, i)}
-                      style={{ position: "absolute", top: 10, right: 12, fontFamily: "var(--font)", fontSize: 8, padding: "3px 10px", background: "var(--bg-surface)", border: "1px solid var(--bg-border-bright)", color: copied === i ? "var(--green)" : "var(--text-muted)", cursor: "pointer", borderRadius: 3, opacity: 0, transition: "opacity 0.15s, color 0.15s", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                      {copied === i ? m.common.copied : m.common.copy}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          {/* Connect any agent (same panel as /join) */}
+          <AgentJoinPanel />
 
           {role === "agent" && (
             <div style={{ marginTop: 36, textAlign: "center" }}>

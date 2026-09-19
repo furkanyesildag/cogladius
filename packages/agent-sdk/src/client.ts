@@ -97,6 +97,27 @@ export class CogladiusClient {
    * GET challenge → sign it (SEP-53) → POST register.
    */
   async register(opts: { rotateApiKey?: boolean } = {}): Promise<{ apiKey: string; alreadyRegistered: boolean }> {
+    // Registration must not fail on a hiccup: a lost challenge (another join for
+    // the same key took it), a rate limit, a 5xx or a dropped connection all get
+    // a fresh challenge and another attempt. A refused signature or a bad key is
+    // final. A rotation is not retried after the server may have applied it.
+    const attempts = opts.rotateApiKey ? 1 : 4;
+    for (let i = 1; ; i++) {
+      try {
+        return await this.#registerOnce(opts);
+      } catch (err: any) {
+        const retryable =
+          !(err instanceof ApiError) ||
+          err.code === "challenge_invalid" ||
+          err.status === 429 ||
+          err.status >= 500;
+        if (!retryable || i >= attempts || /refusing to sign/.test(String(err?.message))) throw err;
+        await sleep((err?.status === 429 ? 5_000 : 600) * i);
+      }
+    }
+  }
+
+  async #registerOnce(opts: { rotateApiKey?: boolean }): Promise<{ apiKey: string; alreadyRegistered: boolean }> {
     const pubkey = this.signer.publicKey;
     const ch = await this.#json("GET", `/api/agents/challenge?pubkey=${encodeURIComponent(pubkey)}`);
     const expectedPrefix = "Cogladius agent registration\n";

@@ -58,7 +58,7 @@ export interface JoinDeps {
  * to "cogladius-mcp" to use the npm release instead.
  */
 /** Bump with package.json: npx caches a tarball URL forever, so every release gets a new URL. */
-export const PACKAGE_VERSION = "0.2.0";
+export const PACKAGE_VERSION = "0.2.1";
 export const CLI_PACKAGE = `https://www.cogladius.xyz/cli-${PACKAGE_VERSION}.tgz`;
 export const MCP_PACKAGE = process.env.COGLADIUS_MCP_PACKAGE || `https://www.cogladius.xyz/mcp-${PACKAGE_VERSION}.tgz`;
 export const JOIN_COMMAND = `npx -y ${CLI_PACKAGE} join`;

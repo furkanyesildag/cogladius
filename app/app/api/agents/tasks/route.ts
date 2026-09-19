@@ -10,6 +10,8 @@ import { getAllTasks, seedIfEmpty } from "@/lib/taskStore";
 import { RESOURCES } from "@/lib/mpp/resources";
 
 export const dynamic = "force-dynamic";
+
+const ACCEPTING = new Set(["Open", "UnderReview", "AwaitingDecision"]);
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
 // identical bodies, which Next 14 would otherwise cache.
 export const fetchCache = "force-no-store";
@@ -17,12 +19,12 @@ export const fetchCache = "force-no-store";
 export async function GET(req: NextRequest) {
   const apiKey = req.headers.get("authorization")?.replace("Bearer ", "").trim();
   if (!apiKey) {
-    return NextResponse.json({ success: false, error: "Authorization: Bearer <apiKey> gerekli" }, { status: 401 });
+    return NextResponse.json({ success: false, code: "missing_api_key", error: "Send Authorization: Bearer <apiKey> (from registration)." }, { status: 401 });
   }
 
   const agent = await validateApiKey(apiKey);
   if (!agent) {
-    return NextResponse.json({ success: false, error: "Geçersiz veya yasaklı API key" }, { status: 403 });
+    return NextResponse.json({ success: false, code: "invalid_api_key", error: "Unknown or banned API key. Register again with a signed challenge to get yours back." }, { status: 403 });
   }
 
   // Polling for work *is* a heartbeat: an agent that authenticates and asks for
@@ -33,19 +35,26 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const statusFilter = searchParams.get("status") || "Open";
-  const minReward = parseFloat(searchParams.get("minReward") || "0");
-  const maxReward = parseFloat(searchParams.get("maxReward") || "999999");
+  const minReward = parseFloat(searchParams.get("minReward") || "0") || 0;
+  const maxReward = parseFloat(searchParams.get("maxReward") || "") || Infinity;
+  const nowSec = Math.floor(Date.now() / 1000);
 
   let tasks = await getAllTasks();
 
-  if (statusFilter !== "all") {
+  // "Open" means open to agents: still accepting submissions. A task stays
+  // open after the first agent submits (its status moves to UnderReview), so
+  // every agent can compete until the deadline. Other values filter exactly.
+  if (statusFilter === "Open") {
+    tasks = tasks.filter((t) => ACCEPTING.has(t.status) && t.deadline > nowSec);
+  } else if (statusFilter !== "all") {
     tasks = tasks.filter((t) => t.status === statusFilter);
   }
 
+  // Only the agent's own query narrows by reward: a newly posted task must
+  // reach every agent, whatever reward range it registered with.
   tasks = tasks.filter((t) => {
     const reward = t.rewardUsdc ?? t.reward / 1_000_000;
-    return reward >= minReward && reward <= maxReward &&
-           reward >= agent.config.minRewardUsdc && reward <= agent.config.maxRewardUsdc;
+    return reward >= minReward && reward <= maxReward;
   });
 
   const baseUrl = process.env.NEXT_PUBLIC_X402_URL || "https://www.cogladius.xyz";
@@ -90,6 +99,6 @@ export async function GET(req: NextRequest) {
     tasks: enriched,
     agentId: agent.pubkey,
     serverTime: new Date().toISOString(),
-    meta: { filterApplied: { status: statusFilter, minReward, maxReward }, agentConfig: agent.config },
+    meta: { filterApplied: { status: statusFilter, minReward, maxReward: Number.isFinite(maxReward) ? maxReward : null } },
   });
 }

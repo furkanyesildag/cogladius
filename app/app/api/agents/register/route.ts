@@ -45,9 +45,16 @@ const isValidStellarAddress = (addr: string) => {
   }
 };
 
+/** Keep only short strings from an agent-supplied list; never reject for it. */
+const cleanList = (v: unknown, max = 20): string[] | undefined =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim().slice(0, 64)).slice(0, max) : undefined;
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+      return NextResponse.json({ success: false, code: "invalid_json", error: "Send a JSON body: { pubkey, nonce, signature, name? }." }, { status: 400 });
+    }
     const {
       pubkey, stellarAddress, name, email, description,
       openclawVersion, llmProvider, llmModel,
@@ -56,13 +63,10 @@ export async function POST(req: NextRequest) {
 
     const identity = String(pubkey || stellarAddress || "").trim();
     if (!identity) {
-      return NextResponse.json({ success: false, error: "Stellar public key (G...) zorunludur" }, { status: 400 });
+      return NextResponse.json({ success: false, code: "pubkey_required", error: "pubkey (a Stellar public key, G...) is required." }, { status: 400 });
     }
     if (!isValidStellarAddress(identity)) {
-      return NextResponse.json({ success: false, error: "Geçersiz Stellar adresi (G...)" }, { status: 400 });
-    }
-    if (name && (typeof name !== "string" || name.length > 50)) {
-      return NextResponse.json({ success: false, error: "name en fazla 50 karakter" }, { status: 400 });
+      return NextResponse.json({ success: false, code: "pubkey_invalid", error: "pubkey is not a valid Stellar public key (G..., checksum included)." }, { status: 400 });
     }
 
     const wasRegistered = !!(await getAgent(identity));
@@ -98,10 +102,13 @@ export async function POST(req: NextRequest) {
         { status: 401 }
       );
     }
-    const agentName = (typeof name === "string" && name.trim()) ? name.trim() : `Agent_${identity.slice(-6)}`;
+    // Any agent may register, whatever it sends as a name: clean it, never reject it.
+    const cleanedName = (typeof name === "string" ? name : name != null ? String(name) : "")
+      .replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 50);
+    const agentName = cleanedName || `Agent_${identity.slice(-6)}`;
 
     const mappedConfig = {
-      maxRewardUsdc: config?.maxRewardUsdc ?? 100,
+      maxRewardUsdc: config?.maxRewardUsdc ?? 1_000_000,
       minRewardUsdc: config?.minRewardUsdc ?? 0.01,
       autoDispute: config?.autoDispute ?? false,
       useX402: config?.useX402 ?? false,
@@ -114,8 +121,8 @@ export async function POST(req: NextRequest) {
       openclawVersion: typeof openclawVersion === "string" ? openclawVersion.trim() : undefined,
       llmProvider: llmProvider || undefined,
       llmModel: llmModel || undefined,
-      capabilities: Array.isArray(capabilities) ? capabilities : undefined,
-      specialties: Array.isArray(specialties) ? specialties : undefined,
+      capabilities: cleanList(capabilities),
+      specialties: cleanList(specialties) as any,
       stellarAddress: identity,
       config: mappedConfig as any,
       verified: signed,
@@ -133,8 +140,8 @@ export async function POST(req: NextRequest) {
         openclawVersion: typeof openclawVersion === "string" ? openclawVersion.trim() : undefined,
         llmProvider: llmProvider || "other",
         llmModel: llmModel || undefined,
-        capabilities: Array.isArray(capabilities) ? capabilities : ["task_solving"],
-        specialties: Array.isArray(specialties) ? specialties : [],
+        capabilities: cleanList(capabilities) ?? ["task_solving"],
+        specialties: cleanList(specialties) ?? [],
         config: mappedConfig,
       } as any);
       if (application.status === "pending") {
@@ -152,8 +159,8 @@ export async function POST(req: NextRequest) {
       verified: agent.verified === true,
       alreadyRegistered: wasRegistered,
       message: wasRegistered
-        ? `✅ ${agent.name} zaten kayıtlı — API key'iniz aşağıda.`
-        : `✅ ${agent.name} kaydedildi ve aktif! API key'inizi güvenle saklayın.`,
+        ? `${agent.name} is already registered; here is its API key.`
+        : `${agent.name} is registered and active. Keep the API key safe.`,
       usage: {
         tasks: "GET /api/agents/tasks  (Header: Authorization: Bearer <apiKey>)",
         submit: "POST /api/agents/submit  (Header: Authorization: Bearer <apiKey>)",
@@ -164,8 +171,8 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("[/api/agents/register]", err);
     return NextResponse.json(
-      { success: false, error: "Sunucu hatası: " + (err?.message || "bilinmeyen") },
-      { status: 500 }
+      { success: false, code: "server_error", retryable: true, error: "Registration could not be saved right now; retry in a few seconds." },
+      { status: 503 }
     );
   }
 }

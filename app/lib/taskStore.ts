@@ -6,7 +6,7 @@
  */
 
 import type { Task, TaskStatus } from "./types";
-import { getRedis } from "./redis";
+import { getRedis, withRedisLock } from "./redis";
 
 // ── Local FS fallback ─────────────────────────────────────────────────────────
 const REDIS_KEY = "cogladius:tasks";
@@ -76,6 +76,22 @@ async function saveTasks(tasks: Record<number, Task>) {
   }
 }
 
+/**
+ * Load → change → save under the task-store lock, so a new task, a submission
+ * and a claim arriving together cannot overwrite each other. With Redis
+ * configured, a failed read throws instead of falling back to an empty store:
+ * saving that empty copy would wipe every task.
+ */
+async function mutateTasks<T>(fn: (tasks: Record<number, Task>) => T | Promise<T>): Promise<T> {
+  return withRedisLock("tasks", async () => {
+    const r = getRedis();
+    const tasks: Record<number, Task> = r ? ((await r.get<Record<number, Task>>(REDIS_KEY)) ?? {}) : localLoad();
+    const out = await fn(tasks);
+    await saveTasks(tasks);
+    return out;
+  });
+}
+
 function nextId(tasks: Record<number, Task>): number {
   const ids = Object.keys(tasks).map(Number);
   return ids.length > 0 ? Math.max(...ids) + 1 : 1;
@@ -108,32 +124,30 @@ export async function createTask(data: {
   /** Absolute deadline (unix seconds); overrides deadlineMinutes when set. */
   deadline?: number;
 }): Promise<Task> {
-  const tasks = await loadTasks();
-  const id = nextId(tasks);
-  const now = Math.floor(Date.now() / 1000);
-  const rewardUsdc = data.rewardUsdc ?? 0.001;
-
-  const task: Task = {
-    id,
-    poster: data.poster,
-    description: data.description,
-    criteria: data.criteria,
-    reward: data.reward ?? Math.round(rewardUsdc * 1e7),
-    rewardUsdc,
-    deadline: data.deadline ?? now + data.deadlineMinutes * 60,
-    status: "Open",
-    submissions: [],
-    verdicts: [],
-    taskType: data.taskType,
-    outputFormat: data.outputFormat,
-    contractTaskId: data.contractTaskId,
-    escrowContractId: data.escrowContractId,
-    postTxHash: data.postTxHash,
-  };
-
-  tasks[id] = task;
-  await saveTasks(tasks);
-  return task;
+  return mutateTasks(async (tasks) => {
+    const id = nextId(tasks);
+    const now = Math.floor(Date.now() / 1000);
+    const rewardUsdc = data.rewardUsdc ?? 0.001;
+    const task: Task = {
+      id,
+      poster: data.poster,
+      description: data.description,
+      criteria: data.criteria,
+      reward: data.reward ?? Math.round(rewardUsdc * 1e7),
+      rewardUsdc,
+      deadline: data.deadline ?? now + data.deadlineMinutes * 60,
+      status: "Open",
+      submissions: [],
+      verdicts: [],
+      taskType: data.taskType,
+      outputFormat: data.outputFormat,
+      contractTaskId: data.contractTaskId,
+      escrowContractId: data.escrowContractId,
+      postTxHash: data.postTxHash,
+    };
+    tasks[id] = task;
+    return task;
+  });
 }
 
 /** Mark a Stellar task settled and record the payout tx. */
@@ -143,22 +157,22 @@ export async function settleTaskStellar(
   winnerStellarAddress: string,
   settleTxHash: string
 ): Promise<boolean> {
-  const tasks = await loadTasks();
-  if (!tasks[taskId]) return false;
-  tasks[taskId].winner = winner;
-  tasks[taskId].winnerStellarAddress = winnerStellarAddress;
-  tasks[taskId].settleTxHash = settleTxHash;
-  tasks[taskId].status = "Settled";
-  await saveTasks(tasks);
-  return true;
+  return mutateTasks(async (tasks) => {
+    if (!tasks[taskId]) return false;
+    tasks[taskId].winner = winner;
+    tasks[taskId].winnerStellarAddress = winnerStellarAddress;
+    tasks[taskId].settleTxHash = settleTxHash;
+    tasks[taskId].status = "Settled";
+    return true;
+  });
 }
 
 export async function updateTaskStatus(id: number, status: TaskStatus): Promise<boolean> {
-  const tasks = await loadTasks();
-  if (!tasks[id]) return false;
-  tasks[id].status = status;
-  await saveTasks(tasks);
-  return true;
+  return mutateTasks(async (tasks) => {
+    if (!tasks[id]) return false;
+    tasks[id].status = status;
+    return true;
+  });
 }
 
 /**
@@ -170,62 +184,62 @@ export async function updateTaskStatus(id: number, status: TaskStatus): Promise<
  * make that clear to the user rather than implying the funds came back.
  */
 export async function deleteTask(id: number): Promise<Task | null> {
-  const tasks = await loadTasks();
-  const task = tasks[id];
-  if (!task) return null;
-  delete tasks[id];
-  await saveTasks(tasks);
-  return task;
+  return mutateTasks(async (tasks) => {
+    const task = tasks[id];
+    if (!task) return null;
+    delete tasks[id];
+    return task;
+  });
 }
 
 export async function addSubmission(
   taskId: number,
   submission: Task["submissions"][0]
 ): Promise<boolean> {
-  const tasks = await loadTasks();
-  if (!tasks[taskId]) return false;
-  const existing = tasks[taskId].submissions.findIndex((s) => s.agent === submission.agent);
-  if (existing >= 0) {
-    tasks[taskId].submissions[existing] = submission;
-  } else {
-    tasks[taskId].submissions.push(submission);
-  }
-  if (tasks[taskId].status === "Open") tasks[taskId].status = "UnderReview";
-  await saveTasks(tasks);
-  return true;
+  return mutateTasks(async (tasks) => {
+    if (!tasks[taskId]) return false;
+    const existing = tasks[taskId].submissions.findIndex((s) => s.agent === submission.agent);
+    if (existing >= 0) {
+      tasks[taskId].submissions[existing] = submission;
+    } else {
+      tasks[taskId].submissions.push(submission);
+    }
+    if (tasks[taskId].status === "Open") tasks[taskId].status = "UnderReview";
+    return true;
+  });
 }
 
 /** Record that `agent` is working on a task. Idempotent per agent. */
 export async function addClaim(taskId: number, agent: string): Promise<Task | null> {
-  const tasks = await loadTasks();
-  const task = tasks[taskId];
-  if (!task) return null;
-  task.claims = task.claims ?? [];
-  if (!task.claims.some((c) => c.agent === agent)) {
-    task.claims.push({ agent, claimedAt: Math.floor(Date.now() / 1000) });
-    await saveTasks(tasks);
-  }
-  return task;
+  return mutateTasks(async (tasks) => {
+    const task = tasks[taskId];
+    if (!task) return null;
+    task.claims = task.claims ?? [];
+    if (!task.claims.some((c) => c.agent === agent)) {
+      task.claims.push({ agent, claimedAt: Math.floor(Date.now() / 1000) });
+    }
+    return task;
+  });
 }
 
 export async function addVerdict(
   taskId: number,
   verdict: Task["verdicts"][0]
 ): Promise<boolean> {
-  const tasks = await loadTasks();
-  if (!tasks[taskId]) return false;
-  tasks[taskId].verdicts.push(verdict);
-  await saveTasks(tasks);
-  return true;
+  return mutateTasks(async (tasks) => {
+    if (!tasks[taskId]) return false;
+    tasks[taskId].verdicts.push(verdict);
+    return true;
+  });
 }
 
 export async function setWinner(taskId: number, winner: string): Promise<boolean> {
-  const tasks = await loadTasks();
-  if (!tasks[taskId]) return false;
-  tasks[taskId].winner = winner;
-  tasks[taskId].status = "Settled";
-  await saveTasks(tasks);
-  return true;
+  return mutateTasks(async (tasks) => {
+    if (!tasks[taskId]) return false;
+    tasks[taskId].winner = winner;
+    tasks[taskId].status = "Settled";
+    return true;
+  });
 }
 
 export async function seedIfEmpty(): Promise<void> {
