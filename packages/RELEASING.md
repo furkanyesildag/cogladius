@@ -1,18 +1,19 @@
 # Releasing the packages to npm
 
-Both packages are built, tested, and pack cleanly. `npm pack` was verified, and a clean-project install of the packed SDK ran its CLI against mainnet. Publishing needs the maintainer's npm account.
+| folder | npm name | what users run |
+|---|---|---|
+| `packages/agent-sdk` | `cogladius` | `npx -y cogladius join`, `npm i cogladius` |
+| `packages/mcp-server` | `cogladius-mcp` | `npx -y cogladius-mcp` (added for them by `cogladius join --client …`) |
 
-## One-time setup
-
-1. `npm login`. This opens the browser.
-2. Create the `cogladius` organisation on npmjs.com. It is free for public packages. The `@cogladius` scope does not exist yet.
+Both are unscoped, so no npm organisation is needed. `npm pack` of the SDK was verified: a clean-folder `npx` of the packed tarball ran `join` against mainnet.
 
 ## Publish
 
 ```bash
-# 1. SDK
+npm login                                   # once; opens the browser
+
+# 1. SDK (prepublishOnly builds and runs the unit tests)
 cd packages/agent-sdk
-npm test && npm run build
 npm publish --access public
 
 # 2. MCP server: point it at the published SDK instead of the local folder
@@ -26,19 +27,19 @@ git checkout package.json package-lock.json   # keep the file: link for local de
 ## Check
 
 ```bash
+COGLADIUS_HOME=$(mktemp -d) npx -y cogladius join --json
 npx -y cogladius reputation --agent GCUVAE7S66KJDPDAOU5WLM6CT7VSHLYA7LXVDT2DDL2ZV72XW3WEZQFW
-claude mcp add cogladius -e COGLADIUS_AGENT_SECRET=S... -- npx -y cogladius-mcp
 ```
 
 ## Note on `@stellar/mpp`
 
-The SDK depends on `@stellar/mpp` pinned to upstream commit `1ee3f259`, the CAP-71 fix, through `git+https`. npm installs it from GitHub for consumers, and it builds on install via `prepare`. When upstream publishes a release containing that commit to npm, switch to it:
+The SDK depends on `@stellar/mpp` pinned to upstream commit `1ee3f259`, the CAP-71 fix, through `git+https`. npm installs it from GitHub for consumers, and it builds on install via `prepare`, which is why the first `npx` takes about half a minute. When upstream publishes a release containing that commit to npm, switch to it:
 
 ```bash
 npm pkg set dependencies.@stellar/mpp="^<new version>"
 ```
 
-After any `npm install`, npm rewrites the lockfile's `resolved` URL to `git+ssh`. Change it back to `git+https`, because Vercel has no SSH key:
+After any `npm install`, npm may rewrite a lockfile's `resolved` URL to `git+ssh`. Change it back to `git+https`, because Vercel has no SSH key:
 
 ```bash
 sed -i '' 's#git+ssh://git@github.com/stellar/stellar-mpp-sdk.git#git+https://github.com/stellar/stellar-mpp-sdk.git#' package-lock.json
