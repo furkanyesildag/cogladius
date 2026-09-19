@@ -7,13 +7,18 @@
  *       events (Stellar Expert raw XDR + Horizon tx hashes) plus the RPC window.
  *       Compare with GET https://www.cogladius.xyz/api/reputation?toLedger=<ledger>.
  *
- *   cogladius join [--name <name>] [--client claude|cursor|codex] [--testnet] [--api <url>] [--rotate] [--json]
- *       Create or reuse a local agent key (~/.cogladius/agent.json), register it
- *       with a signed challenge, and optionally wire the MCP server into your
- *       AI client. COGLADIUS_AGENT_SECRET joins with an existing key instead.
+ *   cogladius join [--name <name>] [--testnet] [--api <url>] [--rotate] [--json]
+ *       Create or reuse a local agent key (~/.cogladius/agent.json) and register
+ *       it with a signed challenge. COGLADIUS_AGENT_SECRET joins with an
+ *       existing key instead.
+ *
+ *   cogladius work [--once]
+ *       Poll open tasks, solve them with your AI model (AI_API_KEY, AI_MODEL,
+ *       AI_API_BASE_URL) and submit. Needs a prior `join`.
  */
 import { resolveNetwork } from "./network.js";
 import { formatJoin, join, type McpClientName } from "./join.js";
+import { work } from "./work.js";
 import { deriveReputation } from "./reputation/derive.js";
 import { decodeRawEvent, fetchArchivedEvents, fetchEscrowEvents, type RawEvent } from "./reputation/events.js";
 
@@ -74,7 +79,12 @@ async function joinCmd() {
 }
 
 const cmd = process.argv[2];
-if (cmd === "join") {
+if (cmd === "work") {
+  work({ once: process.argv.includes("--once") }).catch((e) => {
+    console.error(e?.message ?? e);
+    process.exit(1);
+  });
+} else if (cmd === "join") {
   joinCmd().catch((e) => {
     console.error(e?.message ?? e);
     process.exit(1);
@@ -88,7 +98,8 @@ if (cmd === "join") {
   console.log(
     [
       "usage:",
-      "  cogladius join [--name <name>] [--client claude|cursor|codex] [--testnet] [--api <url>] [--rotate] [--json]",
+      "  cogladius join [--name <name>] [--testnet] [--api <url>] [--rotate] [--json]",
+      "  cogladius work [--once]           (AI_API_KEY, AI_MODEL, AI_API_BASE_URL)",
       "  cogladius reputation [--to <ledger>] [--agent G...] [--rpc <url>] [--testnet]",
     ].join("\n")
   );

@@ -187,15 +187,14 @@ export function formatJoin(r: JoinResult): string {
     const what = m.status === "added" ? "MCP server added" : m.status === "already-present" ? "MCP server already configured" : `MCP not configured (${m.detail})`;
     lines.push(``, `  ${m.status === "skipped" ? "!" : "✓"} ${m.client}: ${what}${m.status !== "skipped" && m.detail ? ` in ${m.detail}` : ""}`);
   }
-  if (r.mcp.length === 0) {
-    lines.push(
-      ``,
-      `  Connect your AI agent (no secret needed, the server reads ${r.identityFile}):`,
-      `    Claude Code  claude mcp add cogladius -- npx ${MCP_ARGS.join(" ")}`,
-      `    any client   { "command": "npx", "args": ${JSON.stringify(MCP_ARGS)} }`,
-      `    or rerun     ${JOIN_COMMAND} --client claude|cursor|codex`
-    );
-  }
-  lines.push(``, `  Then tell your agent: "Find an open Cogladius task, solve it and submit it."`, ``);
+  lines.push(
+    ``,
+    `  Next, either:`,
+    `    • let your AI agent work: it polls GET /api/agents/tasks and POSTs /api/agents/submit`,
+    `      with the API key in ${r.identityFile} (see https://www.cogladius.xyz/skill.md)`,
+    `    • or run the worker with your own model:`,
+    `      AI_API_KEY=... AI_MODEL=... ${JOIN_COMMAND.replace(/ join$/, " work")}`,
+    ``
+  );
   return lines.join("\n");
 }

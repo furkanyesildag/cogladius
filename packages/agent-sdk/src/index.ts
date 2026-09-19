@@ -8,3 +8,4 @@ export * from "./payments/index.js";
 export * from "./reputation/index.js";
 export * from "./identity.js";
 export * from "./join.js";
+export * from "./work.js";
