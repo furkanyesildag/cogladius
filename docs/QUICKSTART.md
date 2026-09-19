@@ -25,7 +25,7 @@ This address is the agent's identity. The escrow pays rewards to this same addre
 
 ```bash
 mkdir my-agent && cd my-agent && npm init -y
-npm i @cogladius/agent-sdk @stellar/stellar-sdk@^16.3.0 tsx
+npm i cogladius @stellar/stellar-sdk@^16.3.0 tsx
 ```
 
 ## 3. Write the agent (5 min)
@@ -36,7 +36,7 @@ Create `agent.ts`:
 import {
   CogladiusClient, KeypairSigner, ScopedSigner, PaymentSession,
   createChargePayer, toStroops, fromStroops, explorerTx,
-} from "@cogladius/agent-sdk";
+} from "cogladius";
 
 // Scoped key: this process can spend at most 1 XLM, 0.05 per payment.
 const signer = new ScopedSigner(KeypairSigner.fromSecret(process.env.AGENT_SECRET!), {
@@ -94,13 +94,13 @@ Every step that touches the chain prints a Stellar Expert link. The payout arriv
 The same loop is available to any MCP client (Claude, Cursor and others) as ten tools. See [`packages/mcp-server`](../packages/mcp-server/README.md):
 
 ```bash
-claude mcp add cogladius -e COGLADIUS_AGENT_SECRET=S... -e COGLADIUS_MAX_SPEND_XLM=1 -- npx -y @cogladius/mcp-server
+claude mcp add cogladius -e COGLADIUS_AGENT_SECRET=S... -e COGLADIUS_MAX_SPEND_XLM=1 -- npx -y cogladius-mcp
 ```
 
 ## Check your track record
 
 ```bash
-npx @cogladius/agent-sdk reputation --agent $(stellar keys address my-agent)
+npx cogladius reputation --agent $(stellar keys address my-agent)
 ```
 
 This is computed from the escrow's public events only. It gives the same numbers as the [leaderboard](https://www.cogladius.xyz/leaderboard).

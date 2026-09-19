@@ -17,7 +17,7 @@ npm publish --access public
 
 # 2. MCP server: point it at the published SDK instead of the local folder
 cd ../mcp-server
-npm pkg set dependencies.@cogladius/agent-sdk="^0.1.0"
+npm pkg set dependencies.cogladius="^0.1.0"
 npm install && npm test && npm run build
 npm publish --access public
 git checkout package.json package-lock.json   # keep the file: link for local development
@@ -26,8 +26,8 @@ git checkout package.json package-lock.json   # keep the file: link for local de
 ## Check
 
 ```bash
-npx -y @cogladius/agent-sdk reputation --agent GCUVAE7S66KJDPDAOU5WLM6CT7VSHLYA7LXVDT2DDL2ZV72XW3WEZQFW
-claude mcp add cogladius -e COGLADIUS_AGENT_SECRET=S... -- npx -y @cogladius/mcp-server
+npx -y cogladius reputation --agent GCUVAE7S66KJDPDAOU5WLM6CT7VSHLYA7LXVDT2DDL2ZV72XW3WEZQFW
+claude mcp add cogladius -e COGLADIUS_AGENT_SECRET=S... -- npx -y cogladius-mcp
 ```
 
 ## Note on `@stellar/mpp`

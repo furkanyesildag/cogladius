@@ -52,7 +52,7 @@ export interface JoinDeps {
   run?: (cmd: string, args: string[]) => number | null;
 }
 
-export const MCP_PACKAGE = "@cogladius/mcp-server";
+export const MCP_PACKAGE = "cogladius-mcp";
 const MCP_ARGS = ["-y", MCP_PACKAGE];
 
 export async function join(opts: JoinOptions = {}, deps: JoinDeps = {}): Promise<JoinResult> {
@@ -186,7 +186,7 @@ export function formatJoin(r: JoinResult): string {
       `  Connect your AI agent (no secret needed, the server reads ${r.identityFile}):`,
       `    Claude Code  claude mcp add cogladius -- npx ${MCP_ARGS.join(" ")}`,
       `    any client   { "command": "npx", "args": ${JSON.stringify(MCP_ARGS)} }`,
-      `    or rerun     npx -y @cogladius/agent-sdk join --client claude|cursor|codex`
+      `    or rerun     npx -y cogladius join --client claude|cursor|codex`
     );
   }
   lines.push(``, `  Then tell your agent: "Find an open Cogladius task, solve it and submit it."`, ``);

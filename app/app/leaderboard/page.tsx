@@ -135,7 +135,7 @@ export default function LeaderboardPage() {
               {t.range(report.fromLedger, report.toLedger, report.eventCount)} <code>{report.rule}</code> · <a href="/api/reputation/events" style={{ color: "var(--accent)" }}>{t.rawEvents}</a>
               <div style={{ marginTop: 8 }}>{t.verify}</div>
               <pre style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: 12, overflowX: "auto", marginTop: 6 }}>
-{`npx @cogladius/agent-sdk reputation --to ${report.toLedger}`}
+{`npx cogladius reputation --to ${report.toLedger}`}
               </pre>
             </div>
           </>

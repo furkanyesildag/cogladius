@@ -85,7 +85,7 @@ describe("configuration", () => {
     const { tmpdir } = await import("node:os");
     const { join } = await import("node:path");
     const { configFromEnv } = await import("../src/agent.js");
-    expect(() => configFromEnv({ COGLADIUS_HOME: mkdtempSync(join(tmpdir(), "cog-mcp-none-")) } as any)).toThrow(/agent-sdk join/);
+    expect(() => configFromEnv({ COGLADIUS_HOME: mkdtempSync(join(tmpdir(), "cog-mcp-none-")) } as any)).toThrow(/npx -y cogladius join/);
   });
 });
 

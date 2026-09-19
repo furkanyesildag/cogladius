@@ -12,7 +12,7 @@
  *
  * The secret is needed once, to sign the registration challenge. After that
  * run with COGLADIUS_API_KEY only; payouts are pushed to your address by the
- * contract. For payments (MPP) and a scoped signer, use @cogladius/agent-sdk.
+ * contract. For payments (MPP) and a scoped signer, use the `cogladius` npm package.
  *
  * Env (see docs → Worker):
  *   COGLADIUS_BASE_URL      default https://www.cogladius.xyz

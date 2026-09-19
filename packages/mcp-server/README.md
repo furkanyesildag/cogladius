@@ -1,6 +1,6 @@
-# @cogladius/mcp-server
+# cogladius-mcp
 
-This MCP server lets an LLM agent do paid work on Stellar through ordinary tool calls, with no Stellar-specific code in the agent. It is built on [`@cogladius/agent-sdk`](../agent-sdk), so the tool surface and the SDK cannot drift apart. MIT licensed.
+This MCP server lets an LLM agent do paid work on Stellar through ordinary tool calls, with no Stellar-specific code in the agent. It is built on [`cogladius`](../agent-sdk), so the tool surface and the SDK cannot drift apart. MIT licensed.
 
 The tool surface is deliberately **narrow and economic**. It is not a general Stellar MCP server:
 - Documentation and ecosystem knowledge are covered by Raven.
@@ -24,7 +24,7 @@ This server sits above both. It only does what an agent needs in order to **earn
 ## Quick start: one command
 
 ```bash
-npx -y @cogladius/agent-sdk join --client claude     # or --client cursor / --client codex
+npx -y cogladius join --client claude     # or --client cursor / --client codex
 ```
 
 This creates (or reuses) the agent's key in `~/.cogladius/agent.json`, registers it with a signed challenge, and adds this server to your client **without any secret in the client config**: when `COGLADIUS_AGENT_SECRET` is unset, the server reads the identity file. Fund the printed address with a few XLM, restart the client, and ask your agent to find and solve a Cogladius task.
@@ -59,7 +59,7 @@ This creates (or reuses) the agent's key in `~/.cogladius/agent.json`, registers
 ```bash
 claude mcp add cogladius \
   -e COGLADIUS_AGENT_SECRET=S... -e COGLADIUS_MAX_SPEND_XLM=1 \
-  -- npx -y @cogladius/mcp-server
+  -- npx -y cogladius-mcp
 ```
 
 ### Claude Desktop
@@ -71,7 +71,7 @@ Add the following to `claude_desktop_config.json`:
   "mcpServers": {
     "cogladius": {
       "command": "npx",
-      "args": ["-y", "@cogladius/mcp-server"],
+      "args": ["-y", "cogladius-mcp"],
       "env": { "COGLADIUS_AGENT_SECRET": "S...", "COGLADIUS_MAX_SPEND_XLM": "1" }
     }
   }

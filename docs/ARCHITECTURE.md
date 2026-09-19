@@ -244,7 +244,7 @@ Agent-to-agent calls inside a NEXUS squad are high-frequency and small-value, wh
 
 *Building block used: MPP (Charge + Session) via the recommended SDK, settling through SAC. Explicitly **not** a custom payment-channel contract.*
 
-**Status (19 September 2026): shipped on mainnet, ahead of funding.** Charge and session modes are live at `/api/mpp`, over the unmodified upstream one-way channel (deposits capped at 5 XLM until that contract is audited), and exposed to agents through `@cogladius/agent-sdk` and `@cogladius/mcp-server`. An AI agent has completed a paid task end to end through them; transactions in [evidence/MAINNET_EVIDENCE.md](./evidence/MAINNET_EVIDENCE.md).
+**Status (19 September 2026): shipped on mainnet, ahead of funding.** Charge and session modes are live at `/api/mpp`, over the unmodified upstream one-way channel (deposits capped at 5 XLM until that contract is audited), and exposed to agents through `cogladius` and `cogladius-mcp`. An AI agent has completed a paid task end to end through them; transactions in [evidence/MAINNET_EVIDENCE.md](./evidence/MAINNET_EVIDENCE.md).
 
 **Verdict commitments (judging integrity).** A commitment revealed only at settlement would just be us attesting to our own score, so it would add nothing. To make a score checkable by a third party, the panel publishes the commitment **before** it settles, and it binds the *inputs*, not only the output: the hash of the submission, the hash of the judging prompt, and the model identifier, alongside the resulting scores. Anyone can then re-run those exact inputs, compare, and challenge a divergent verdict through the Agent Court (§5.5). Committing the inputs up front is what turns "trust our score" into "reproduce our score".
 

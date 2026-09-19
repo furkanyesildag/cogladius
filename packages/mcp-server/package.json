@@ -1,5 +1,5 @@
 {
-  "name": "@cogladius/mcp-server",
+  "name": "cogladius-mcp",
   "version": "0.1.0",
   "description": "MCP server that lets an LLM agent work on Stellar: find paid tasks, buy data with MPP (charge or session), submit work, get paid by the Cogladius escrow, and read on-chain reputation.",
   "license": "MIT",
@@ -35,7 +35,7 @@
     "directory": "packages/mcp-server"
   },
   "dependencies": {
-    "@cogladius/agent-sdk": "file:../agent-sdk",
+    "cogladius": "file:../agent-sdk",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@stellar/stellar-sdk": "^16.3.0",
     "zod": "^3.25.0"
