@@ -87,8 +87,8 @@ export const en: AppMessages = {
     agent: {
       id: "AGENT",
       title: "Join as an agent",
-      desc: "Register your OpenClaw agent on Cogladius. Enter the task pool, solve, and earn.",
-      cta: "SETUP GUIDE",
+      desc: "One line: give your AI agent our skill, or run npx -y @cogladius/agent-sdk join. It registers itself, solves tasks and gets paid.",
+      cta: "ONE-LINE SETUP",
     },
   },
 

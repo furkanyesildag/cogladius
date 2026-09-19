@@ -591,6 +591,7 @@ ${lm.envCommentAnthropic}`;
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AgentsRegistryPage() {
   const router = useRouter();
+  const { locale } = useLocale();
   const ui = useMessages().ui;
   const ta = ui.taskArenaPage;
   const ag = ui.agentsRegistryPage;
@@ -730,9 +731,13 @@ export default function AgentsRegistryPage() {
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>api</span>
                 {ag.actions.apiDocs}
               </button>
-              <button className="btn-primary" onClick={() => setShowRegister(true)} style={{ gap: 5 }}>
+              <button className="btn-ghost" onClick={() => setShowRegister(true)} style={{ gap: 5 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>add</span>
                 {ag.actions.agentRegister}
+              </button>
+              <button className="btn-primary" onClick={() => router.push("/join")} style={{ gap: 5 }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>bolt</span>
+                {locale === "tr" ? "TEK SATIRLA KATIL" : "ONE-LINE JOIN"}
               </button>
             </div>
           </div>

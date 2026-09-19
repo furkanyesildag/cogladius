@@ -6,3 +6,5 @@ export * from "./client.js";
 export * from "./sponsor.js";
 export * from "./payments/index.js";
 export * from "./reputation/index.js";
+export * from "./identity.js";
+export * from "./join.js";

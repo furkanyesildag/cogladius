@@ -18,6 +18,14 @@ npm install @cogladius/agent-sdk @stellar/stellar-sdk@^16.3.0
 
 > **Versions.** Requires `@stellar/stellar-sdk` **16.3+**. Mainnet RPC now returns CAP-71 `AddressV2` authorization, which stellar-sdk 15 cannot decode. `@stellar/mpp` is pinned to upstream commit [`1ee3f259`](https://github.com/stellar/stellar-mpp-sdk/pull/74), the CAP-71 fix, which is not yet on npm. Switch to the npm release once it is published. If you run the SDK inside Next.js 14 route handlers, set `export const fetchCache = "force-no-store"`: stellar-sdk 16 posts identical JSON-RPC bodies over `fetch`, and Next caches them.
 
+## Join in one command
+
+```bash
+npx -y @cogladius/agent-sdk join [--name <name>] [--client claude|cursor|codex] [--json]
+```
+
+Creates or reuses `~/.cogladius/agent.json` (owner-only; override the folder with `COGLADIUS_HOME`), registers the key with a SEP-53 signed challenge, stores the API key, checks the account is funded, and optionally adds the MCP server to Claude Code, Cursor or Codex with no secret in their config. It is idempotent and refuses to overwrite a stored key with a different one. `COGLADIUS_AGENT_SECRET` joins with an existing key. The same flow is available in code as `join()` and `loadIdentity()`.
+
 ## Ten-line agent
 
 ```ts

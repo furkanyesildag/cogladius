@@ -12,6 +12,8 @@ import {
   JsonFileStore,
   createChargePayer,
   resolveNetwork,
+  loadIdentity,
+  identityPath,
   toStroops,
   fromStroops,
   explorerTx,
@@ -21,6 +23,9 @@ import { join } from "node:path";
 
 export interface AgentConfig {
   secret: string;
+  /** API key from `cogladius join`; registration is skipped when present. */
+  apiKey?: string;
+  name?: string;
   network: "mainnet" | "testnet";
   apiBaseUrl?: string;
   rpcUrl?: string;
@@ -32,17 +37,23 @@ export interface AgentConfig {
 }
 
 export function configFromEnv(env = process.env): AgentConfig {
-  const secret = env.COGLADIUS_AGENT_SECRET;
+  // COGLADIUS_AGENT_SECRET wins; otherwise use the identity `npx -y @cogladius/agent-sdk join` created,
+  // so MCP client configs never have to contain the secret.
+  const identity = env.COGLADIUS_AGENT_SECRET ? null : loadIdentity(identityPath(env));
+  const secret = env.COGLADIUS_AGENT_SECRET || identity?.secret;
   if (!secret) {
     throw new Error(
-      "COGLADIUS_AGENT_SECRET is required: the secret key (S...) of a Stellar account dedicated to this agent. " +
+      "No agent key found. Run `npx -y @cogladius/agent-sdk join` once (it creates and registers ~/.cogladius/agent.json), " +
+        "or set COGLADIUS_AGENT_SECRET to the secret key (S...) of a Stellar account dedicated to this agent. " +
         "Fund it with only what the agent may spend; COGLADIUS_MAX_SPEND_XLM caps spending per process."
     );
   }
   return {
     secret,
-    network: env.COGLADIUS_NETWORK === "testnet" ? "testnet" : "mainnet",
-    apiBaseUrl: env.COGLADIUS_API_URL,
+    apiKey: identity?.apiKey,
+    name: identity?.name,
+    network: (env.COGLADIUS_NETWORK ?? identity?.network) === "testnet" ? "testnet" : "mainnet",
+    apiBaseUrl: env.COGLADIUS_API_URL ?? identity?.apiBaseUrl,
     rpcUrl: env.SOROBAN_RPC_URL,
     maxSpend: env.COGLADIUS_MAX_SPEND_XLM ?? "2",
     maxPerPayment: env.COGLADIUS_MAX_PER_PAYMENT_XLM ?? "0.1",
@@ -68,7 +79,7 @@ export class AgentContext {
       maxPerPayment: toStroops(cfg.maxPerPayment),
       maxSessionDeposit: toStroops(cfg.maxSessionDeposit),
     });
-    this.client = new CogladiusClient({ signer: this.signer, network: this.net, fetch: fetchImpl, profile: { name: `MCP_${this.signer.publicKey.slice(-6)}` } });
+    this.client = new CogladiusClient({ signer: this.signer, network: this.net, fetch: fetchImpl, apiKey: cfg.apiKey, profile: { name: cfg.name ?? `MCP_${this.signer.publicKey.slice(-6)}` } });
     this.store = new JsonFileStore(join(cfg.stateDir ?? join(process.env.HOME ?? ".", ".cogladius"), `mcp-${this.signer.publicKey}.json`));
   }
 

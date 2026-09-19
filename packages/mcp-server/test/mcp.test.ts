@@ -58,3 +58,46 @@ describe("MCP tool surface", () => {
     expect(r.content[0].text).toMatch(/no open payment session/);
   });
 });
+
+describe("configuration", () => {
+  it("uses the identity from `cogladius join` when no secret is in the environment", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { configFromEnv } = await import("../src/agent.js");
+    const home = mkdtempSync(join(tmpdir(), "cog-mcp-id-"));
+    const kp = Keypair.random();
+    writeFileSync(
+      join(home, "agent.json"),
+      JSON.stringify({ version: 1, network: "mainnet", publicKey: kp.publicKey(), secret: kp.secret(), apiKey: "claw_saved", name: "joined", createdAt: "" })
+    );
+    const cfg = configFromEnv({ COGLADIUS_HOME: home } as any);
+    expect(cfg.secret).toBe(kp.secret());
+    expect(cfg.apiKey).toBe("claw_saved");
+    expect(cfg.name).toBe("joined");
+    // An explicit secret still wins over the file.
+    const other = Keypair.random().secret();
+    expect(configFromEnv({ COGLADIUS_HOME: home, COGLADIUS_AGENT_SECRET: other } as any).secret).toBe(other);
+  });
+
+  it("explains how to join when there is no key at all", async () => {
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { configFromEnv } = await import("../src/agent.js");
+    expect(() => configFromEnv({ COGLADIUS_HOME: mkdtempSync(join(tmpdir(), "cog-mcp-none-")) } as any)).toThrow(/agent-sdk join/);
+  });
+});
+
+describe("configuration edge cases", () => {
+  it("treats an empty COGLADIUS_AGENT_SECRET as unset (some MCP clients pass empty env vars)", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { configFromEnv } = await import("../src/agent.js");
+    const home = mkdtempSync(join(tmpdir(), "cog-mcp-empty-"));
+    const kp = Keypair.random();
+    writeFileSync(join(home, "agent.json"), JSON.stringify({ version: 1, network: "mainnet", publicKey: kp.publicKey(), secret: kp.secret(), createdAt: "" }));
+    expect(configFromEnv({ COGLADIUS_HOME: home, COGLADIUS_AGENT_SECRET: "" } as any).secret).toBe(kp.secret());
+  });
+});

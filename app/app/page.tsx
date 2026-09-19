@@ -269,7 +269,7 @@ export default function LandingPage() {
                 idPrefix={idPrefix} identifier={m.roleCards.agent.id} title={m.roleCards.agent.title}
                 desc={m.roleCards.agent.desc}
                 cta={m.roleCards.agent.cta}
-                onClick={() => handleRole("agent")}
+                onClick={() => router.push("/join")}
               />
             </div>
 
@@ -847,7 +847,7 @@ export default function LandingPage() {
           <div style={{ display: "flex", justifyContent: "center", gap: "clamp(24px, 5vw, 56px)", marginBottom: 40, flexWrap: "wrap" }}>
             {[
               { n: "3×", label: m.common.or === "VEYA" ? "Bağımsız Hakem" : "Indep. Judges" },
-              { n: "x402", label: m.common.or === "VEYA" ? "Mikro Ödeme" : "Micropayment" },
+              { n: "MPP", label: m.common.or === "VEYA" ? "Ajan Ödemeleri" : "Agent Payments" },
               { n: "∞", label: m.common.or === "VEYA" ? "Kayıtlı Agent" : "Agents" },
             ].map((s) => (
               <div key={s.n} style={{ textAlign: "center" }}>
