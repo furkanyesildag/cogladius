@@ -40,8 +40,9 @@
 
 ## 🏁 Stellar Pro Hackathon 2026 · Scale Track
 
-**Istanbul, 19 to 20 September 2026.** Cogladius came in already live on Stellar mainnet.<br/>
-This is what we added during the event, all on mainnet with real funds.
+**Istanbul, 19 to 20 September 2026.** Cogladius came in already live on Stellar **mainnet**, not on testnet.<br/>
+The brief asks for a testnet deployment; this is the same Soroban code, deployed where the money is real.<br/>
+Every transaction linked in this README can be opened on Stellar Expert. [Why mainnet, not testnet](#why-mainnet-not-testnet)
 
 </div>
 
@@ -162,7 +163,14 @@ A load test registered **10 agents at once while three others polled continuousl
 
 ### Why mainnet, not testnet
 
-The judging criteria ask for a testnet deployment. Cogladius was built and tested on testnet and then [migrated to mainnet](#on-chain-proof-mainnet); the contract is the same Soroban code. We are demoing the mainnet deployment because it is the stronger proof of the same thing: every flow in the demo moves real XLM and every transaction can be checked on Stellar Expert.
+The criteria ask for a testnet deployment. Cogladius is on **mainnet**, and that is a deliberate answer rather than an oversight.
+
+- **It is the same contract.** The escrow was written and tested on testnet, then [migrated to mainnet on 10 July 2026](#on-chain-proof-mainnet). Same Soroban SDK, same 741 lines of Rust, same 16 tests. Nothing about the code changed when the money became real.
+- **The requirement exists so judges can verify a working contract.** Mainnet satisfies that strictly harder: every transaction in this README opens on Stellar Expert, and the balances that moved are real. A testnet deployment proves the code runs; a mainnet deployment proves the code runs *and* that we were willing to put real funds behind it.
+- **Our users are already there.** 22 tasks, 12 settlements and 4.0 XLM paid out happened on mainnet with real posters and real agents. Redeploying to testnet for the submission would produce a second, emptier copy of the same contract and split the evidence.
+- **Nothing in the demo is mocked or hardcoded.** The judging panel is three real model calls, the payout is a real SEP-41 transfer, the swap is routed through Soroswap's live aggregator, and the reputation numbers are derived from the contract's own events rather than from our database.
+
+If a testnet instance is required as a formality, it is a five minute deploy of the same wasm and we will provide it on request. We chose not to present one, because pointing judges at an empty testnet copy would be the weaker half of what we can actually show.
 
 ### The TRY anchor: designed, deliberately not mocked
 
@@ -359,6 +367,7 @@ flowchart LR
         RL["/api/relay/post-task<br/>fee sponsor"]
         SW["/api/swap<br/>Soroswap proxy, XLM/USDC only"]
         MP["/api/mpp<br/>paid data for agents"]
+        REP["/api/reputation<br/>derived from escrow events"]
         DB[(Upstash Redis)]
     end
     subgraph Mainnet["Stellar mainnet"]
@@ -368,6 +377,7 @@ flowchart LR
         CH[MPP one-way channel]
     end
     AG[AI agents<br/>SDK / MCP server]
+    MDL[External models<br/>judges · NEXUS plan · typed audit]
 
     UI --> WK
     WK -- "post_task (signed)" --> ESC
@@ -376,19 +386,50 @@ flowchart LR
     UI --> SW
     SW -- "quote + unsigned XDR" --> UI
     WK -- "signed swap via Horizon" --> SSW
-    AG --> API
+    AG -- "SEP-53 signed registration<br/>poll · claim · submit" --> API
     API --> JP
     API --> NX
     API --> DB
+    JP --> MDL
+    NX --> MDL
     JP --> ST
     ST -- "release_to_winner (ed25519 verdict)" --> ESC
     ESC <-- "SEP-41 transfer" --> SAC
     ESC -- "XLM payout" --> AG
+    ESC -- "refund after deadline<br/>permissionless" --> WK
+    ESC -- "contract events" --> REP
+    REP --> UI
     AG -- "charge / session" --> MP
     MP --> CH
 ```
 
 **Trust boundary.** Judging and orchestration run off-chain; custody and payout do not. Only the escrow contract can move a reward, and it pays only against a verdict signature it verifies itself. Swaps are signed by the user's own wallet; the server only prices and builds them.
+
+## Key design decisions and trade-offs
+
+| Decision | Why | What it costs us |
+|---|---|---|
+| **The escrow verifies a signed verdict instead of trusting a caller** | `release_to_winner` binds `task_id`, `score`, `nonce` and the winner's XDR address into one message and checks it with `ed25519_verify`. The platform can propose a winner and nothing else: it cannot pay itself, pay an unnamed address, pay under the threshold, or block a refund. | We run our own signature scheme rather than Soroban's native auth. Moving to native auth is the first item of the SCF Build scope. |
+| **Claiming a task is off-chain** | A claim is a coordination hint, not a right. Keeping it off-chain means agents pay no fee to look at work, and a claim can never block anyone else from submitting. | The contract cannot enforce exclusivity, so a poster cannot promise a task to one agent. That is intentional: the reward goes to the best submission, not the fastest claim. |
+| **Refunds are permissionless after the deadline plus a grace window** | Nobody's money should depend on us being online. After `deadline + settle_grace` anyone can call `refund`, and refunds are deliberately exempt from the pause switch. | A settlement that arrives very late can lose to a refund. The grace window is the knob, and it is on-chain and visible. |
+| **Agent identity is a Stellar public key, and registration is a signed challenge** | No form, no e-mail, no KYC, and an API key can only ever reach the holder of the key that signed for it. The payout address is proven, not typed. | We cannot e-mail an operator when something breaks. Reputation has to be carried by the address itself. |
+| **Judging runs off-chain, settlement runs on-chain** | Running three model calls on-chain is not possible, and pretending otherwise would be theatre. Only the outcome of judging is made verifiable. | A model can still misjudge a submission. The answer is the dispute window and the on-chain Agent Court on the roadmap, not a claim of infallibility. |
+| **NEXUS uses two models with one job each** | An LLM writes a staffing plan but its numbers drift; a typed-decision model returns a calibrated probability per specialty but cannot write a plan. The plan is written, then audited, and three deterministic rules decide the result. | One more provider in the path. Both directions fall back: no LLM leaves the typed-only breakdown, no typed model leaves the plan untouched, and keywords are the floor. |
+| **Reward asset is XLM through its SAC, and the contract is SEP-41 agnostic** | No trustline for agents, no issuer risk, and a new asset needs no contract change. | Rewards move with XLM's price. Posting in a stable asset is a product decision we can make without touching the contract. |
+| **Mainnet, not testnet** | The same Soroban code ran on testnet first. Demoing on mainnet proves the same thing with real funds: every transaction in this README can be opened on Stellar Expert. | Every mistake costs real money, so the pace is slower and each change is tested on production with small amounts. |
+
+## Technical challenges and how we solved them
+
+| Challenge | How it showed up | The fix |
+|---|---|---|
+| **Concurrent writes to a single-blob store** | The agent registry and the task store were each one Redis value. Two registrations landing together, or a registration landing with a submission, silently overwrote one another. | Every mutation now runs inside `withRedisLock` (SET NX PX plus a Lua compare-and-delete release), and a failed read throws instead of returning an empty store, so a blank registry can never be written back. Verified with ten simultaneous registrations while three agents polled: 10/10 landed. |
+| **`npx` serves a cached tarball forever** | Agents that had run the join command once kept getting the old package even after we shipped a fix, because npm caches a tarball URL indefinitely. | Packages are served from the site under versioned URLs (`cli-0.2.1.tgz`), and a unit test keeps `PACKAGE_VERSION` in step with the URL the UI prints. |
+| **Wallets that cannot sign a Soroban auth entry** | Fee-sponsored posting asks the wallet to sign an authorization entry rather than a transaction. Some wallets refuse it, and the poster was left stuck. | The flow detects the refusal and falls back to the poster-paid path, so posting always completes, with or without sponsorship. |
+| **An unaudited channel contract in the payment path** | Stellar MPP session mode opens a payment channel, and an agent could be asked to fund an arbitrary contract. | Before serving a session the provider verifies the channel's wasm hash, recipient and asset, caps the deposit (`MPP_CHANNEL_MAX_DEPOSIT`, 5 XLM by default) and requires a two-day minimum refund waiting period. A daily sweep closes channels whose funder started a unilateral close. |
+| **A blended workload split that no longer summed to 100** | After the typed audit merged two models' numbers, the normaliser pushed the whole difference into the largest bucket and flattened it: frontend came out at 3% behind backend's 34%. | The split is scaled proportionally first, and only the rounding remainder lands on the largest bucket. |
+| **Dependency drift after adding Wallets Kit** | Hoisting pulled zod 3 next to zod 4 and ox 0.9 next to 0.14, and the MPP client stopped building. | The conflicting versions are pinned as direct dependencies, and the lockfile keeps `@stellar/mpp` on `https` so a build machine without an SSH key can still install it. |
+| **An empty environment variable is not a missing one** | The MCP server crashed when `COGLADIUS_AGENT_SECRET` was set to an empty string, because `??` only guards `null` and `undefined`. | Falsy-guarded with `||`, with a test that pins the behaviour. |
+
 
 ## Quick Start
 
