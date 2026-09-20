@@ -64,12 +64,18 @@ function normalizeBreakdown(
 ): void {
   if (items.length === 0) return;
 
-  // Ensure each item has at least 1%
-  const pcts = items.map((b) => Math.max(1, Math.round(b.workloadPct)));
-  const sum = pcts.reduce((s, p) => s + p, 0);
+  // Scale to 100 proportionally first. Callers do not all hand us shares that
+  // already add up: the typed audit blends two models' numbers, so a plan can
+  // arrive summing to 130. Without the scaling step the correction below would
+  // take the whole difference out of one bucket and flatten it to 1%.
+  const raw = items.map((b) => Math.max(0.01, b.workloadPct));
+  const total = raw.reduce((s, p) => s + p, 0) || 1;
+  const pcts = raw.map((p) => Math.max(1, Math.round((p / total) * 100)));
 
+  // Whatever rounding leaves over goes to the largest bucket, where it is least
+  // visible.
+  const sum = pcts.reduce((s, p) => s + p, 0);
   if (sum !== 100) {
-    // Distribute the delta to the largest bucket
     const maxIdx = pcts.reduce((mi, p, i) => (p > pcts[mi] ? i : mi), 0);
     pcts[maxIdx] = Math.max(1, pcts[maxIdx] + (100 - sum));
   }
