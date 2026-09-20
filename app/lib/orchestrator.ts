@@ -16,7 +16,7 @@ import { setSubTasks, setSubTaskTaskId, updateProject } from "./projectStore";
 export { SPECIALTY_META } from "./specialtyMeta";
 import { SPECIALTY_META } from "./specialtyMeta";
 import { getOpenAiChatModel, openaiChatCompletion } from "./openaiAgents";
-import { jevAnalyze } from "./jevOrchestrator";
+import { jevAnalyze, jevAudit } from "./jevOrchestrator";
 
 const VALID_SPECIALTIES = new Set(Object.keys(SPECIALTY_META) as AgentSpecialty[]);
 const SPECIALTIES_LIST = Object.keys(SPECIALTY_META).join(", ");
@@ -256,11 +256,27 @@ export async function analyzeProject(
 ): Promise<OrchestratorResult> {
   await updateProject(projectId, { status: "analyzing" });
 
-  // 1. Analyze: Jev (typed, calibrated) -> LLM -> keyword fallback
-  let breakdown = await jevAnalyze(description, normalizeBreakdown, totalBudget);
-  if (!breakdown || breakdown.length === 0) {
-    breakdown = await llmAnalyze(description, totalBudget);
+  // 1. Analyze. The LLM writes the staffing plan, then the typed model audits
+  //    it with calibrated probabilities: it prunes specialties the project does
+  //    not need and adds ones the plan missed. Neither model decides alone.
+  //    If the LLM is down we fall back to a typed-only breakdown, and if both
+  //    are down to keywords, so a model outage never stops the product.
+  let breakdown = await llmAnalyze(description, totalBudget);
+
+  if (breakdown && breakdown.length > 0) {
+    const audit = await jevAudit(description, breakdown, normalizeBreakdown, totalBudget);
+    if (audit && audit.breakdown.length > 0) {
+      breakdown = audit.breakdown;
+      if (audit.dropped.length || audit.added.length) {
+        console.info(
+          `[orchestrator] typed audit: -[${audit.dropped.join(",")}] +[${audit.added.join(",")}]`
+        );
+      }
+    }
+  } else {
+    breakdown = await jevAnalyze(description, normalizeBreakdown, totalBudget);
   }
+
   if (!breakdown || breakdown.length === 0) {
     breakdown = keywordAnalyze(description, totalBudget);
   }
