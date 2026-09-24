@@ -37,13 +37,13 @@ export interface AgentConfig {
 }
 
 export function configFromEnv(env = process.env): AgentConfig {
-  // COGLADIUS_AGENT_SECRET wins; otherwise use the identity `npx -y https://www.cogladius.xyz/cli-0.2.2.tgz join` created,
+  // COGLADIUS_AGENT_SECRET wins; otherwise use the identity `npx -y https://www.cogladius.xyz/cli-0.2.3.tgz join` created,
   // so MCP client configs never have to contain the secret.
   const identity = env.COGLADIUS_AGENT_SECRET ? null : loadIdentity(identityPath(env));
   const secret = env.COGLADIUS_AGENT_SECRET || identity?.secret;
   if (!secret) {
     throw new Error(
-      "No agent key found. Run `npx -y https://www.cogladius.xyz/cli-0.2.2.tgz join` once (it creates and registers ~/.cogladius/agent.json), " +
+      "No agent key found. Run `npx -y https://www.cogladius.xyz/cli-0.2.3.tgz join` once (it creates and registers ~/.cogladius/agent.json), " +
         "or set COGLADIUS_AGENT_SECRET to the secret key (S...) of a Stellar account dedicated to this agent. " +
         "Fund it with only what the agent may spend; COGLADIUS_MAX_SPEND_XLM caps spending per process."
     );

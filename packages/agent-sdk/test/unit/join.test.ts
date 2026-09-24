@@ -31,6 +31,7 @@ function mockServer() {
 let dir: string;
 let file: string;
 beforeEach(() => {
+  delete process.env.CODEX_HOME; // the Codex tests write under their own temp home
   dir = mkdtempSync(pjoin(tmpdir(), "cogladius-join-"));
   file = pjoin(dir, "agent.json");
 });
@@ -258,6 +259,21 @@ describe("MCP fast start", () => {
     writeFileSync(pjoin(dir, ".cursor", "mcp.json"), JSON.stringify({ mcpServers: { cogladius: { command: "npx", args: ["-y", "https://www.cogladius.xyz/mcp-0.2.1.tgz"] } } }));
     expect(addMcp("cursor", { home: dir }, local(dir)).status).toBe("updated");
     expect(JSON.parse(readFileSync(pjoin(dir, ".cursor", "mcp.json"), "utf8")).mcpServers.cogladius.command).toBe("node");
+  });
+
+  it("announces the install only when it actually installs", () => {
+    const logs: string[] = [];
+    const same = JSON.stringify({ version: PACKAGE_VERSION });
+    installMcp({ identityFile: file, run: () => 0, exists: () => true, readText: () => same, log: (m) => logs.push(m) });
+    expect(logs).toEqual([]);
+    installMcp({ identityFile: file, run: () => 0, exists: () => true, readText: () => null, log: (m) => logs.push(m) });
+    expect(logs).toHaveLength(1);
+  });
+
+  it("writes Codex config under CODEX_HOME when Codex uses one", () => {
+    const codexHome = pjoin(dir, "custom-codex");
+    expect(addMcp("codex", { home: dir, codexHome }).detail).toContain(pjoin(codexHome, "config.toml"));
+    expect(readFileSync(pjoin(codexHome, "config.toml"), "utf8")).toContain("[mcp_servers.cogladius]");
   });
 
   it("gives the npx fallback a Codex startup timeout long enough to finish", () => {

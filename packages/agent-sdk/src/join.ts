@@ -58,6 +58,10 @@ export interface JoinDeps {
   /** Runs an external command and returns its stdout, or null if it failed. */
   output?: (cmd: string, args: string[]) => string | null;
   readText?: (path: string) => string | null;
+  /** Codex's config directory (default: $CODEX_HOME, else ~/.codex). */
+  codexHome?: string;
+  /** Progress notes for a human at the terminal (the CLI sends them to stderr). */
+  log?: (message: string) => void;
 }
 
 /** An MCP entry that an earlier `cogladius join` wrote (npx of our tarball, or the npm package). */
@@ -78,7 +82,7 @@ export interface McpLaunch {
  * to "cogladius-mcp" to use the npm release instead.
  */
 /** Bump with package.json: npx caches a tarball URL forever, so every release gets a new URL. */
-export const PACKAGE_VERSION = "0.2.2";
+export const PACKAGE_VERSION = "0.2.3";
 export const CLI_PACKAGE = `https://www.cogladius.xyz/cli-${PACKAGE_VERSION}.tgz`;
 export const MCP_PACKAGE = process.env.COGLADIUS_MCP_PACKAGE || `https://www.cogladius.xyz/mcp-${PACKAGE_VERSION}.tgz`;
 export const JOIN_COMMAND = `npx -y ${CLI_PACKAGE} join`;
@@ -106,6 +110,7 @@ export function installMcp(deps: JoinDeps = {}): McpLaunch {
   if (installed && exists(entry) && JSON.parse(installed).version === PACKAGE_VERSION) {
     return { command: "node", args: [entry], local: true };
   }
+  deps.log?.("Installing the Cogladius MCP server for your AI client (about 40 s, once)...");
   const code = run("npm", ["install", "--prefix", dir, "--no-audit", "--no-fund", "--loglevel=error", MCP_PACKAGE]);
   if (code === 0 && exists(entry)) return { command: "node", args: [entry], local: true };
   return { ...NPX_LAUNCH, detail: `local install failed (npm exited ${code}), using npx: the first start is slow` };
@@ -247,7 +252,7 @@ export function addMcp(client: McpClientName, deps: JoinDeps = {}, launch: McpLa
     writeFileSync(path, JSON.stringify(cfg, null, 2) + "\n");
     return { client, status: prev ? "updated" : "added", detail: path };
   }
-  const path = joinPath(home, ".codex", "config.toml");
+  const path = joinPath(deps.codexHome ?? process.env.CODEX_HOME ?? joinPath(home, ".codex"), "config.toml");
   const toml = existsSync(path) ? readFileSync(path, "utf8") : "";
   const hasBlock = /^\[mcp_servers\.cogladius\]/m.test(toml);
   if (hasBlock) {

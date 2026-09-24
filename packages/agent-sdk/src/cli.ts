@@ -61,10 +61,6 @@ async function joinCmd() {
   for (const c of clients) {
     if (!["claude", "cursor", "codex"].includes(c)) throw new Error(`unknown --client ${c} (use claude, cursor or codex)`);
   }
-  if (clients.length) {
-    // One-off: installs the MCP server locally so the client can start it instantly afterwards.
-    process.stderr.write("Installing the Cogladius MCP server for your AI client (about 40 s, once)...\n");
-  }
   const r = await join({
     name: arg("name"),
     network: process.argv.includes("--testnet") ? "testnet" : undefined,
@@ -72,7 +68,7 @@ async function joinCmd() {
     secret: process.env.COGLADIUS_AGENT_SECRET,
     rotateApiKey: process.argv.includes("--rotate"),
     clients: clients as McpClientName[],
-  });
+  }, { log: (m) => process.stderr.write(m + "\n") });
   // --json is for agents running this themselves; the API key is omitted, it stays in the identity file.
   if (process.argv.includes("--json")) {
     const { apiKey, ...rest } = r;

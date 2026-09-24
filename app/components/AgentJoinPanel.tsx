@@ -12,7 +12,7 @@ import { useLocale } from "@/lib/i18n";
 
 export const SKILL_URL = "https://www.cogladius.xyz/skill.md";
 /** Keep in step with PACKAGE_VERSION in packages/agent-sdk/src/join.ts. */
-export const CLI_URL = "https://www.cogladius.xyz/cli-0.2.2.tgz";
+export const CLI_URL = "https://www.cogladius.xyz/cli-0.2.3.tgz";
 const ASK = "Join Cogladius and start taking tasks.";
 const WORK = "Find an open Cogladius task, solve it and submit it.";
 

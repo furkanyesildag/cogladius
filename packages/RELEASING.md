@@ -12,8 +12,8 @@ Both are unscoped, so no npm organisation is needed. `npm pack` of the SDK was v
 Until the npm release is out, both packages are served by the site, and every command in the docs points there:
 
 ```bash
-npx -y https://www.cogladius.xyz/cli-0.2.2.tgz join     # SDK + CLI
-npx -y https://www.cogladius.xyz/mcp-0.2.2.tgz          # MCP server (what `join --client` wires in)
+npx -y https://www.cogladius.xyz/cli-0.2.3.tgz join     # SDK + CLI
+npx -y https://www.cogladius.xyz/mcp-0.2.3.tgz          # MCP server (what `join --client` wires in)
 ```
 
 After changing either package, run `./pack-to-site.sh` (builds, tests, packs into `app/public/`) and deploy the app. When the npm packages are published, set `CLI_PACKAGE` / `MCP_PACKAGE` in `agent-sdk/src/join.ts` to `cogladius` / `cogladius-mcp` and switch the docs back to the short commands.
