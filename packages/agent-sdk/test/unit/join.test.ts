@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join as pjoin } from "node:path";
 import { Keypair } from "@stellar/stellar-sdk";
 import { join, addMcp, loadIdentity, verifySep53, MAINNET_PASSPHRASE } from "../../src/index.js";
+import { installMcp, NPX_LAUNCH, MCP_PACKAGE } from "../../src/join.js";
 
 function mockServer() {
   const calls = { register: 0 };
@@ -131,6 +132,65 @@ describe("MCP wiring", () => {
     const toml = readFileSync(pjoin(dir, ".codex", "config.toml"), "utf8");
     expect(toml.startsWith('model = "x"\n')).toBe(true);
     expect(toml.match(/\[mcp_servers\.cogladius\]/g)).toHaveLength(1);
+  });
+});
+
+describe("MCP fast start", () => {
+  // npx of a tarball URL reinstalls on every start (20 to 45 s), over Codex's 10 s
+  // MCP startup timeout. join --client installs once and launches with node.
+  const entryIn = (d: string) => pjoin(d, "node_modules", "cogladius-mcp", "dist", "index.js");
+
+  it("installs the server once next to agent.json and launches it with node", () => {
+    const cmds: string[][] = [];
+    const launch = installMcp({ identityFile: file, run: (c, a) => (cmds.push([c, ...a]), 0), exists: () => true });
+    const mcpDir = pjoin(dir, "mcp");
+    expect(cmds).toEqual([["npm", "install", "--prefix", mcpDir, "--no-audit", "--no-fund", "--loglevel=error", MCP_PACKAGE]]);
+    expect(launch).toEqual({ command: "node", args: [entryIn(mcpDir)], local: true });
+  });
+
+  it("falls back to npx, and says so, when the install fails", () => {
+    const launch = installMcp({ identityFile: file, run: () => 1, exists: () => false });
+    expect(launch.command).toBe(NPX_LAUNCH.command);
+    expect(launch.args).toEqual(NPX_LAUNCH.args);
+    expect(launch.local).toBe(false);
+    expect(launch.detail).toMatch(/npm exited 1/);
+  });
+
+  it("join --client claude --client codex wires both to the local install, with no secret", async () => {
+    const { fetchImpl } = mockServer();
+    const cmds: string[][] = [];
+    const run = (c: string, a: string[]) => {
+      cmds.push([c, ...a]);
+      if (c === "npm") return 0;
+      if (a[0] === "--version") return 0;
+      if (a[1] === "get") return 1;
+      return 0;
+    };
+    const r = await join({ clients: ["claude", "codex"] }, { fetch: fetchImpl, identityFile: file, home: dir, run, exists: () => true, cogladiusHome: "" });
+    expect(r.mcp.map((m) => m.status)).toEqual(["added", "added"]);
+    const entry = entryIn(pjoin(dir, "mcp"));
+    expect(cmds.filter((c) => c[0] === "npm")).toHaveLength(1);
+    const add = cmds.find((c) => c[0] === "claude" && c[2] === "add")!;
+    expect(add).toEqual(["claude", "mcp", "add", "--scope", "user", "cogladius", "--", "node", entry]);
+    const toml = readFileSync(pjoin(dir, ".codex", "config.toml"), "utf8");
+    expect(toml).toContain(`command = "node"`);
+    expect(toml).toContain(`args = ${JSON.stringify([entry])}`);
+    expect(toml).toContain("startup_timeout_sec = 60");
+    for (const text of [add.join(" "), toml]) expect(text).not.toMatch(/\bS[A-Z2-7]{55}\b/);
+  });
+
+  it("hands COGLADIUS_HOME to the server so it reads the same agent.json", () => {
+    const run = (c: string, a: string[]) => (a[0] === "--version" ? 0 : a[1] === "get" ? 1 : 0);
+    const cmds: string[][] = [];
+    addMcp("claude", { run: (c, a) => (cmds.push([c, ...a]), run(c, a)), cogladiusHome: "/srv/agent" });
+    expect(cmds.find((c) => c[2] === "add")).toContain("COGLADIUS_HOME=/srv/agent");
+    addMcp("codex", { home: dir, cogladiusHome: "/srv/agent" });
+    expect(readFileSync(pjoin(dir, ".codex", "config.toml"), "utf8")).toContain('[mcp_servers.cogladius.env]\nCOGLADIUS_HOME = "/srv/agent"');
+  });
+
+  it("gives the npx fallback a Codex startup timeout long enough to finish", () => {
+    addMcp("codex", { home: dir }, NPX_LAUNCH);
+    expect(readFileSync(pjoin(dir, ".codex", "config.toml"), "utf8")).toContain("startup_timeout_sec = 180");
   });
 });
 

@@ -61,6 +61,10 @@ async function joinCmd() {
   for (const c of clients) {
     if (!["claude", "cursor", "codex"].includes(c)) throw new Error(`unknown --client ${c} (use claude, cursor or codex)`);
   }
+  if (clients.length) {
+    // One-off: installs the MCP server locally so the client can start it instantly afterwards.
+    process.stderr.write("Installing the Cogladius MCP server for your AI client (about 40 s, once)...\n");
+  }
   const r = await join({
     name: arg("name"),
     network: process.argv.includes("--testnet") ? "testnet" : undefined,

@@ -7,10 +7,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { AgentContext, configFromEnv } from "./agent.js";
 import { registerTools } from "./tools.js";
+import { createRequire } from "node:module";
+
+const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 
 const agent = new AgentContext(configFromEnv());
 const server = new McpServer(
-  { name: "cogladius", version: "0.1.0" },
+  { name: "cogladius", version },
   {
     instructions:
       "You control a Stellar agent account on Cogladius. Typical loop: list_open_tasks → claim_task → list_paid_data → " +
