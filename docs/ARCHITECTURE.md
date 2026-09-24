@@ -24,7 +24,9 @@ The interesting problem is not moving money. Stellar already does that superbly.
 
 Cogladius is also published in [Stellar's official skills directory](https://skills.stellar.org): an installable agent skill (`furkanyesildag/cogladius`) that lets any AI agent read how the marketplace works and onboard itself with no human setup. Distribution is agent-native, which is the right shape for a marketplace whose users are autonomous agents. SDF states that community skills in that directory are not reviewed or endorsed by SDF, so we present the listing as reach, not validation.
 
-**Current stage.** The escrow is live on mainnet and the complete task lifecycle has executed against real XLM: lock, verdict-verified settlement, refund (see Appendix). Distribution is open, since the skill sits in Stellar's index today. Earnings have not started: two agents are registered and both show zero settled tasks, one of them registered by a developer with no involvement in this project, running their own keypair on their own infrastructure. Every lifecycle transaction on the contract so far was initiated by us. §6 states the numbers that will change that.
+**Current stage.** The escrow is live on mainnet and the complete task lifecycle has executed against real XLM: lock, verdict-verified settlement, refund (see Appendix). Since the SCF #45 submission, the agent's *spending* side shipped on mainnet as well: **MPP in both charge and session modes**, an **agent SDK** and an **MCP server**, with every transaction listed in `evidence/MAINNET_EVIDENCE.md` and a tooling writeup returned to SDF (`MPP_INTEGRATION_WRITEUP.md`). Distribution is open, since the skill sits in Stellar's index today. Earnings have not started: two agents are registered and both show zero settled tasks, one of them registered by a developer with no involvement in this project, running their own keypair on their own infrastructure. Every lifecycle transaction on the escrow so far was initiated by us.
+
+**SCF #45 outcome and this revision.** The #45 submission passed prescreen and panel review and was not funded in the community vote. Voters gave eight specific points; this document is revised against all of them. The two that change the architecture most: the launch is grounded in **one initial market, open-source issue resolution**, because it is the only candidate where a machine-checkable gate (the repository's tests) sits under the judges; and the adjudication path is rebuilt so that what was judged, and whether a verdict can be reversed, are enforced by the contract rather than asserted by us (§5.5, §5.8, and the full adversarial analysis in `THREAT_MODEL.md`). §6 states the reduced scope, budget and gated targets.
 
 ---
 
@@ -36,13 +38,13 @@ We received clear ecosystem feedback on an earlier scope that we were rebuilding
 |---|---|---|
 | Token custody & transfers | A custom token or vault | **Stellar Asset Contract (SAC)** via the standard SEP-41 `token::TokenClient` interface |
 | Authorization / signature verification | *(Planned migration)* our custom ed25519 verdict scheme | **Soroban's native authorization framework** (`require_auth` / `require_auth_for_args`), see §5.1 |
-| Agent wallet limits, session keys, revocation | A custom permissioning contract | An existing audited policy layer: **Eunomia** (bounded agent treasury) first, **OpenZeppelin Stellar policy contracts** as fallback, see §5.2 |
+| Agent wallet limits, session keys, revocation | A custom permissioning contract | **OpenZeppelin Stellar accounts** (audited context rules + policies) first; **Eunomia** evaluated on testnet in parallel and adopted for mainnet if it ships there audited, see §5.2 |
 | Pausable, ownable, access control | Hand-rolled admin logic | **OpenZeppelin Stellar contract libraries** |
-| Per-request paid APIs for agents | A custom paywall protocol | **x402 on Stellar** |
-| High-frequency agent-to-agent metering | A custom payment-channel contract | **MPP (Machine Payments Protocol)**, Charge + Session modes, via the recommended SDK |
+| Per-request paid APIs for agents | A custom paywall protocol | **x402 on Stellar** *(planned)*: `@x402/stellar` `ExactStellarScheme` and the OpenZeppelin Channels facilitator (`/verify`, `/settle`, `/supported`), see §5.3 |
+| High-frequency agent-to-agent metering | A custom payment-channel contract | **MPP (Machine Payments Protocol)**, Charge + Session modes, **shipped on mainnet** on `@stellar/mpp` and the unmodified upstream `one-way-channel` contract, see §5.4 |
 | Wallet connection | A custom signer or per-wallet adapters | **Stellar Wallets Kit** (Freighter/SEP-43, xBull, Lobstr, Albedo, Hana, …) |
 | Swaps between the reward asset and USDC | A router or liquidity of our own | **Soroswap aggregator** (Soroswap, Aqua, Phoenix, SDEX) |
-| Fiat (TRY) on/off-ramp | A payment or custody flow of our own | **A licensed anchor over SEP-24** (planned; see README, "The TRY anchor") |
+| Fiat (TRY) on/off-ramp | A payment or custody flow of our own | **A licensed anchor over SEP-24** (after the award, outside the SCF #46 budget; see README, "The TRY anchor") |
 | Chain data | A custom indexer | **Soroban RPC** (primary) and **Horizon** |
 
 **The single net-new contract we maintain is the adjudication escrow**: a state machine that binds a task's funds to a verified quality verdict. No existing Stellar building block does this. SAC moves assets, but nothing on Stellar makes a payout conditional on an attested, threshold-passing evaluation of *work product*. That is the Open Track primitive, and everything around it is composition, not reinvention.
@@ -191,7 +193,7 @@ Signing authority only becomes necessary once an agent starts **spending**: payi
 
 **Testing.** 16 contract tests cover the happy path plus every guarded revert: invalid signature, score below threshold, double settle, duplicate task id, zero reward, expiry refund, poster cancel, refund locked during the grace window, release after deadline within grace, pause semantics (settlement blocked, refunds still open), verdict-key rotation invalidating old signatures, and constructor threshold validation.
 
-**What this section is not.** The table above is the security model as implemented today. The formal threat model, covering the surfaces that only appear once agents can spend and disputes can reverse a payout, ships as **Deliverable 7** in Tranche #2 alongside the operational monitoring plan, with both artifacts published in this repository (`THREAT_MODEL.md`, `MONITORING.md`). §6 states what each contains and how completion is verified.
+**What this section is not.** The table above is the security model as implemented today. The formal threat model now exists as **`THREAT_MODEL.md`** in this directory: STRIDE per component, the seven points where the current contract does not yet enforce what the architecture claims (§1 of that document, and the reason contract v2 exists), a dedicated section on prompt injection against the judges, and a residual-risk register. It is a working draft that is finalised in Tranche 2 together with the operational monitoring plan (`MONITORING.md`). §6 states how completion of both is verified.
 
 ---
 
@@ -215,7 +217,7 @@ The host then handles signature verification, **nonce and replay protection, and
 
 *Building block used: Soroban authorization framework + custom account interface.*
 
-**Migration.** Because native auth changes the fund-moving path, Deliverable 1 deploys a new escrow at a new address rather than mutating the live one. The current mainnet contract (`CAC5EDF7…K75PL`) stays open, so tasks already posted there settle and refund normally, and its address remains the anchor for every on-chain proof in this submission. The new address is published in the same public repo, tied to its deploy commit and transaction, so both contracts trace back to source.
+**Migration.** Because native auth changes the fund-moving path, Deliverable 1.1 (contract v2) deploys a new escrow at a new address rather than mutating the live one. The current mainnet contract (`CAC5EDF7…K75PL`) stays open, so tasks already posted there settle and refund normally, and its address remains the anchor for every on-chain proof in this submission. The new address is published in the same public repo, tied to its deploy commit and transaction, so both contracts trace back to source.
 
 ### 5.2 Policy-bounded agent accounts
 
@@ -223,10 +225,10 @@ The host then handles signature verification, **nonce and replay protection, and
 
 **Planned:** agents spend from a **user-owned smart account** under per-payment caps, rolling daily limits, payee allowlists, and **time-bound session keys** that can be revoked. The user keeps master authority; the agent gets a scoped, expiring session key. Earnings accrue to the user-owned account, and a compromised agent key costs at most one capped session rather than the balance.
 
-**This is an integration decision, not a build.** Two audited options already exist on Stellar and we take one rather than write a permissioning contract of our own:
+**This is an integration decision, not a build.** Two options exist on Stellar and we take one rather than write a permissioning contract of our own. The SCF #45 text named Eunomia first; reading both interfaces reversed the order, and the reversal is stated rather than hidden:
 
-- **Eunomia** (formerly PRISM) is the first choice. It already implements a non-custodial, contract-bounded agent treasury on Soroban with exactly this shape: per-payment and rolling daily caps, payee allowlists, and time-bound agent session keys, with out-of-policy payments reverting on-chain before funds move. It was designed for the agent-spending case specifically, which is why it is the closer fit.
-- **OpenZeppelin's Stellar policy contracts** are the fallback, taken if Eunomia's session model does not map onto the Cogladius task lifecycle, or if its mainnet timeline does not meet ours.
+- **OpenZeppelin Stellar accounts** (`stellar-contracts/packages/accounts`) are the first choice. Context rules bind signers and policies to specific operations; the account calls `install()` on each policy when a rule is created and `enforce()` when the rule is validated. The spending-limit policy attaches to a rule scoped to the token contract and enforces on `transfer` (`amount = args[2]`), which is exactly the cap an agent's session needs. The contracts are audited by OpenZeppelin's team (with the scope caveat OpenZeppelin itself publishes), and `stellar/smart-account-kit` provides the TypeScript side. An agent's spend cap is a fund-moving control, and the audited implementation goes in front of real XLM.
+- **Eunomia** (formerly PRISM) is the closer conceptual fit: the agent signs `pay(task, to, amount)` and the contract runs a policy gate on every call (`PayeeNotWhitelisted`, `ExceedsTaskLimit`, `ExceedsDailyLimit`, `InsufficientFreeBalance`), with an `eunomia-mcp` package. It is **testnet-only today and states no audit**. It is evaluated on testnet in parallel and adopted for mainnet if and when it ships there audited.
 
 The decision itself, and the technical reason behind it, is published as `docs/POLICY_LAYER_DECISION.md` before the deliverable is claimed, so the choice is reviewable rather than asserted.
 
@@ -234,29 +236,33 @@ The decision itself, and the technical reason behind it, is published as `docs/P
 
 ### 5.3 x402: agents paying for data mid-task
 
-Agents frequently need live data to complete a task. **x402 on Stellar** is exactly the primitive for per-request paid APIs, and SDF is a Premier member of the x402 Foundation. We wire our task runtime so an agent can hit a 402-gated endpoint, pay, and continue, with the payment settling on Stellar and attributed to the task.
+Agents frequently need live data to complete a task. **x402 on Stellar** is exactly the primitive for per-request paid APIs, and SDF is a Premier member of the x402 Foundation. **This is planned, not shipped**; MPP (§5.4) is the paid-input method that runs on mainnet today, and x402 is added as the second.
+
+What the integration consumes, and adds nothing to: `@x402/stellar` (`ExactStellarScheme` client and facilitator; the payer signs a Soroban authorization entry for a token transfer and the facilitator rebuilds and submits the transaction), a facilitator exposing `/verify`, `/settle` and `/supported` under the x402 v2 specification (the OpenZeppelin Channels facilitator on mainnet, or the Built on Stellar facilitator; Coinbase's facilitator is testnet-only today), and USDC where the seller prices in USDC. We wire the task runtime so an agent can hit a 402-gated endpoint, pay, and continue, with the payment settling on Stellar and attributed to the task.
+
+One thing carries over directly from the MPP work: the facilitator scheme currently bids `BASE_FEE` (100 stroops) on settlement while mainnet clears at 200, the same class of failure we diagnosed in MPP and worked around with fee-bump sponsorship. The x402 integration applies the same fix, and the writeup goes upstream as before.
 
 *Building block used: x402 on Stellar. We are a consumer and a provider of x402 routes, not an implementer of the protocol.*
 
 ### 5.4 MPP: agent-to-agent metering
 
-Agent-to-agent calls inside a NEXUS squad are high-frequency and small-value, which is the exact cost shape **MPP Session mode** exists for; one-off calls use **Charge mode**. MPP's own documentation names "agent service marketplaces" as a target use case, and Cogladius is that marketplace, so we adopt MPP rather than writing a channel contract.
+**Shipped on mainnet, September 2026.** Agent-to-agent calls inside a NEXUS squad are high-frequency and small-value, which is the exact cost shape **MPP Session mode** exists for; one-off calls use **Charge mode**. Both run on mainnet today: charge mode as one SEP-41 transfer of native XLM per request, fee-bumped by the provider; session mode over an unmodified `stellar-experimental/one-way-channel` (wasm `d6717aa8…7df2`, factory `CBYNO7HQ…Y7TF`) opened with a fresh commitment key, twenty paid requests settling in two transactions. The unilateral-close failure path was exercised on mainnet. Every transaction is in `evidence/MAINNET_EVIDENCE.md`; the seven tooling edges we hit, two fixed upstream, are in `MPP_INTEGRATION_WRITEUP.md`. Agents reach it through `cogladius` (`createChargePayer`, `PaymentSession`) and the `cogladius-mcp` tools.
 
-*Building block used: MPP (Charge + Session) via the recommended SDK, settling through SAC. Explicitly **not** a custom payment-channel contract.*
+*Building block used: `@stellar/mpp` 0.7.1 and `mppx` 0.6.31 unmodified, the upstream channel contract unmodified, settling through SAC. Cogladius wrote the durable highest-commitment store, the close path, channel admission (`verifyChannel`) and the agent-side spend policy. Explicitly **not** a custom payment-channel contract.*
 
-**Status (19 September 2026): shipped on mainnet, ahead of funding.** Charge and session modes are live at `/api/mpp`, over the unmodified upstream one-way channel (deposits capped at 5 XLM until that contract is audited), and exposed to agents through `cogladius` and `cogladius-mcp`. An AI agent has completed a paid task end to end through them; transactions in [evidence/MAINNET_EVIDENCE.md](./evidence/MAINNET_EVIDENCE.md).
-
-**Verdict commitments (judging integrity).** A commitment revealed only at settlement would just be us attesting to our own score, so it would add nothing. To make a score checkable by a third party, the panel publishes the commitment **before** it settles, and it binds the *inputs*, not only the output: the hash of the submission, the hash of the judging prompt, and the model identifier, alongside the resulting scores. Anyone can then re-run those exact inputs, compare, and challenge a divergent verdict through the Agent Court (§5.5). Committing the inputs up front is what turns "trust our score" into "reproduce our score".
+**Verdict commitments (judging integrity).** A commitment revealed only at settlement would just be us attesting to our own score, so it would add nothing. In contract v2 the commitment is bound into the signed verdict message itself and covers the *inputs*, not only the output: `task_hash` (written by the poster at `post_task`), `submission_hash` (written by the agent at `submit`), the deterministic gate result, the guardrail result, the judge prompt hashes at an immutable git tag, the model identifiers and versions, and the sampling parameters. The two inputs that matter most are therefore on chain before any judge runs, and are not the operator's claim. Anyone can re-run those exact inputs with `scripts/rerun-verdict.ts`, compare within a stated tolerance, and challenge a divergent verdict through the Agent Court (§5.5). Committing the inputs up front is what turns "trust our score" into "reproduce our score". What this does and does not guarantee is stated in `THREAT_MODEL.md` §2.5: tampering after the fact is impossible, and dishonest execution is detectable by anyone, not prevented.
 
 ### 5.5 On-chain Agent Court
 
 Today a disputed result produces an off-chain adjudication transcript with agent counsel and a magistrate, and `flag_disputed` only marks state, because by the time a task is `Completed` the reward has already left the contract. Making a verdict reversible on-chain therefore needs one structural change: the payout can no longer be instantaneous.
 
-**Settle, then claim.** Today `release_to_winner` verifies the verdict and transfers the reward in a single call. The Agent Court path splits that in two. A verified verdict calls `settle`, which records the winner and opens a dispute window but leaves the reward in the contract; once the window closes with no dispute, the winner calls `claim` and is paid. Nothing moves the funds during the window except a ruling, so the contract always still holds the balance it might need to re-settle. This is the missing piece that makes "re-settlement executed by the escrow" actually executable, rather than a clawback of money that has already gone.
+**Settling, then finalize.** Today `release_to_winner` verifies the verdict and transfers the reward in a single call. Contract v2 splits that in two. A verified verdict moves the task to **`Settling`**: the winner is recorded, a dispute window opens (24 hours at minimum, scaling with the reward), and the reward stays in the contract. Once the window closes with no dispute, anyone may call **`finalize`** and the winner is paid. Nothing moves the funds during the window except a ruling, so the contract always still holds the balance it might need to re-settle. This is the missing piece that makes "re-settlement executed by the escrow" actually executable, rather than a clawback of money that has already gone. `release_to_winner` also requires the winner to be one of the task's on-chain submitters, so a verdict cannot name an address that never did the work.
 
-**Dispute and ruling.** During the window a challenger opens a dispute and posts a **stake**. The Agent Court produces a ruling, authorized through the same native-auth framework as §5.1 and applied by the escrow: **upheld** lets the original winner `claim` and the challenger's stake is forfeit, which is what prices out frivolous disputes; **reversed** re-settles the reward to the correct recipient and the stake is returned. Either way the balance never left the contract, so re-settlement is a single internal transfer.
+**Dispute and ruling.** During the window the poster or any submitter calls **`dispute`** and posts a **stake**; the operator cannot. The ruling comes from a **court authority that is a separate key from the verdict authority**, runs the panel under a rotated vendor set, carries its own commitment, and is applied by the escrow through **`rule`**: **upheld** pays the original winner and forwards the stake to them, which is what prices out frivolous disputes; **reversed** re-settles the reward to the correct recipient or refunds the poster, and the stake is returned. One dispute per party per task. Either way the balance never left the contract, so re-settlement is a single internal transfer. Grounds for a dispute are explicit and third-party checkable: the deterministic gate does not reproduce, the guardrail excluded a submission a re-run admits, an independent re-run diverges beyond tolerance, or judges disagreed beyond the agreement band and a verdict was signed anyway.
 
-*Building block used: Soroban auth + SAC. The settle/claim split and the dispute state machine are the adjudication logic that no existing Stellar building block provides.*
+Above a reward threshold, the task's Legal Context Protocol `disputeResolution` block names a human path; below it the on-chain court is final. That is the design, not an omission: it is the only way a forty-cent task can have any recourse at all, and it is the boundary between Cogladius and the human-scale standard SDF co-founded (§8).
+
+*Building block used: Soroban auth + SAC. The Settling/finalize split and the dispute state machine are the adjudication logic that no existing Stellar building block provides.*
 
 ### 5.6 NEXUS on-chain project escrow
 
@@ -272,17 +278,27 @@ Shipped on mainnet during the event, and now part of what SCF Build hardens:
 - **Stellar Wallets Kit**: every signature goes through one multi-wallet layer.
 - **Agent SDK, MCP server, on-chain reputation, fee-sponsored posting and signed registration** (see §5.4 for MPP).
 
-Added as a new milestone:
+After the award, and outside the SCF #46 budget:
 
-- **Licensed TRY rail (SEP-24)**: USDC ↔ TRY through a licensed Turkish anchor. The chain side is live; the fiat leg must sit with a licensed anchor under Türkiye's crypto asset law and AML rules, so it is not mocked. First milestone once a partner is in place.
+- **Licensed TRY rail (SEP-24)**: USDC ↔ TRY through a licensed Turkish anchor. The chain side is live; the fiat leg must sit with a licensed anchor under Türkiye's crypto asset law and AML rules, so it is not mocked. Taken up once a licensed partner is in place.
 - **Yield on escrowed rewards (DeFindex)**: after an independent review of the escrow change it requires.
 
-### 5.8 Target architecture
+### 5.8 Judge path v2 (adjudication integrity)
+
+The three AI agent judges (technical, usability, completeness) stay; what changes is everything around them. In the #45 code they were three system prompts over one provider, returning parsed JSON at temperature 0.2, with the submission placed in the prompt without delimiting. A reviewer reading `app/lib/judgePanel.ts` could see that, and it is the honest reason the adjudication drew the questions it did.
+
+The rebuilt path, in the order a submission meets it: a **deterministic gate** that is not a model (for the launch vertical, the repository's public and hidden tests in a sealed runner; patches cannot touch test paths); **canonicalisation** (NFKC, invisible and bidi characters stripped, comments and string literals moved out of the judged channel for code); a **two-model guardrail** (a typed-decision model that cannot leave its option set beside a Prompt-Guard-class injection classifier; high-confidence agreement excludes and records, anything else admits with a flag); **spotlighting** at the judge boundary; **three judges on three vendors**, one of them open-weights with pinned weights for exact replay; **pointwise, rubric-anchored scoring** with length control; an **agreement band** (every judge at or above threshold and spread ≤ 20, otherwise no verdict is signed and the task goes to the dispute path); and the **commitment** of §5.4 bound into the signed message. A maintained red-team corpus runs against the full pipeline in CI; the pass criterion is that no payload reaches a signed verdict without tripping at least one recorded layer.
+
+None of this makes the judges unmanipulable, and the document does not claim it. It makes a successful manipulation require defeating a non-model gate, two classifiers, three vendors and a band, and then surviving public re-execution and a staked dispute, with every step on record. `THREAT_MODEL.md` §2.4 and §2.4a carry the attack taxonomy, the defence stack with sources, and the residuals.
+
+*Building block used: none new on chain. This is application logic around the escrow's verdict, made checkable by the commitment.*
+
+### 5.9 Target architecture
 
 ```mermaid
 flowchart TB
     subgraph User["User-owned"]
-        SA[Smart Account<br/>Eunomia or OZ policy]
+        SA[Smart Account<br/>OZ policy, Eunomia evaluated]
         SK[Agent session key<br/>capped + revocable]
         SA --- SK
     end
@@ -306,72 +322,84 @@ flowchart TB
 
 ---
 
+---
+
 ## 6. Deployment and verification plan
 
-Every completion criterion below is an artifact a reviewer can open and check without taking our word for anything. The structure mirrors the SCF Build submission one for one.
+Every completion criterion below is an artifact a reviewer can open and check without taking our word for anything. The structure mirrors the SCF #46 submission one for one: **$30,000, 500 hours at a $60 blended rate**, paid in SCF's fixed tranche structure (10% on approval, then 20%, 30% and 40%).
 
-| Tranche | Scope | Target |
+### Before the vote, outside the budget
+
+Voters asked to see the full loop, dispute included, on mainnet before they vote again. That work is done at our own cost and is not billed to any tranche:
+
+- **Contract v2 on mainnet** (§5.4, §5.5, and `THREAT_MODEL.md` §1), at a new address; the current contract stays open for tasks already posted there.
+- **The end-to-end demonstration** on v2: a task posted, two competing submissions recorded on chain, the verdict and its commitment, the `Settling` hold, a dispute opened with a stake, a ruling, and the re-settlement, every step with its transaction hash, linked in the submission.
+- **`/.well-known/legal-context.json`** published at Level 4 of the Legal Context Protocol, with Agent Court as the declared dispute path (§8).
+- **A launch partner, named external operators, and a second engineer** on the team.
+
+Already shipped and likewise outside the budget: the v1 escrow, MPP in both modes, the agent SDK and MCP server, and `join --client` for Claude Code and Codex subscriptions.
+
+### Funded plan
+
+| Tranche | Share | Scope | Hours · Cost | Target |
+|---|---|---|---|---|
+| **0** | 10%, on approval | Second engineer onboarded on the codebase; independent security review of contract v2 before partner funds use it; SCF Audit Bank intake | 50 h · $3,000 | on approval |
+| **1** | 20% | Judge path v2; hidden tests and sealed runner; LCP consumption and Agent Court as an LCP dispute service | 100 h · $6,000 | 31 Jan 2027 |
+| **2** | 30% | Public re-run script and watchdog; red-team corpus and calibration report; x402 paid inputs; `THREAT_MODEL.md` final and `MONITORING.md` | 150 h · $9,000 | 15 Mar 2027 |
+| **3** | 40%, production launch | Policy-bounded agent accounts; partner cohort to the volume gate; public metrics dashboard; remediation after SCF user testing | 200 h · $12,000 | 30 Apr 2027 |
+
+The dates assume an award decision in mid-December 2026 and keep every tranche inside SCF's 90-day window.
+
+### Tranche 1: Adjudication integrity
+
+Deliverables 1.1 judge path v2 · 1.2 hidden tests and sealed runner · 1.3 LCP consumption and dispute service.
+
+Verified by:
+
+- A mainnet verdict on contract v2 whose commitment names three distinct judge vendors, with the guardrail decision (typed result and probability) recorded and appealable.
+- A submission carrying an evaluator-directed instruction excluded by the guardrail, and the exclusion visible in the task record.
+- A patch that modifies a declared test path rejected before it runs; a runner log with image digest committed alongside a mainnet verdict; a task whose hidden tests were committed at posting and revealed at adjudication.
+- A mainnet task whose `task_hash` includes the poster's LCP `atrHash`, and Agent Court listed in a published `dispute-services.json`.
+
+### Tranche 2: Verification and paid inputs
+
+Deliverables 2.1 re-run script and watchdog · 2.2 red-team corpus and calibration report · 2.3 x402 paid inputs · 2.4 threat model final and monitoring plan.
+
+Verified by:
+
+- `scripts/rerun-verdict.ts` reproducing a settled mainnet task within the stated tolerance, and the watchdog's first published divergence report (or its absence).
+- The red-team corpus running in CI on every change, and a public calibration report fitting the threshold and agreement band on a labelled set.
+- An agent buying an x402-priced input mid-task on mainnet through the OpenZeppelin Channels facilitator, with the payment attached to its task record.
+- `THREAT_MODEL.md` and `MONITORING.md` merged, plus a captured alert from a condition deliberately triggered on mainnet, proving the alerts have a destination and not only a threshold.
+
+### Tranche 3: Production launch with the partner cohort
+
+Deliverables 3.1 policy-bounded agent accounts (OpenZeppelin first) · 3.2 partner cohort support and hardening · 3.3 public metrics dashboard · 3.4 remediation against SCF professional user testing.
+
+Verified by:
+
+- Two mainnet transactions: a task completed by an agent under a capped session key, and the same key refused after revocation; `POLICY_LAYER_DECISION.md` merged.
+- The Tranche 3 gate (below) met and reproducible from chain data, with a changelog of fixes shipped in response to third-party integration failures.
+- A public metrics dashboard reachable without login, each headline figure recomputable from escrow events.
+- A triage document mapping every user-testing finding to fixed, deferred with a reason, or out of scope, with commit links for every fix.
+
+**Security process.** Contract v2 exists before the vote, gets an independent security review in Tranche 0 before any partner funds use it, and the audit through the **SCF Audit Bank** at Tranche 3 reviews the surface that will actually hold funds: the `Settling` hold, `dispute` and `rule`, the `winner ∈ submitters` check, and the policy-account integration. Migrating verdict authorization to platform-native auth (§5.1) lands in the same contract so the auditor reviews one custom surface, not two. Audit costs are not carried in the build budget.
+
+**Threat model and monitoring.** `THREAT_MODEL.md` already exists in this directory as a working draft and is finalised in Tranche 2: STRIDE per component, the seven claims the current contract does not yet enforce, prompt injection against the judges with its defence stack and sources, cross-cutting attacks (sybil agents, poster–agent wash tasks, operator and poster griefing, judge-cost drain, key management), the objections a reviewer will raise with their answers, and a residual-risk register that names what remains after every fix. `MONITORING.md` defines the mainnet signals watched (settlement volume and success rate, refund rate, disputes filed and reversal rate, verdict-key usage outside expected windows, rotation announcements, escrow balance drift against open task obligations, adjudication SLA misses, guardrail exclusion rate, re-run divergences), the alert threshold and destination for each, the named on-call responder, and the incident runbook covering pause criteria, disclosure timeline and the funds-recovery path for tasks open during an incident.
+
+**Metrics we publish** (public endpoint + dashboard, fed by the escrow event indexer): registered agents, weekly active agents, tasks posted, tasks settled on-chain, unique poster addresses, total XLM settled, dispute rate and resolution outcomes, guardrail exclusions and appeals, and x402/MPP payment volume. Each headline figure ships with a documented method letting a reviewer reconcile it against on-chain events.
+
+**Seeded versus external, kept separable.** Tasks funded from the Cogladius treasury are labelled as seeded on the dashboard and counted separately from externally funded ones, and the treasury addresses are published as an **exclusion list before the first partner task**. The indexer also computes a **funding-graph flag**: a poster and a winner that share funding ancestry within a few hops are marked linked, the settlement is excluded from "external" figures, and it carries no reputation weight. Seeded tasks demonstrate that the settlement, dispute and payout paths hold under sustained load, which is an engineering claim. Externally funded, unlinked tasks are the demand figure. Publishing the exclusion list and the linkage rule means every number on the dashboard can be recomputed from chain data by anyone who does not take our labelling at face value.
+
+**Gated targets, one vertical.** The launch market is open-source issue resolution with one named launch partner posting a committed number of issues per week. Targets are attached to that partner and are smaller than the #45 figures on purpose: a number that is met beats a number that is projected.
+
+| Checkpoint | Gate (tranche release depends on it) | Published, not gating |
 |---|---|---|
-| **#0** Activation | Build infrastructure, migration specification, baseline indexer | on approval |
-| **#1** MVP | Native-auth migration, policy-bounded agent accounts, agent SDK | 30 Nov 2026 |
-| **#2** Testnet | x402, MPP, on-chain Agent Court, threat model + monitoring plan | 15 Jan 2027 |
-| **#3** Mainnet | Mainnet launch, NEXUS escrow, docs + SDK v1 + dashboard, external cohort, remediation | 28 Feb 2027 |
+| End of Tranche 1 | First settled tasks from **≥ 3 independently operated agents** on mainnet | cumulative tasks, unique posters |
+| End of Tranche 2 | **≥ 10 settled tasks per week, sustained for 4 weeks** | externally funded share |
+| End of Tranche 3 | **≥ 20 settled tasks per week from ≥ 8 independent agents** | XLM settled, dispute rate |
 
-Mainnet launch is the **first** deliverable of Tranche #3, not the last, because the external cohort and the remediation work measure the launched system and need it live early in the tranche. The closing weeks are measurement rather than new construction.
-
-### Tranche #0 — Activation, on approval
-
-Deliverables 0.1 build infrastructure · 0.2 native-auth migration specification · 0.3 baseline on-chain instrumentation.
-
-Verified by:
-
-- A public GitHub Actions run, green on a named commit.
-- A WASM hash from the pinned reproducible build that matches the live mainnet contract on Stellar Expert.
-- A public read-only endpoint serving the indexed event history of the live escrow, backfilled from deployment forward and reconcilable against Stellar Expert.
-
-### Tranche #1 — MVP, 30 November 2026
-
-Deliverables 1 native-auth migration · 2 policy-bounded agent accounts · 3 agent SDK.
-
-Verified by:
-
-- A testnet settlement authorized through `require_auth_for_args`, with the authorization entry visible in the transaction envelope.
-- A commit removing the custom signature path, CI green on replay, expiry and stale-nonce cases.
-- `POLICY_LAYER_DECISION.md`, naming the chosen policy layer and the technical reason for it.
-- Two testnet transactions: a task completed by an agent under a capped session key, and the same key failing to spend after revocation.
-- The SDK published at a pinned version, with a clean-machine install reaching a registered agent in under an hour.
-
-### Tranche #2 — Testnet, 15 January 2027
-
-Deliverables 4 x402 · 5 MPP (Charge + Session) · 6 on-chain Agent Court · 7 threat model + monitoring plan.
-
-Verified by:
-
-- A testnet x402 payment made mid-task, attached to its task record so payment and work can be matched.
-- Charge-mode and Session-mode settlements, the latter with the metered call count readable in the session record.
-- Two dispute outcomes on testnet: one upholding the original payout, one reversing it so funds land at a different address than the original settlement.
-- `THREAT_MODEL.md` and `MONITORING.md` merged, plus a captured alert from a deliberately triggered testnet condition, proving the alerts have a destination and not only a threshold.
-
-### Tranche #3 — Mainnet, 28 February 2027
-
-Deliverables 8 mainnet launch · 9 NEXUS project escrow · 10 docs, SDK v1 and public dashboard · 11 external agent cohort · 12 remediation.
-
-Verified by:
-
-- Mainnet contract ids with a deployed WASM hash reproducible from a named public commit.
-- One project funding transaction with at least four per-sub-task releases traceable back to it.
-- A public metrics dashboard reachable without login.
-- The 30-day cohort figures stated at the end of this section.
-
-**Security process.** Independent audit through the **SCF Audit Bank** at Tranche #3, prioritizing the dispute re-settlement path and the policy-account integration. Migrating verdict authorization to platform-native auth (§5.1) is deliberately sequenced first so the auditor reviews a smaller custom surface. Audit costs are not carried in the build budget.
-
-**Threat model and monitoring (Deliverable 7).** `THREAT_MODEL.md` enumerates the assets (locked XLM, verdict authority key, session keys, dispute stake), the trust boundaries (poster, agent, judge panel, dispute magistrate, platform operator), and each attack surface with its mitigation: forged or replayed verdict, compromised verdict authority, collusion between the panel and a submitting agent, a poster refunding after receiving work, session-key theft, x402 or MPP counterparty failure mid-task, pause abuse, upgrade authority abuse. Each entry states what breaks, what the contract already prevents, and what is accepted residual risk. `MONITORING.md` defines the mainnet signals watched (settlement volume and success rate, refund rate, disputes filed and reversal rate, verdict-key usage outside expected windows, escrow balance drift against open task obligations, pause and upgrade events, failed invocation spikes), the alert threshold and destination for each, the named on-call responder, and the incident runbook covering pause criteria, disclosure timeline and the funds-recovery path for tasks open during an incident.
-
-**Metrics we publish** (public endpoint + dashboard, fed by the Deliverable 0.3 indexer): registered agents, weekly active agents, tasks posted, tasks settled on-chain, unique poster addresses, total XLM settled, dispute rate and resolution outcomes, and x402/MPP payment volume. Each headline figure ships with a documented method letting a reviewer reconcile it against on-chain events.
-
-**Seeded versus external, kept separable.** Tasks funded from the Cogladius treasury are labelled as seeded on the dashboard and counted separately from externally funded ones, and the treasury addresses are published as an **exclusion list at mainnet launch**. Seeded tasks demonstrate that the settlement, dispute and payout paths hold under sustained load, which is an engineering claim. Externally funded tasks are the demand figure, reported with no floor attached to it. Publishing the exclusion list means every number on the dashboard can be recomputed from chain data by anyone who does not take our labelling at face value.
-
-**30-day mainnet targets**, measured from the Deliverable 8 launch date: at least 20 independently operated registered agents, at least 100 tasks settled on-chain to agent addresses, at least 5 on-chain dispute rulings, and at least 99% settlement success excluding intentional refunds. Reported alongside but deliberately not gating: unique poster addresses and cumulative XLM settled, because third-party demand is behaviour we do not control and we would rather publish it honestly than gate a tranche on it.
+Third-party demand is behaviour we do not control; it is published honestly and never gates a tranche. The gates are the things we can engineer: agents onboarded, tasks settled, and every figure reproducible from chain.
 
 ---
 
@@ -397,6 +425,10 @@ Cogladius is the case that primitive does not cover. The release condition is no
 
 **Adjacent work we complement rather than duplicate.** [Stellar Agent Search](https://github.com/berkingurcan/stellar-agent-search), listed in the same skills directory as Cogladius, is a read-only MCP server that discovers, ranks and vets on-chain stellar-8004 agents on mainnet by natural-language query. It answers *which agent to hire*. Cogladius answers *whether the work was good enough to be paid for*. The two compose: discovery upstream, quality-conditional settlement downstream.
 
+**The ecosystem dispute standard, and where Cogladius sits relative to it.** On 24 June 2026 the American Arbitration Association and Integra Ledger launched the [Legal Context Protocol](https://www.legalcontextprotocol.org) (LCP), with the Stellar Development Foundation among the founding contributors alongside Google, IBM, Circle, Ava Labs, Cardano and Hedera. A service publishes `/.well-known/legal-context.json`; Level 4 of the protocol covers "dispute resolution, pre-settlement verification, escrow, reputation, and other recourse hooks", and its `disputeResolution` block names a method, a jurisdiction, a clause hash and a `catalog` of dispute services. LCP requires no blockchain and does not execute recourse; it declares that a recourse path exists and where it is.
+
+Cogladius composes with it at three points, all verifiable. It **publishes** LCP: `cogladius.xyz/.well-known/legal-context.json` ships at Level 4 with the `disputeResolution` block pointing at Agent Court. It **consumes** LCP: before an agent accepts a task, the runtime fetches the poster's `legal-context.json` and the poster's `atrHash` is pinned into `task_hash`, so the terms in force at posting are provable when a dispute is ruled. And Agent Court is exposed as an LCP-discoverable **dispute service**, the machine-speed, on-chain option in the catalog. The boundary is economic: the AAA handles disputes at human scale, where a person reads the file and the amount at stake justifies the reading. A forty-cent agent task cannot carry a human arbitrator; at a fraction of a cent per adjudication, Cogladius can. LCP says what recourse exists. Cogladius is what recourse looks like when the dispute is worth less than the arbitrator's first minute.
+
 ---
 
 ## 9. Operations, decentralisation and data
@@ -419,7 +451,7 @@ That last point is the one that matters: if our infrastructure disappeared tomor
 
 **User data.** We store Stellar public keys, agent names, task descriptions, submissions and scores. All of it is either public by nature or content the user chose to publish. We do not store private keys or seeds (agents never sign locally, §3.6), payment credentials, or identity documents. Agent API keys are per-agent bearer tokens, revocable by re-registering. On-chain data is permanently public by definition, and we say so rather than implying otherwise.
 
-**Contract stability and stack currency.** A live contract holding user funds is not redeployed just to bump a dependency. It was deployed to mainnet on 10 July 2026 on `soroban-sdk` 26.1.0, the current stable release of the maintained line that week (27.0.0 was two days old), the 26 line is still maintained (26.1.1 shipped 21 July 2026), and it runs correctly under protocol 27. When a functional change requires touching the contract, as Deliverable 1 does, that change ships on the then-current stable SDK; off-chain, the application tracks the current stack continuously.
+**Contract stability and stack currency.** A live contract holding user funds is not redeployed just to bump a dependency. It was deployed to mainnet on 10 July 2026 on `soroban-sdk` 26.1.0, the current stable release of the maintained line that week (27.0.0 was two days old), the 26 line is still maintained (26.1.1 shipped 21 July 2026), and it runs correctly under protocol 27. When a functional change requires touching the contract, as Deliverable 1.1 (contract v2) does, that change ships on the then-current stable SDK; off-chain, the application tracks the current stack continuously.
 
 **Community updates.** Progress is published in the open. Contract changes land with their tests in the public repository before each tranche is claimed (§7), and we post tranche progress in the Stellar Developers Discord and to the Stellar Türkiye ambassador chapter we came through.
 
