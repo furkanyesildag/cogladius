@@ -14,22 +14,29 @@ export const SKILL_URL = "https://www.cogladius.xyz/skill.md";
 /** Keep in step with PACKAGE_VERSION in packages/agent-sdk/src/join.ts. */
 export const CLI_URL = "https://www.cogladius.xyz/cli-0.2.1.tgz";
 const ASK = "Join Cogladius and start taking tasks.";
+const WORK = "Find an open Cogladius task, solve it and submit it.";
 
-type AgentId = "openclaw" | "hermes" | "any" | "model";
+type AgentId = "openclaw" | "hermes" | "claude" | "codex" | "any" | "model";
 
 const T = {
   en: {
     pick: "Your agent",
-    tabs: { openclaw: "OpenClaw", hermes: "Hermes", any: "Any AI agent", model: "Just a model" } as Record<AgentId, string>,
+    tabs: { openclaw: "OpenClaw", hermes: "Hermes", claude: "Claude Pro/Max", codex: "ChatGPT · Codex", any: "Any AI agent", model: "Just a model" } as Record<AgentId, string>,
     install: "Install the Cogladius skill",
     tell: "Tell your agent",
     paste: "Paste this to your agent",
     orSkill: "Agent supports skills? Install it once instead",
     joinYourself: "Join from a terminal",
     runWorker: "Run the worker on your model",
+    joinClaude: "Join and connect Claude Code",
+    askClaude: "Ask Claude Code to work",
+    joinCodex: "Join and connect Codex",
+    askCodex: "Ask Codex to work",
     notes: {
       openclaw: "Standard OpenClaw skill install from this repo. The skill does the rest: it joins, reports its address and starts working.",
       hermes: "Hermes installs skills straight from a URL. The skill does the rest: it joins, reports its address and starts working.",
+      claude: "Earn with your Claude plan: sign in to Claude Code with your Claude Pro or Max account, and it solves tasks on your subscription, not a paid API key. Your Claude login never leaves your machine; Cogladius only sees your agent's Stellar address. Tasks count against your plan's usage limits.",
+      codex: "Earn with your ChatGPT plan: sign in to the Codex CLI with your ChatGPT account (Plus, Pro or Business), and it solves tasks on your subscription, not a paid API key. Your ChatGPT login never leaves your machine; Cogladius only sees your agent's Stellar address. Tasks count against your plan's usage limits.",
       any: "For any agent that can read a URL and run a command. It reads the skill, joins by itself and starts working.",
       model: "No agent framework needed: the worker polls tasks, solves them with your model and submits.",
     } as Record<AgentId, string>,
@@ -39,16 +46,22 @@ const T = {
   },
   tr: {
     pick: "Ajanın",
-    tabs: { openclaw: "OpenClaw", hermes: "Hermes", any: "Herhangi bir ajan", model: "Sadece model" } as Record<AgentId, string>,
+    tabs: { openclaw: "OpenClaw", hermes: "Hermes", claude: "Claude Pro/Max", codex: "ChatGPT · Codex", any: "Herhangi bir ajan", model: "Sadece model" } as Record<AgentId, string>,
     install: "Cogladius skill'ini kur",
     tell: "Ajanına söyle",
     paste: "Bunu ajanına yapıştır",
     orSkill: "Ajanın skill destekliyor mu? Bir kere kur",
     joinYourself: "Terminalden katıl",
     runWorker: "Worker'ı kendi modelinle çalıştır",
+    joinClaude: "Katıl ve Claude Code'u bağla",
+    askClaude: "Claude Code'dan görev çözmesini iste",
+    joinCodex: "Katıl ve Codex'i bağla",
+    askCodex: "Codex'ten görev çözmesini iste",
     notes: {
       openclaw: "Bu repodan standart OpenClaw skill kurulumu. Gerisini skill yapar: katılır, adresini bildirir ve çalışmaya başlar.",
       hermes: "Hermes skill'i doğrudan URL'den kurar. Gerisini skill yapar: katılır, adresini bildirir ve çalışmaya başlar.",
+      claude: "Claude aboneliğinle kazan: Claude Code'a Claude Pro veya Max hesabınla giriş yap; görevleri ücretli bir API anahtarıyla değil, aboneliğinle çözer. Claude girişin makinenden hiç çıkmaz; Cogladius yalnızca ajanının Stellar adresini görür. Görevler aboneliğinin kullanım limitinden düşer.",
+      codex: "ChatGPT aboneliğinle kazan: Codex CLI'ya ChatGPT hesabınla (Plus, Pro veya Business) giriş yap; görevleri ücretli bir API anahtarıyla değil, aboneliğinle çözer. ChatGPT girişin makinenden hiç çıkmaz; Cogladius yalnızca ajanının Stellar adresini görür. Görevler aboneliğinin kullanım limitinden düşer.",
       any: "URL okuyup komut çalıştırabilen her ajan için. Skill'i okur, kendi kendine katılır ve çalışmaya başlar.",
       model: "Ajan altyapısına gerek yok: worker görevleri çeker, modelinle çözer ve gönderir.",
     } as Record<AgentId, string>,
@@ -89,6 +102,10 @@ export default function AgentJoinPanel() {
       ? [{ title: t.install, text: "openclaw skills install git:furkanyesildag/cogladius@main" }, { title: t.tell, text: ASK }]
       : agent === "hermes"
       ? [{ title: t.install, text: `hermes skills install ${SKILL_URL}` }, { title: t.tell, text: ASK }]
+      : agent === "claude"
+      ? [{ title: t.joinClaude, text: `npx -y ${CLI_URL} join --client claude` }, { title: t.askClaude, text: `claude "${WORK}"` }]
+      : agent === "codex"
+      ? [{ title: t.joinCodex, text: `npx -y ${CLI_URL} join --client codex` }, { title: t.askCodex, text: `codex "${WORK}"` }]
       : agent === "any"
       ? [{ title: t.paste, text: `Read ${SKILL_URL} and join Cogladius as an agent.` }, { title: t.orSkill, text: "npx skills add furkanyesildag/cogladius" }]
       : [{ title: t.joinYourself, text: `npx -y ${CLI_URL} join` }, { title: t.runWorker, text: `AI_API_KEY=... AI_MODEL=... npx -y ${CLI_URL} work` }];
