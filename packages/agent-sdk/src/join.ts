@@ -40,7 +40,7 @@ export interface JoinResult {
   alreadyRegistered: boolean;
   funded: boolean;
   xlmBalance: string;
-  mcp: { client: McpClientName; status: "added" | "already-present" | "skipped"; detail?: string }[];
+  mcp: { client: McpClientName; status: "added" | "updated" | "already-present" | "skipped"; detail?: string }[];
   explorer: string;
 }
 
@@ -55,7 +55,13 @@ export interface JoinDeps {
   exists?: (path: string) => boolean;
   /** COGLADIUS_HOME to hand to the MCP server, so it reads the same agent.json. */
   cogladiusHome?: string;
+  /** Runs an external command and returns its stdout, or null if it failed. */
+  output?: (cmd: string, args: string[]) => string | null;
+  readText?: (path: string) => string | null;
 }
+
+/** An MCP entry that an earlier `cogladius join` wrote (npx of our tarball, or the npm package). */
+const OURS = /cogladius\.xyz\/mcp|cogladius-mcp|@cogladius\/mcp-server/;
 
 /** How an MCP client should launch the Cogladius server. */
 export interface McpLaunch {
@@ -72,7 +78,7 @@ export interface McpLaunch {
  * to "cogladius-mcp" to use the npm release instead.
  */
 /** Bump with package.json: npx caches a tarball URL forever, so every release gets a new URL. */
-export const PACKAGE_VERSION = "0.2.1";
+export const PACKAGE_VERSION = "0.2.2";
 export const CLI_PACKAGE = `https://www.cogladius.xyz/cli-${PACKAGE_VERSION}.tgz`;
 export const MCP_PACKAGE = process.env.COGLADIUS_MCP_PACKAGE || `https://www.cogladius.xyz/mcp-${PACKAGE_VERSION}.tgz`;
 export const JOIN_COMMAND = `npx -y ${CLI_PACKAGE} join`;
@@ -94,6 +100,12 @@ export function installMcp(deps: JoinDeps = {}): McpLaunch {
   const exists = deps.exists ?? existsSync;
   const dir = deps.mcpDir ?? joinPath(dirname(deps.identityFile ?? identityPath()), "mcp");
   const entry = joinPath(dir, "node_modules", "cogladius-mcp", "dist", "index.js");
+  // Rerunning join is common; skip the ~40 s install when this version is already there.
+  const read = deps.readText ?? readTextOrNull;
+  const installed = read(joinPath(dir, "node_modules", "cogladius-mcp", "package.json"));
+  if (installed && exists(entry) && JSON.parse(installed).version === PACKAGE_VERSION) {
+    return { command: "node", args: [entry], local: true };
+  }
   const code = run("npm", ["install", "--prefix", dir, "--no-audit", "--no-fund", "--loglevel=error", MCP_PACKAGE]);
   if (code === 0 && exists(entry)) return { command: "node", args: [entry], local: true };
   return { ...NPX_LAUNCH, detail: `local install failed (npm exited ${code}), using npx: the first start is slow` };
@@ -176,6 +188,29 @@ function defaultRun(cmd: string, args: string[]): number | null {
   return spawnSync(cmd, args, { stdio: "ignore" }).status;
 }
 
+function defaultOutput(cmd: string, args: string[]): string | null {
+  const r = spawnSync(cmd, args, { encoding: "utf8" });
+  return r.status === 0 ? r.stdout : null;
+}
+
+function readTextOrNull(path: string): string | null {
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** Replace the [mcp_servers.cogladius] table, and its sub-tables, in a config.toml. */
+function replaceCodexBlock(toml: string, block: string): string {
+  const lines = toml.split("\n");
+  const start = lines.findIndex((l) => /^\[mcp_servers\.cogladius\]\s*$/.test(l));
+  let end = start + 1;
+  while (end < lines.length && !(/^\s*\[/.test(lines[end]) && !/^\s*\[mcp_servers\.cogladius\./.test(lines[end]))) end++;
+  const tail = lines.slice(end).join("\n");
+  return [...lines.slice(0, start), ...block.replace(/\n$/, "").split("\n"), ...(tail ? ["", tail] : [""])].join("\n");
+}
+
 export function addMcp(client: McpClientName, deps: JoinDeps = {}, launch: McpLaunch = NPX_LAUNCH): JoinResult["mcp"][number] {
   const home = deps.home ?? homedir();
   const run = deps.run ?? defaultRun;
@@ -183,24 +218,47 @@ export function addMcp(client: McpClientName, deps: JoinDeps = {}, launch: McpLa
   const note = launch.detail;
   if (client === "claude") {
     if (run("claude", ["--version"]) !== 0) return { client, status: "skipped", detail: "claude CLI not found on PATH" };
-    if (run("claude", ["mcp", "get", "cogladius"]) === 0) return { client, status: "already-present" };
+    let status: "added" | "updated" = "added";
+    if (run("claude", ["mcp", "get", "cogladius"]) === 0) {
+      const current = (deps.output ?? defaultOutput)("claude", ["mcp", "get", "cogladius"]) ?? "";
+      if (current.includes(launch.args[launch.args.length - 1])) return { client, status: "already-present" };
+      if (!OURS.test(current)) return { client, status: "already-present", detail: "a different server named cogladius is configured; left untouched" };
+      // Ours, but an older launch (npx, or a previous version): replace it.
+      if (run("claude", ["mcp", "remove", "cogladius", "--scope", "user"]) !== 0) {
+        return { client, status: "skipped", detail: "an older cogladius entry exists outside the user scope; remove it with `claude mcp remove cogladius` and rerun join" };
+      }
+      status = "updated";
+    }
     const envArgs = Object.entries(env).flatMap(([k, v]) => ["-e", `${k}=${v}`]);
     const code = run("claude", ["mcp", "add", "--scope", "user", ...envArgs, "cogladius", "--", launch.command, ...launch.args]);
-    return code === 0 ? { client, status: "added", detail: note ? `Claude Code user config; ${note}` : undefined } : { client, status: "skipped", detail: `claude mcp add exited ${code}` };
+    return code === 0 ? { client, status, detail: note ? `Claude Code user config; ${note}` : undefined } : { client, status: "skipped", detail: `claude mcp add exited ${code}` };
   }
   if (client === "cursor") {
     const path = joinPath(home, ".cursor", "mcp.json");
     const cfg = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {};
     cfg.mcpServers ??= {};
-    if (cfg.mcpServers.cogladius) return { client, status: "already-present", detail: path };
+    const prev = cfg.mcpServers.cogladius;
+    const prevText = prev ? JSON.stringify(prev) : "";
+    if (prev && (prevText.includes(launch.args[launch.args.length - 1]) || !OURS.test(prevText))) {
+      return { client, status: "already-present", detail: path };
+    }
     cfg.mcpServers.cogladius = { command: launch.command, args: launch.args, ...(Object.keys(env).length ? { env } : {}) };
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, JSON.stringify(cfg, null, 2) + "\n");
-    return { client, status: "added", detail: path };
+    return { client, status: prev ? "updated" : "added", detail: path };
   }
   const path = joinPath(home, ".codex", "config.toml");
   const toml = existsSync(path) ? readFileSync(path, "utf8") : "";
-  if (/^\[mcp_servers\.cogladius\]/m.test(toml)) return { client, status: "already-present", detail: path };
+  const hasBlock = /^\[mcp_servers\.cogladius\]/m.test(toml);
+  if (hasBlock) {
+    const at = toml.search(/^\[mcp_servers\.cogladius\]/m);
+    const rest = toml.slice(at + 1);
+    const next = rest.search(/^\s*\[(?!mcp_servers\.cogladius\.)/m);
+    const current = next < 0 ? toml.slice(at) : toml.slice(at, at + 1 + next);
+    if (current.includes(launch.args[launch.args.length - 1]) || !OURS.test(current)) {
+      return { client, status: "already-present", detail: path };
+    }
+  }
   mkdirSync(dirname(path), { recursive: true });
   // Codex waits 10 s for an MCP server by default; a local start needs well under
   // one, and the npx fallback needs far more than ten.
@@ -209,8 +267,11 @@ export function addMcp(client: McpClientName, deps: JoinDeps = {}, launch: McpLa
     ? `\n[mcp_servers.cogladius.env]\n${Object.entries(env).map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join("\n")}\n`
     : "";
   const block = `[mcp_servers.cogladius]\ncommand = ${JSON.stringify(launch.command)}\nargs = ${JSON.stringify(launch.args)}\nstartup_timeout_sec = ${timeout}\n${envBlock}`;
-  writeFileSync(path, toml + (toml && !toml.endsWith("\n") ? "\n" : "") + (toml ? "\n" : "") + block);
-  return { client, status: "added", detail: note ? `${path}; ${note}` : path };
+  const updated = hasBlock
+    ? replaceCodexBlock(toml, block)
+    : toml + (toml && !toml.endsWith("\n") ? "\n" : "") + (toml ? "\n" : "") + block;
+  writeFileSync(path, updated);
+  return { client, status: hasBlock ? "updated" : "added", detail: note ? `${path}; ${note}` : path };
 }
 
 /** Human-readable summary for the terminal. */
@@ -233,7 +294,11 @@ export function formatJoin(r: JoinResult): string {
     );
   }
   for (const m of r.mcp) {
-    const what = m.status === "added" ? "MCP server added" : m.status === "already-present" ? "MCP server already configured" : `MCP not configured (${m.detail})`;
+    const what =
+      m.status === "added" ? "MCP server added"
+      : m.status === "updated" ? "MCP server updated to the fast local launch"
+      : m.status === "already-present" ? "MCP server already configured"
+      : `MCP not configured (${m.detail})`;
     lines.push(``, `  ${m.status === "skipped" ? "!" : "✓"} ${m.client}: ${what}${m.status !== "skipped" && m.detail ? ` in ${m.detail}` : ""}`);
   }
   lines.push(

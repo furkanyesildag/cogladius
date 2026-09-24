@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join as pjoin } from "node:path";
 import { Keypair } from "@stellar/stellar-sdk";
 import { join, addMcp, loadIdentity, verifySep53, MAINNET_PASSPHRASE } from "../../src/index.js";
-import { installMcp, NPX_LAUNCH, MCP_PACKAGE } from "../../src/join.js";
+import { installMcp, NPX_LAUNCH, MCP_PACKAGE, PACKAGE_VERSION } from "../../src/join.js";
 
 function mockServer() {
   const calls = { register: 0 };
@@ -103,10 +103,11 @@ describe("MCP wiring", () => {
       if (args[1] === "add") { present = true; return 0; }
       return 1;
     };
-    expect(addMcp("claude", { run }).status).toBe("added");
-    expect(addMcp("claude", { run }).status).toBe("already-present");
+    const output = () => `cogladius:\n  Command: npx\n  Args: -y ${MCP_PACKAGE}\n`;
+    expect(addMcp("claude", { run, output }).status).toBe("added");
+    expect(addMcp("claude", { run, output }).status).toBe("already-present");
     const add = cmds.find((c) => c[2] === "add")!;
-    expect(add).toEqual(["claude", "mcp", "add", "--scope", "user", "cogladius", "--", "npx", "-y", "https://www.cogladius.xyz/mcp-0.2.1.tgz"]);
+    expect(add).toEqual(["claude", "mcp", "add", "--scope", "user", "cogladius", "--", "npx", "-y", MCP_PACKAGE]);
     expect(add.join(" ")).not.toMatch(/\bS[A-Z2-7]{55}\b/);
   });
 
@@ -121,7 +122,7 @@ describe("MCP wiring", () => {
     expect(addMcp("cursor", { home: dir }).status).toBe("already-present");
     const cfg = JSON.parse(readFileSync(pjoin(dir, ".cursor", "mcp.json"), "utf8"));
     expect(cfg.mcpServers.other).toEqual({ command: "x" });
-    expect(cfg.mcpServers.cogladius).toEqual({ command: "npx", args: ["-y", "https://www.cogladius.xyz/mcp-0.2.1.tgz"] });
+    expect(cfg.mcpServers.cogladius).toEqual({ command: "npx", args: ["-y", MCP_PACKAGE] });
   });
 
   it("appends a Codex block once and keeps the rest of config.toml", () => {
@@ -166,7 +167,7 @@ describe("MCP fast start", () => {
       if (a[1] === "get") return 1;
       return 0;
     };
-    const r = await join({ clients: ["claude", "codex"] }, { fetch: fetchImpl, identityFile: file, home: dir, run, exists: () => true, cogladiusHome: "" });
+    const r = await join({ clients: ["claude", "codex"] }, { fetch: fetchImpl, identityFile: file, home: dir, run, exists: () => true, readText: () => null, cogladiusHome: "" });
     expect(r.mcp.map((m) => m.status)).toEqual(["added", "added"]);
     const entry = entryIn(pjoin(dir, "mcp"));
     expect(cmds.filter((c) => c[0] === "npm")).toHaveLength(1);
@@ -186,6 +187,77 @@ describe("MCP fast start", () => {
     expect(cmds.find((c) => c[2] === "add")).toContain("COGLADIUS_HOME=/srv/agent");
     addMcp("codex", { home: dir, cogladiusHome: "/srv/agent" });
     expect(readFileSync(pjoin(dir, ".codex", "config.toml"), "utf8")).toContain('[mcp_servers.cogladius.env]\nCOGLADIUS_HOME = "/srv/agent"');
+  });
+
+  it("skips the install when this version is already installed", () => {
+    const cmds: string[][] = [];
+    const launch = installMcp({
+      identityFile: file,
+      run: (c, a) => (cmds.push([c, ...a]), 0),
+      exists: () => true,
+      readText: () => JSON.stringify({ name: "cogladius-mcp", version: PACKAGE_VERSION }),
+    });
+    expect(cmds).toEqual([]);
+    expect(launch.local).toBe(true);
+  });
+
+  it("reinstalls when an older version is installed", () => {
+    const cmds: string[][] = [];
+    installMcp({ identityFile: file, run: (c, a) => (cmds.push([c, ...a]), 0), exists: () => true, readText: () => '{"version":"0.2.1"}' });
+    expect(cmds[0][0]).toBe("npm");
+  });
+
+  const local = (d: string) => ({ command: "node", args: [pjoin(d, "mcp", "node_modules", "cogladius-mcp", "dist", "index.js")], local: true });
+
+  it("replaces an older Claude Code entry that an earlier join wrote", () => {
+    const cmds: string[][] = [];
+    const run = (c: string, a: string[]) => (cmds.push([c, ...a]), a[0] === "--version" || a[1] === "get" || a[1] === "remove" || a[1] === "add" ? 0 : 1);
+    const output = () => "cogladius:\n  Scope: User config\n  Command: npx\n  Args: -y https://www.cogladius.xyz/mcp-0.2.1.tgz\n";
+    const r = addMcp("claude", { run, output }, local(dir));
+    expect(r.status).toBe("updated");
+    const verbs = cmds.filter((c) => c[0] === "claude" && c[1] === "mcp").map((c) => c[2]);
+    expect(verbs).toEqual(["get", "remove", "add"]);
+    expect(cmds.find((c) => c[2] === "add")!.slice(-2)).toEqual(local(dir).args.length === 1 ? ["node", local(dir).args[0]] : []);
+  });
+
+  it("never touches someone else's server that happens to be called cogladius", () => {
+    const cmds: string[][] = [];
+    const run = (c: string, a: string[]) => (cmds.push([c, ...a]), 0);
+    const r = addMcp("claude", { run, output: () => "cogladius:\n  Command: python\n  Args: my_server.py\n" }, local(dir));
+    expect(r.status).toBe("already-present");
+    expect(cmds.some((c) => c[2] === "remove" || c[2] === "add")).toBe(false);
+  });
+
+  it("rewrites an older Codex block in place and keeps everything around it", () => {
+    mkdirSync(pjoin(dir, ".codex"));
+    writeFileSync(
+      pjoin(dir, ".codex", "config.toml"),
+      'model = "x"\n\n[mcp_servers.cogladius]\ncommand = "npx"\nargs = ["-y","https://www.cogladius.xyz/mcp-0.2.1.tgz"]\n\n[mcp_servers.cogladius.env]\nA = "1"\n\n[mcp_servers.other]\ncommand = "y"\n'
+    );
+    expect(addMcp("codex", { home: dir }, local(dir)).status).toBe("updated");
+    const toml = readFileSync(pjoin(dir, ".codex", "config.toml"), "utf8");
+    expect(toml.match(/\[mcp_servers\.cogladius\]/g)).toHaveLength(1);
+    expect(toml).not.toContain("mcp-0.2.1.tgz");
+    expect(toml).not.toContain('A = "1"');
+    expect(toml).toContain('command = "node"');
+    expect(toml).toContain('model = "x"');
+    expect(toml).toContain('[mcp_servers.other]\ncommand = "y"');
+    expect(addMcp("codex", { home: dir }, local(dir)).status).toBe("already-present");
+  });
+
+  it("leaves a Codex block that is not ours alone", () => {
+    mkdirSync(pjoin(dir, ".codex"));
+    const mine = '[mcp_servers.cogladius]\ncommand = "python"\nargs = ["s.py"]\n';
+    writeFileSync(pjoin(dir, ".codex", "config.toml"), mine);
+    expect(addMcp("codex", { home: dir }, local(dir)).status).toBe("already-present");
+    expect(readFileSync(pjoin(dir, ".codex", "config.toml"), "utf8")).toBe(mine);
+  });
+
+  it("updates an older Cursor entry", () => {
+    mkdirSync(pjoin(dir, ".cursor"));
+    writeFileSync(pjoin(dir, ".cursor", "mcp.json"), JSON.stringify({ mcpServers: { cogladius: { command: "npx", args: ["-y", "https://www.cogladius.xyz/mcp-0.2.1.tgz"] } } }));
+    expect(addMcp("cursor", { home: dir }, local(dir)).status).toBe("updated");
+    expect(JSON.parse(readFileSync(pjoin(dir, ".cursor", "mcp.json"), "utf8")).mcpServers.cogladius.command).toBe("node");
   });
 
   it("gives the npx fallback a Codex startup timeout long enough to finish", () => {

@@ -1,6 +1,6 @@
 {
   "name": "cogladius",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Stellar agent SDK for Cogladius: key-proven registration, task lifecycle against the Soroban escrow, MPP charge and session payments, fee-sponsored posting, and on-chain reputation.",
   "license": "MIT",
   "type": "module",
