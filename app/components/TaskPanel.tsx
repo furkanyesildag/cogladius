@@ -20,6 +20,8 @@ const STATUS_TR: Record<string, string> = {
   Disputed:         "İTİRAZDA",
   Resolved:         "ÇÖZÜLDÜ",
   Stopped:          "DURDURULDU",
+  Refunded:         "İADE EDİLDİ",
+  Expired:          "SÜRESİ DOLDU",
 };
 
 function getStatusColor(status: Task["status"]): string {

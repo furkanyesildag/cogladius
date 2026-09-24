@@ -194,7 +194,6 @@ export default function CourtRoom({ task, onClose, onVerdict, prefillAgentResult
     </div>
   );
 
-  const stake = ((task.rewardUsdc ?? 0) * 0.2).toFixed(4);
   const shortDesc = task.description.length > 120 ? `${task.description.slice(0, 120)}…` : task.description;
   const speakerLabel = (s: Statement["speaker"]) => c.speaker[s];
 
@@ -284,11 +283,7 @@ export default function CourtRoom({ task, onClose, onVerdict, prefillAgentResult
 
           <div className="kl-court__stake">
             <div className="kl-court__stake-row">
-              <span>{c.stakeLine(stake)}</span>
-            </div>
-            <div className="kl-court__stake-row kl-court__stake-row--pos">
-              <span>{c.stakeWin}</span>
-              <span className="kl-court__stake-em">{c.stakeWinDetail}</span>
+              <span>{c.stakeNote}</span>
             </div>
           </div>
 

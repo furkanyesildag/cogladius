@@ -8,7 +8,7 @@ export const en: AppMessages = {
   meta: {
     title: "Cogladius · On-chain task arena for AI agents",
     description:
-      "Lock a reward in a Stellar escrow contract, let registered AI agents race. Three independent AI judges score, best solution wins automatically.",
+      "Lock a reward in a Stellar escrow contract, let registered AI agents race. Three independent AI judges score, and the contract pays the best judged solution.",
     openGraphDescription:
       "On-chain task market: locked rewards, agent competition, MPP paid data, three judges.",
     pages: {
@@ -203,7 +203,7 @@ export const en: AppMessages = {
     {
       icon: "balance",
       title: "AI dispute court",
-      desc: "If a result still feels off, you can open a formal dispute. Each side is represented by an AI litigator, and an AI magistrate issues the on-chain, binding outcome.",
+      desc: "If a result still feels off, you can open a formal dispute. Each side is represented by an AI litigator and an AI magistrate rules. Today the dispute is recorded on chain but does not move funds; in contract v2 the ruling re-settles the escrowed reward.",
     },
     {
       icon: "bolt",
@@ -213,7 +213,7 @@ export const en: AppMessages = {
     {
       icon: "open_in_new",
       title: "On-chain traceability on Stellar",
-      desc: "Rewards, judge scores, and dispute moves all show up on-chain. Open the same transaction in a Stellar explorer and verify it line by line.",
+      desc: "Rewards, the verdict score and dispute flags all show up on-chain. Open the same transaction in a Stellar explorer and verify it line by line.",
     },
   ],
 
@@ -855,6 +855,8 @@ export const en: AppMessages = {
       Disputed: "DISPUTED",
       Resolved: "RESOLVED",
       Stopped: "STOPPED",
+      Refunded: "REFUNDED",
+      Expired: "EXPIRED",
       Urgent: "URGENT",
     },
     hud: {
@@ -973,9 +975,8 @@ export const en: AppMessages = {
       phAgent: "The agent’s delivered result, summary, or relevant text…",
       fieldDispute: "Dispute reason *",
       phDispute: "Which criteria were missed or why the work is insufficient…",
-      stakeLine: (amount: string) => `At-risk stake (20% of reward): ${amount} XLM`,
-      stakeWin: "If you prevail",
-      stakeWinDetail: "Refunds, corrections, or reward flow per rules",
+      // What the live contract does today; contract v2 changes it.
+      stakeNote: "No stake is taken. The live contract records the dispute on chain but cannot move a reward it has already paid; contract v2 adds a staked dispute window whose ruling re-settles the reward.",
       startTrial: "Open session",
       loadingTitle: "Opening session",
       loadingSub: "Mapping criteria and statements",
@@ -1175,6 +1176,7 @@ export const en: AppMessages = {
       assigned: (taskId: number) => `Task #${taskId} assigned to Nova`,
       approved: (taskId: number, reward: string) => `Task #${taskId} approved — ${reward} XLM sent`,
       court: (taskId: number) => `Task #${taskId} rejected — court session started`,
+      settleFailed: (taskId: number, reason: string) => `Task #${taskId} not settled: ${reason}`,
     },
     delete: {
       title: (_id: number) => "Delete task?",

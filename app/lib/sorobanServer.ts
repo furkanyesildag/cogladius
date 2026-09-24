@@ -248,6 +248,41 @@ export async function releaseToWinner(
 }
 
 /**
+ * Return an expired task's reward to its poster by invoking `refund`.
+ *
+ * After `deadline + settle_grace` the contract needs no authorization for
+ * this: the reward can only go back to the poster recorded at posting, so the
+ * submitter key just pays the fee. Before that the contract refuses (or wants
+ * the poster's own signature), and simulation fails without spending anything.
+ */
+export async function refundTask(taskId: number): Promise<{ hash: string }> {
+  if (!ESCROW_CONTRACT_ID) throw new Error("ESCROW_CONTRACT_ID is not configured");
+  const server = getRpcServer();
+  const submitter = submitterKeypair();
+  const source = await server.getAccount(submitter.publicKey());
+  const { Contract } = await import("@stellar/stellar-sdk");
+  const contract = new Contract(ESCROW_CONTRACT_ID);
+
+  const op = contract.call("refund", nativeToScVal(BigInt(taskId), { type: "u64" }));
+  const tx = new TransactionBuilder(source as Account, {
+    fee: BASE_FEE,
+    networkPassphrase: NETWORK_PASSPHRASE,
+  })
+    .addOperation(op)
+    .setTimeout(60)
+    .build();
+
+  const prepared = await retryXdr(() => server.prepareTransaction(tx));
+  prepared.sign(submitter);
+  const sent = await server.sendTransaction(prepared);
+  if (sent.status === "ERROR") {
+    throw new Error(`refund submission failed: ${JSON.stringify(sent.errorResult)}`);
+  }
+  await waitForTx(server, sent.hash);
+  return { hash: sent.hash };
+}
+
+/**
  * Flag a completed task as disputed on-chain (admin-only state transition).
  * Full Agent Court resolution on Stellar is a deferred deliverable.
  */

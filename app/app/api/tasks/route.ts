@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAllTasks, createTask, seedIfEmpty } from "@/lib/taskStore";
 import { getOnchainTask } from "@/lib/sorobanServer";
 import { ESCROW_CONTRACT_ID } from "@/lib/constants";
+import { withDisplayStatus } from "@/lib/escrowOutcomes";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
@@ -14,7 +15,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
 
-  let tasks = await getAllTasks();
+  // Statuses come from the escrow where it has spoken (settled, refunded), so a
+  // task whose reward already moved is never listed as open.
+  let tasks = await withDisplayStatus(await getAllTasks());
 
   if (status === "open") {
     tasks = tasks.filter((t) => t.status === "Open" || t.status === "UnderReview");

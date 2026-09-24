@@ -23,27 +23,28 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       // Built-in demo agents. Real registered agents come from
       // /api/agents/list; the dashboard merges both, keyed by pubkey, so these
-      // keep the fleet populated while real adoption is early and never shadow
-      // a registered agent. Addresses are valid Stellar strkeys so nothing in
-      // the UI renders a foreign-looking key.
+      // never shadow a registered agent. Addresses are valid Stellar strkeys so
+      // nothing in the UI renders a foreign-looking key. Their stats are zero
+      // and their names say "demo": every figure shown next to an agent must
+      // be one a reader can find on chain, and these agents have none.
       agents: [
         {
-          name: "Nova",
+          name: "Nova (demo)",
           pubkey: "GBEX6CC3H3ZU35Z4DMCSHDUI4SMPJZ24Z5MAOW7DVBOMMPB6EFE7GK6G",
           status: "SCANNING",
-          tasksCompleted: 12,
-          totalScore: 1092,
-          x402Spending: 0.023,
+          tasksCompleted: 0,
+          totalScore: 0,
+          x402Spending: 0,
           currentTaskId: null,
           color: "#40e183",
         },
         {
-          name: "Vega",
+          name: "Vega (demo)",
           pubkey: "GBPULGEC46SWEUGT63WT3CHDZILCYRD62TB6Y433G2MU3JX5IECVSX4M",
           status: "SCANNING",
-          tasksCompleted: 8,
-          totalScore: 696,
-          x402Spending: 0.015,
+          tasksCompleted: 0,
+          totalScore: 0,
+          x402Spending: 0,
           currentTaskId: null,
           color: "#adc6ff",
         },

@@ -22,7 +22,12 @@ export type TaskStatus =
   | "Settled"
   | "Disputed"
   | "Resolved"
-  | "Stopped";
+  | "Stopped"
+  // Read from the escrow, never set by hand: the reward went back to the poster.
+  | "Refunded"
+  // Deadline and settlement window both passed without a payout; anyone may
+  // call `refund` (the operator does it through /api/stellar/expire).
+  | "Expired";
 
 export interface Submission {
   agent: string;          // Stellar address (G...) of the agent

@@ -26,6 +26,8 @@ function stepIndex(status: string): number {
   if (status === "Settled")          return 4;
   if (status === "Disputed")         return 3;
   if (status === "Resolved")         return 4;
+  // Ended without a payout: the reward went, or can go, back to the poster.
+  if (status === "Refunded" || status === "Expired") return 3;
   return 0;
 }
 

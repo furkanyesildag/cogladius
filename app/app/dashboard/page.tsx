@@ -35,6 +35,18 @@ function getTaskBadgeClass(status: string): string {
   return "badge badge-stopped";
 }
 
+/** Submitter with the best average judge score, or undefined if nobody was judged. */
+function bestJudgedSubmitter(task: Task): string | undefined {
+  let best: { agent: string; avg: number } | undefined;
+  for (const sub of task.submissions || []) {
+    const scores = (task.verdicts || []).filter((v) => v.agent === sub.agent).map((v) => v.score);
+    if (!scores.length) continue;
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    if (!best || avg > best.avg) best = { agent: sub.agent, avg };
+  }
+  return best?.agent;
+}
+
 function getTaskCardClass(status: string): string {
   if (status === "Open")             return "task-card task-card-open";
   if (status === "UnderReview")      return "task-card task-card-review";
@@ -527,39 +539,49 @@ export default function Dashboard() {
     setSelectedTask((p) => p?.id === taskId ? { ...p, status: "AwaitingDecision" } : p);
   }
 
-  async function handleAgentApprove(agentResult: string, txHash: string) {
+  async function handleAgentApprove(_agentResult: string, _txHash: string) {
     if (!selectedTask) return;
     const now = new Date();
     const tloc = locale === "tr" ? "tr-TR" : "en-US";
     const reward = (selectedTask.rewardUsdc ?? 0).toFixed(4);
+    const stamp = { id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }) };
 
-    // Release the XLM reward from the Soroban escrow contract → winning agent.
-    let finalHash = txHash;
-    let explorerUrl = "";
-    let winnerStellar: string | undefined;
+    // Release the XLM reward from the Soroban escrow contract to the best
+    // judged submitter: the settle route pays only an agent that submitted and
+    // was judged, and the contract re-checks the score.
+    const winner = bestJudgedSubmitter(selectedTask);
+    let data: any = null;
+    let error = "";
     try {
-      const winner = agents[0]?.pubkey;
-      if (!publicKey || selectedTask.contractTaskId === undefined || !winner) {
-        throw new Error("poster wallet, escrowed task and winner are required");
+      if (!publicKey || selectedTask.contractTaskId === undefined) {
+        throw new Error("poster wallet and escrowed task are required");
       }
+      if (!winner) throw new Error("no judged submission to pay");
       // The poster authorizes the release with a SEP-53 signature.
-      const data = await settleAsPoster({
+      data = await settleAsPoster({
         taskId: selectedTask.id,
         contractTaskId: selectedTask.contractTaskId,
         posterAddress: publicKey.toString(),
         winnerAddress: winner,
       });
-      if (data.success) {
-        finalHash = data.hash;
-        explorerUrl = data.explorerUrl || EXPLORER_TX(data.hash);
-        winnerStellar = data.winnerAddress;
-      }
-    } catch { /* fall back to the optimistic hash */ }
+      if (!data?.success) error = data?.error || "settlement failed";
+    } catch (e: any) {
+      error = e?.message || "settlement failed";
+    }
+    if (error) {
+      // Nothing moved on chain, so nothing is shown as settled.
+      setFeed((p) => [{ ...stamp, message: ui.feedDyn.settleFailed(selectedTask.id, error), icon: "tx", agent: "tx" }, ...p]);
+      return;
+    }
 
+    const finalHash: string = data.hash;
+    const explorerUrl: string = data.explorerUrl || EXPLORER_TX(data.hash);
+    const winnerStellar: string | undefined = data.winnerAddress;
+    const winnerName = agents.find((a) => a.pubkey === winner)?.name || shortenAddress(winnerStellar ?? winner ?? "");
     setTasks((p) => p.map((t) => t.id === selectedTask.id ? { ...t, status: "Settled", settleTxHash: finalHash, winnerStellarAddress: winnerStellar ?? t.winnerStellarAddress } : t));
     setSelectedTask((p) => p?.id === selectedTask.id ? { ...p, status: "Settled", settleTxHash: finalHash, winnerStellarAddress: winnerStellar ?? p.winnerStellarAddress } : p);
-    setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.approved(selectedTask.id, reward), icon: "tx", agent: "tx" }, ...p]);
-    setTxLog((p) => [{ id: Date.now(), type: "release_to_winner()", hash: finalHash, taskId: selectedTask.id, amount: `+${reward} XLM`, winner: agents[0]?.name?.toLowerCase() || "nova", time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...p]);
+    setFeed((p) => [{ ...stamp, message: ui.feedDyn.approved(selectedTask.id, reward), icon: "tx", agent: "tx" }, ...p]);
+    setTxLog((p) => [{ id: Date.now(), type: "release_to_winner()", hash: finalHash, taskId: selectedTask.id, amount: `+${reward} XLM`, winner: winnerName.toLowerCase(), time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...p]);
   }
 
   function handleAgentReject(agentResult: string, reason: string) {
