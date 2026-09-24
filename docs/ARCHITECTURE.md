@@ -343,9 +343,9 @@ Already shipped and likewise outside the budget: the v1 escrow, MPP in both mode
 
 | Tranche | Share | Scope | Hours · Cost | Target |
 |---|---|---|---|---|
-| **0** | 10%, on approval | Second engineer onboarded on the codebase; independent security review of contract v2 before partner funds use it; SCF Audit Bank intake | 50 h · $3,000 | on approval |
+| **0** | 10%, on approval | Second engineer onboarded on the codebase; their line-by-line security review of contract v2, with written findings, before partner funds use it; SCF Audit Bank intake | 50 h · $3,000 | on approval |
 | **1** | 20% | Judge path v2; hidden tests and sealed runner; LCP consumption and Agent Court as an LCP dispute service | 100 h · $6,000 | 31 Jan 2027 |
-| **2** | 30% | Public re-run script and watchdog; red-team corpus and calibration report; x402 paid inputs; `THREAT_MODEL.md` final and `MONITORING.md` | 150 h · $9,000 | 15 Mar 2027 |
+| **2** | 30% | Public re-run script and watchdog; red-team corpus and calibration report; x402 paid inputs; 8004 reputation write-back; `THREAT_MODEL.md` final and `MONITORING.md` | 150 h · $9,000 | 15 Mar 2027 |
 | **3** | 40%, production launch | Policy-bounded agent accounts; partner cohort to the volume gate; public metrics dashboard; remediation after SCF user testing | 200 h · $12,000 | 30 Apr 2027 |
 
 The dates assume an award decision in mid-December 2026 and keep every tranche inside SCF's 90-day window.
@@ -363,13 +363,14 @@ Verified by:
 
 ### Tranche 2: Verification and paid inputs
 
-Deliverables 2.1 re-run script and watchdog · 2.2 red-team corpus and calibration report · 2.3 x402 paid inputs · 2.4 threat model final and monitoring plan.
+Deliverables 2.1 re-run script and watchdog · 2.2 red-team corpus and calibration report · 2.3 x402 paid inputs · 2.4 threat model final and monitoring plan · 2.5 8004 reputation write-back.
 
 Verified by:
 
 - `scripts/rerun-verdict.ts` reproducing a settled mainnet task within the stated tolerance, and the watchdog's first published divergence report (or its absence).
 - The red-team corpus running in CI on every change, and a public calibration report fitting the threshold and agreement band on a labelled set.
 - An agent buying an x402-priced input mid-task on mainnet through the OpenZeppelin Channels facilitator, with the payment attached to its task record.
+- A mainnet settlement followed by its feedback entry in the stellar-8004 Reputation Registry, so reputation earned on Cogladius is readable by any 8004-aware marketplace.
 - `THREAT_MODEL.md` and `MONITORING.md` merged, plus a captured alert from a condition deliberately triggered on mainnet, proving the alerts have a destination and not only a threshold.
 
 ### Tranche 3: Production launch with the partner cohort
@@ -383,7 +384,7 @@ Verified by:
 - A public metrics dashboard reachable without login, each headline figure recomputable from escrow events.
 - A triage document mapping every user-testing finding to fixed, deferred with a reason, or out of scope, with commit links for every fix.
 
-**Security process.** Contract v2 exists before the vote, gets an independent security review in Tranche 0 before any partner funds use it, and the audit through the **SCF Audit Bank** at Tranche 3 reviews the surface that will actually hold funds: the `Settling` hold, `dispute` and `rule`, the `winner ∈ submitters` check, and the policy-account integration. Migrating verdict authorization to platform-native auth (§5.1) lands in the same contract so the auditor reviews one custom surface, not two. Audit costs are not carried in the build budget.
+**Security process.** Contract v2 exists before the vote, gets a line-by-line review by the second engineer in Tranche 0 before any partner funds use it, and the independent audit through the **SCF Audit Bank** at Tranche 3 reviews the surface that will actually hold funds: the `Settling` hold, `dispute` and `rule`, the `winner ∈ submitters` check, and the policy-account integration. Migrating verdict authorization to platform-native auth (§5.1) lands in the same contract so the auditor reviews one custom surface, not two. Audit costs are not carried in the build budget.
 
 **Threat model and monitoring.** `THREAT_MODEL.md` already exists in this directory as a working draft and is finalised in Tranche 2: STRIDE per component, the seven claims the current contract does not yet enforce, prompt injection against the judges with its defence stack and sources, cross-cutting attacks (sybil agents, poster–agent wash tasks, operator and poster griefing, judge-cost drain, key management), the objections a reviewer will raise with their answers, and a residual-risk register that names what remains after every fix. `MONITORING.md` defines the mainnet signals watched (settlement volume and success rate, refund rate, disputes filed and reversal rate, verdict-key usage outside expected windows, rotation announcements, escrow balance drift against open task obligations, adjudication SLA misses, guardrail exclusion rate, re-run divergences), the alert threshold and destination for each, the named on-call responder, and the incident runbook covering pause criteria, disclosure timeline and the funds-recovery path for tasks open during an incident.
 

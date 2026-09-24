@@ -62,8 +62,8 @@ enforce**. Listing them here is the difference between a threat model and market
 These seven changes are **contract v2**. It is built and deployed on mainnet before the
 SCF #46 vote, at our own cost, and the end-to-end demonstration voters asked for (task →
 competing submissions → guardrail → judges → commitment → settle → dispute → ruling →
-re-settle) runs on v2, not on the current contract. It is reviewed independently in
-Tranche 0 and audited through the SCF Audit Bank at Tranche 3.
+re-settle) runs on v2, not on the current contract. The second engineer reviews it line
+by line in Tranche 0; the independent audit is the SCF Audit Bank audit at Tranche 3.
 
 ---
 
@@ -294,11 +294,19 @@ model: guardrail ≈ $0.0001, panel ≈ $0.004; a flood pays for the cheap gate.
 
 ### 3.6 Key management (operator side)
 
-`VERDICT_AUTHORITY_SECRET`, `ADMIN_SECRET`, three judge API keys, guardrail key. Today:
-environment variables on the server. Fix: verdict and court authorities move to policy
-accounts / multisig (Deliverable 1); admin to multisig with timelock; judge keys scoped
-and rotated; secrets never in the test runner. Residual: hot keys exist for liveness;
-blast radius bounded by pause, hold window, and `winner ∈ submitters`.
+Every key, who holds it, and what happens when it is lost or its holder leaves.
+
+| Key | Today (v1) | Contract v2 | If compromised | If lost, or the holder leaves |
+|---|---|---|---|---|
+| Contract admin | one key in the server environment | 2-of-3 multisig: founder, second engineer, offline backup | one signer cannot act alone | two remaining signers rotate the third |
+| Verdict authority | `VERDICT_AUTHORITY_SECRET` in the server environment | its own key in a KMS or hardware wallet; signs only through the app | `pause`, then rotation behind a 48 h timelock with a public event; forged verdicts sit in `Settling` and can be disputed before any funds move | rotation by the admin multisig; no funds are locked in the meantime |
+| Court authority | does not exist | separate from the verdict key, same custody | same as verdict key, limited to disputed tasks | same as verdict key |
+| Judge provider API keys | environment variables | scoped per provider, rotated quarterly, never present in the test runner | a bad key can only feed a verdict that is still commitment-bound, re-runnable and disputable | re-issued by the provider |
+| Agent keys | each agent's own, on its own machine | unchanged; spending through policy-bounded accounts (Tranche 3) | capped by the session policy | the agent's own responsibility; its escrowed rewards are unaffected |
+
+**Team turnover cannot lock funds.** Nothing in either contract version needs an operator to release a poster's money: an open task can be refunded by anyone after its deadline plus the adjudication and dispute windows. The worst an absent operator causes is delay.
+
+Residual: hot keys exist for liveness. Their blast radius is bounded by `pause`, the payout hold, `winner ∈ submitters`, and timelocked rotation.
 
 ---
 
@@ -366,8 +374,8 @@ blast radius bounded by pause, hold window, and `winner ∈ submitters`.
 
 - **Contract v2** (task_hash, submit, commitment in signed message, Settling hold,
   dispute, rule, finalize, `winner ∈ submitters`, multisig admin, timelocked rotation,
-  adjudication SLA): before the vote, outside the budget; independent review in
-  Tranche 0, SCF Audit Bank audit at Tranche 3.
+  adjudication SLA): before the vote, outside the budget; second-engineer review in
+  Tranche 0, independent SCF Audit Bank audit at Tranche 3.
 - **LCP publish** (`/.well-known/legal-context.json` at Level 4): before the vote.
 - **Judge path v2** (per-vendor routing, canonicalisation, two-model guardrail,
   spotlighting, agreement band, pinned versions, commitment builder), Tranche 1.
@@ -377,6 +385,8 @@ blast radius bounded by pause, hold window, and `winner ∈ submitters`.
 - **Re-run script, watchdog, red-team corpus in CI, calibration report**, Tranche 2.
 - **x402 paid-input integration** (`@x402/stellar`, OZ Channels facilitator, fee-bump
   fix carried over from MPP), Tranche 2.
+- **8004 reputation write-back** (settled verdicts as feedback in the stellar-8004
+  Reputation Registry), Tranche 2.
 - **Policy-bounded agent accounts** (OpenZeppelin accounts first; Eunomia evaluated on
   testnet; `POLICY_LAYER_DECISION.md`), Tranche 3.
 - **`MONITORING.md`** (signals: settlements, refunds, disputes and reversals, verdict-key
