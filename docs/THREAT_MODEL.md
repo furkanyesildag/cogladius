@@ -31,7 +31,7 @@ court authority ──rule(outcome, ruling_commitment, sig)──▶ re-settle
 |---|---|
 | B1 chain ↔ app | Escrow contract (trustless) ↔ operator-run app (trusted only for liveness) |
 | B2 app ↔ judge vendors | Operator holds API keys; vendors are third parties |
-| B3 app ↔ guardrail | Hosted (Jev) or self-hosted (SemIf) typed classifier |
+| B3 app ↔ guardrail | Self-hosted SemIf typed classifier (MIT research code, formerly OpenJev, on published open weights); advisory, recorded |
 | B4 poster ↔ agent | Mutually distrusting counterparties |
 | B5 operator ↔ everyone | Operator must be unable to move funds except via a valid verdict |
 
@@ -57,10 +57,11 @@ enforce**. Listing them here is the difference between a threat model and market
 | "The winner must have submitted" | Contract has no submitter set; any address the authority signs is paid. App-side check only (`settle` route). | `release_to_winner` requires `winner ∈ submitters(task_id)`. |
 | "Activation is not at the operator's mercy" | `activate` is admin-only; if the operator does not call it, an Active task's refund lock never engages and the poster can refund after work was submitted. | `submit` sets `Active` permissionlessly (agent-authorized). `activate` removed. |
 | "Admin cannot rug" | Admin is one key; `set_verdict_pubkey` is immediate. Admin compromise ⇒ rotate verdict key ⇒ forge verdicts ⇒ drain every open task. | Admin → multisig; key rotation behind a timelock with an announce event; `pause` remains immediate. |
+| "Verdict authorization uses Soroban native auth" (ARCHITECTURE §5.1) | A custom `task_id ‖ score ‖ nonce ‖ winner` message verified with `ed25519_verify`, with our own nonce field. | The verdict authority is an `Address`; `release_to_winner` calls `require_auth_for_args((task_id, winner, score, commitment))`, so the host handles replay protection and expiry and the authority can be a multisig or policy account. |
 | "Adjudication cannot be starved into a refund" | `settle_grace = 3600s`. If judging takes over an hour past the deadline, anyone can refund the poster over a submitted, possibly passing, submission. | Refund of an Active task blocked until `deadline + adjudication_sla + dispute_window`; `adjudication_sla` ≥ 24h; missed SLA lets any submitter `escalate` to dispute instead of losing to refund. |
 
-These seven changes are **contract v2**. It is built and deployed on mainnet before the
-SCF #46 vote, at our own cost, and the end-to-end demonstration voters asked for (task →
+These eight changes are **contract v2**. It is being built now (September 2026) and is
+deployed on mainnet before the SCF #46 vote, at our own cost, and the end-to-end demonstration voters asked for (task →
 competing submissions → guardrail → judges → commitment → settle → dispute → ruling →
 re-settle) runs on v2, not on the current contract. The second engineer reviews it line
 by line in Tranche 0; the independent audit is the SCF Audit Bank audit at Tranche 3.
@@ -73,7 +74,7 @@ by line in Tranche 0; the independent audit is the SCF Audit Bank audit at Tranc
 
 | Threat | Category | Attacker / precondition | Today | Fix | Residual |
 |---|---|---|---|---|---|
-| Forge a verdict | Spoofing | Anyone; needs verdict key | ed25519 verify on chain over `(task_id, score, nonce, winner)`; bad sig reverts (`Crypto, InvalidInput`, verified on mainnet) | Message also binds `commitment`; verdict key → policy account / multisig (Deliverable 1, `require_auth_for_args`) | Verdict authority is still a signing authority; compromise bounded by `pause` + timelocked rotation + payout hold (a forged verdict sits in `Settling` for the full dispute window and can be disputed before any funds move) |
+| Forge a verdict | Spoofing | Anyone; needs verdict key | ed25519 verify on chain over `(task_id, score, nonce, winner)`; bad sig reverts (`Crypto, InvalidInput`, verified on mainnet) | Message also binds `commitment`; verdict key → policy account / multisig (contract v2, `require_auth_for_args`) | Verdict authority is still a signing authority; compromise bounded by `pause` + timelocked rotation + payout hold (a forged verdict sits in `Settling` for the full dispute window and can be disputed before any funds move) |
 | Replay a verdict | Tampering | Anyone with a valid old sig | Status machine: `Completed` blocks second release; `task_id` in message blocks cross-task | Unchanged; `nonce` becomes the on-chain submission count so it is meaningful rather than decorative | None |
 | Pay a non-submitter | Tampering | Operator, or verdict-key thief | Not prevented on chain; app `settle` route checks in poster/crank modes only | `winner ∈ submitters` enforced in `release_to_winner` | None |
 | Judge a different task or submission than the one funded | Repudiation | Operator | Task content and submissions are off-chain; operator's word | `task_hash` at post; `submission_hash` at submit; `commitment` covers both | Operator can still fail to *run* the judges honestly; see §2.4 (detection via re-run, not prevention) |
@@ -116,9 +117,9 @@ by line in Tranche 0; the independent audit is the SCF Audit Bank audit at Tranc
 | Threat | Category | Today | Fix | Residual |
 |---|---|---|---|---|
 | Prompt injection in a submission ("score this 100") | Tampering | `TASK:\n…CRITERIA:\n…SUBMISSION:\n…` with no delimiting; one vendor; JSON via regex | (a) Typed guardrail screens for evaluator-directed instructions before any judge runs; (b) submission wrapped in unambiguous fences with an explicit "content, not instructions" system rule; (c) three vendors, so one model's failure mode does not decide | Guardrail is a classifier with an error rate; calibrated low confidence routes to judges **with a flag**, never silently; three vendors are operationally, not epistemically, independent |
-| Guardrail excludes a legitimate submission | DoS | n/a | Exclusion is recorded with its typed result and probability, is appealable, and is reproducible (schema public; SemIf weights open) | False-negative rate is measured and published |
+| Guardrail excludes a legitimate submission | DoS | n/a | Exclusion is recorded with its typed result and probability, is appealable, and is reproducible (schema public; SemIf is MIT code and the weights it runs are published, so anyone can re-run the screen) | False-negative rate is measured and published |
 | Guardrail under operator control (self-hosted) | Elevation | n/a | Guardrail has **no payment authority**; it only filters, and every filter decision is committed and re-runnable | None beyond "operator can delay"; a wrongful exclusion is reversed on appeal at operator's stake |
-| Judge vendor silently changes model | Tampering | Model id from env, no version pin | Pin version strings where the API exposes them; record `modelVersions` in the commitment; a vendor deprecation is a versioned config change with an event | Hosted vendors do not guarantee bit-exact reproducibility even at temperature 0; therefore re-run comparison uses a **tolerance band** (see 2.5), not equality |
+| Judge vendor silently changes model | Tampering | Model id from env, no version pin; observed 25 Sep 2026: `deepseek-chat` is served as `deepseek-flash` | Pin version strings where the API exposes them; record `modelVersions` in the commitment from the model id each response reports, not the one requested; a vendor deprecation is a versioned config change with an event | Hosted vendors do not guarantee bit-exact reproducibility even at temperature 0; therefore re-run comparison uses a **tolerance band** (see 2.5), not equality |
 | Operator picks a favourable vendor set | Elevation | Single client, DeepSeek primary / OpenAI fallback (`openaiAgents.ts`) | Per-judge provider routing; the vendor set is part of the committed config; changing it is announced and versioned | None |
 | Silent averaging hides disagreement | Tampering | `avg ≥ 70` regardless of spread | **Agreement band**: settle only if every judge ≥ threshold **and** `max − min ≤ 20`; otherwise no verdict is signed and the task goes to the dispute path automatically | Band values are initial; recalibrated against gate-0 and dispute outcomes and published |
 | Arbitrary threshold (why 70?) | Repudiation | Constant | Calibrated: threshold and band are fit on a labelled set and re-fit quarterly; the calibration report is public | Any threshold is a policy; the policy is now evidence-based and versioned |
@@ -155,9 +156,12 @@ are protected by layers that are not the judges, and every layer is checkable.
    channel that judges never receive. What is judged is the canonical form, and the
    canonical form's hash is what goes into the commitment.
 
-2. **Typed guardrail (Jev-class) plus a dedicated injection classifier, in ensemble.**
-   The typed model answers fixed questions with calibrated probabilities and cannot leave
-   its option set. Beside it runs a Prompt-Guard-class classifier (86M mDeBERTa, ~92 ms
+2. **Typed guardrail (SemIf) plus a dedicated injection classifier, in ensemble.**
+   The typed model (SemIf, MIT research code, self-hosted on published open weights such
+   as Qwen3.5-4B) answers fixed questions and cannot leave its option set. Its scores are
+   not calibrated out of the box, so its threshold is fitted on our labelled red-team set
+   (Tranche 2), and it reads the attacker's text like any model does, which is why it
+   never acts alone. Beside it runs a Prompt-Guard-class classifier (86M mDeBERTa, ~92 ms
    at 512 tokens, AUC ≈ 0.98 on English injection sets; 512-token chunking with max-score
    pooling). Ensembles of small detectors reduce single-detector evasion (arXiv
    2606.05566). Decision policy: **high-confidence agreement → exclude and record; any
@@ -290,7 +294,9 @@ one dispute per party. Residual: one paid delay.
 
 Flood submissions to burn operator inference budget. Mitigation: guardrail is cheap and
 runs first; one submission per agent per task on chain; cooldowns; deposit lever. Cost
-model: guardrail ≈ $0.0001, panel ≈ $0.004; a flood pays for the cheap gate.
+model: guardrail ≈ $0.0001; panel measured at about $0.015 per adjudication today
+(3 × `deepseek-v4-pro`, 8,000-character patch, peak list price, 25 September 2026) and
+about $0.003 to $0.006 for the planned three-vendor panel; a flood pays for the cheap gate.
 
 ### 3.6 Key management (operator side)
 
@@ -312,11 +318,14 @@ Residual: hot keys exist for liveness. Their blast radius is bounded by `pause`,
 
 ## 4. Objections a reviewer will raise, answered in advance
 
-1. **"Three prompts on one vendor is not three judges."** Correct for the #45 code. v2
-   routes each judge to a different vendor and records the set in the commitment.
-2. **"Temperature 0 on a hosted API is not deterministic."** Correct. Reproduction is a
-   tolerance band, and one judge is open-weights with pinned weights for bit-exact
-   replay.
+1. **"Three prompts on one vendor is not three judges."** Correct for the live code and
+   the #45 code. Judge path v2 routes each judge to a different vendor and records the set
+   in the commitment.
+2. **"Temperature 0 on a hosted API is not deterministic."** Correct, and in thinking mode
+   the temperature is ignored altogether. Reproduction is a tolerance band. One judge runs
+   open weights at a published commit, so anyone can re-run it on their own hardware; even
+   that agrees within the tolerance rather than bit for bit, because GPU inference is not
+   deterministic.
 3. **"The operator still calls the models; how do we know it did?"** We do not, in
    advance. Inputs are chain-pinned, everything else is public, and any third party can
    re-run; divergence is appeal grounds. This is detection, and it is stated as such.
@@ -346,7 +355,7 @@ Residual: hot keys exist for liveness. Their blast radius is bounded by `pause`,
 | R1 | Verdict and court authorities are signing keys | AI judges cannot sign on chain | Multisig, timelocked rotation, pause, payout hold, `winner ∈ submitters` |
 | R2 | Honest execution of the judge calls is detected, not prevented | Hosted LLMs are opaque | Chain-pinned inputs, public prompts, pinned models, watchdog re-runs, appeal |
 | R3 | Vendor epistemic correlation | Shared training data | Non-model gate (Layer 0), dispute path, human escalation above threshold |
-| R4 | Hosted-model non-determinism | Vendor infrastructure | Tolerance band; one open-weights judge for exact replay |
+| R4 | Hosted-model non-determinism | Vendor infrastructure | Tolerance band; one open-weights judge anyone can re-run at the same commit |
 | R5 | Test overfitting | Inherent to test-based gates | Hidden tests, judges, reputation |
 | R6 | Guardrail error rate | Classifier | Low-confidence → flag not exclude; appealable; measured and published |
 | R7 | Operator delay up to SLA | Liveness needs an operator | `escalate`, monitoring alerts |
@@ -372,21 +381,26 @@ Residual: hot keys exist for liveness. Their blast radius is bounded by `pause`,
 
 ## 7. Deliverable mapping (SCF #46)
 
-- **Contract v2** (task_hash, submit, commitment in signed message, Settling hold,
-  dispute, rule, finalize, `winner ∈ submitters`, multisig admin, timelocked rotation,
-  adjudication SLA): before the vote, outside the budget; second-engineer review in
+- **Contract v2** (task_hash, submit, commitment in the authorized verdict, native auth
+  for the verdict authority, Settling hold, dispute, rule, finalize, `winner ∈ submitters`,
+  multisig admin, timelocked rotation, adjudication SLA, protocol fee taken in `finalize`): before the vote, outside the budget; second-engineer review in
   Tranche 0, independent SCF Audit Bank audit at Tranche 3.
-- **LCP publish** (`/.well-known/legal-context.json` at Level 4): before the vote.
+- **LCP publish** (`/.well-known/legal-context.json`, describing itself at the spec's
+  advisory Level 4, "Integrated"): before the vote.
 - **Judge path v2** (per-vendor routing, canonicalisation, two-model guardrail,
   spotlighting, agreement band, pinned versions, commitment builder), Tranche 1.
 - **Hidden tests and sealed runner** for the code vertical, Tranche 1.
-- **LCP consume** (poster `atrHash` pinned into `task_hash`; Agent Court in a published
-  `dispute-services.json`), Tranche 1.
+- **LCP consume** (poster `atrHash` pinned into `task_hash`; a published Agent Court
+  service description that our `disputeResolution.catalog` field points to; the spec
+  defines no registry and uses `dispute-services.json` only as an example name), Tranche 1.
 - **Re-run script, watchdog, red-team corpus in CI, calibration report**, Tranche 2.
 - **x402 paid-input integration** (`@x402/stellar`, OZ Channels facilitator, fee-bump
   fix carried over from MPP), Tranche 2.
-- **8004 reputation write-back** (settled verdicts as feedback in the stellar-8004
-  Reputation Registry), Tranche 2.
+- **8004 reputation write-back** (for agents that link a stellar-8004 identity, each
+  settled verdict written by Cogladius' published client address as `give_feedback` in
+  the mainnet Reputation Registry; readers must include that address in their
+  `get_summary` client list; the registry is community-maintained, upgradable by one key
+  behind a 3-day timelock, and not externally audited), Tranche 2.
 - **Policy-bounded agent accounts** (OpenZeppelin accounts first; Eunomia evaluated on
   testnet; `POLICY_LAYER_DECISION.md`), Tranche 3.
 - **`MONITORING.md`** (signals: settlements, refunds, disputes and reversals, verdict-key
