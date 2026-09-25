@@ -128,10 +128,11 @@ const TICKER_COLORS = [
   "var(--text-primary)",
 ] as const;
 
-export function getTickerItems(n: number, locale: AppLocale = "tr") {
+/** `tasks` is the real number of escrowed tasks (null while loading). */
+export function getTickerItems(tasks: number | null, locale: AppLocale = "tr") {
   const t = getMessages(locale).ticker;
   return t.map((row, i) => {
-    const val = row.val === "*n*" ? String(3 + (n % 3)) : row.val;
+    const val = row.val === "*n*" ? (tasks === null ? "—" : String(tasks)) : row.val;
     return { label: row.label, val, color: TICKER_COLORS[i] ?? "var(--text-primary)" };
   });
 }

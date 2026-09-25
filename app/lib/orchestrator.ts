@@ -17,37 +17,56 @@ export { SPECIALTY_META } from "./specialtyMeta";
 import { SPECIALTY_META } from "./specialtyMeta";
 import { getOpenAiChatModel, openaiChatCompletion } from "./openaiAgents";
 import { jevAnalyze, jevAudit } from "./jevOrchestrator";
+import { reputationReport } from "./reputation";
 
 const VALID_SPECIALTIES = new Set(Object.keys(SPECIALTY_META) as AgentSpecialty[]);
 const SPECIALTIES_LIST = Object.keys(SPECIALTY_META).join(", ");
 
 // ── Agent scoring ──────────────────────────────────────────────────────────────
+//
+// Suggestions only: sub-tasks go to the open pool and nobody is assigned. The
+// ranking uses what can be verified, the escrow's on-chain events (tasks won
+// and mean judged score, via /api/reputation's derivation), plus how recently
+// the agent was seen. Registry counters (successRate/avgScore) are not used:
+// nothing keeps them up to date, so they were always 0.
 
-function scoreAgent(agent: RegisteredAgent, budgetUsdc: number): number {
+type OnChainRep = { tasksWon: number; meanScore: number };
+
+async function onChainReputation(): Promise<Map<string, OnChainRep>> {
+  try {
+    const report = await reputationReport();
+    return new Map(
+      report.agents.map((a) => [a.agent, { tasksWon: a.tasksWon, meanScore: a.scores.meanX100 / 100 }])
+    );
+  } catch (err) {
+    console.warn("[orchestrator] on-chain reputation unavailable; ranking by activity only", err);
+    return new Map();
+  }
+}
+
+function repFor(agent: RegisteredAgent, rep: Map<string, OnChainRep>): OnChainRep {
+  return rep.get(agent.stellarAddress ?? agent.pubkey) ?? rep.get(agent.pubkey) ?? { tasksWon: 0, meanScore: 0 };
+}
+
+function scoreAgent(agent: RegisteredAgent, budgetUsdc: number, rep: Map<string, OnChainRep>): number {
   if (agent.approvalStatus !== "approved") return -1;
 
   const rewardOk =
     budgetUsdc >= agent.config.minRewardUsdc && budgetUsdc <= agent.config.maxRewardUsdc;
   if (!rewardOk) return -1;
 
-  const { successRate, avgScore, tasksCompleted } = agent.stats;
+  const { tasksWon, meanScore } = repFor(agent, rep);
 
-  // Elite/Pro tier bonus
-  const tierMult = agent.tier === "elite" ? 1.30 : agent.tier === "pro" ? 1.15 : 1.0;
-
-  // Recency: agents seen in the last 2h get a significant boost
+  // Recency: agents seen recently are more likely to pick the task up.
   const hoursSince = (Date.now() - new Date(agent.lastSeen).getTime()) / 3_600_000;
-  const recencyBonus = hoursSince < 2 ? 0.08 : hoursSince < 24 ? 0.03 : 0;
+  const recency = hoursSince < 2 ? 1 : hoursSince < 24 ? 0.4 : 0;
 
-  // Personality match: "thorough" agents score slightly better for quality
-  const personalityBonus = agent.config.personality === "thorough" ? 0.02 : 0;
+  const score =
+    Math.min(tasksWon / 10, 1.0) * 0.45 +
+    (meanScore / 100) * 0.35 +
+    recency * 0.20;
 
-  const base =
-    (successRate / 100) * 0.40 +
-    (avgScore / 100) * 0.35 +
-    Math.min(tasksCompleted / 100, 1.0) * 0.25;
-
-  return Math.min(base * tierMult + recencyBonus + personalityBonus, 1.0);
+  return Math.min(score, 1.0);
 }
 
 // ── Specialty validation ───────────────────────────────────────────────────────
@@ -88,14 +107,16 @@ function normalizeBreakdown(
 
 // ── Agent matching ─────────────────────────────────────────────────────────────
 
-function toAgentMatch(agent: RegisteredAgent, score: number): AgentMatch {
+function toAgentMatch(agent: RegisteredAgent, score: number, rep: Map<string, OnChainRep>): AgentMatch {
+  const r = repFor(agent, rep);
   return {
     pubkey: agent.pubkey,
     name: agent.name,
     score: parseFloat(score.toFixed(3)),
-    avgScore: agent.stats.avgScore,
-    successRate: agent.stats.successRate,
-    tasksCompleted: agent.stats.tasksCompleted,
+    // On-chain values (escrow events), not registry counters.
+    avgScore: parseFloat(r.meanScore.toFixed(2)),
+    successRate: 0,
+    tasksCompleted: r.tasksWon,
     specialties: agent.specialties ?? [],
   };
 }
@@ -104,11 +125,12 @@ function matchAgentsForSpecialty(
   specialty: AgentSpecialty,
   budgetUsdc: number,
   allAgents: RegisteredAgent[],
-  assignedPubkeys: Set<string>
+  assignedPubkeys: Set<string>,
+  rep: Map<string, OnChainRep>
 ): AgentMatch[] {
   const scoredPool = allAgents
     .filter((a) => !a.isBanned && (a.specialties ?? []).includes(specialty))
-    .map((a) => ({ agent: a, score: scoreAgent(a, budgetUsdc) }))
+    .map((a) => ({ agent: a, score: scoreAgent(a, budgetUsdc, rep) }))
     .filter(({ score }) => score >= 0)
     .sort((a, b) => b.score - a.score);
 
@@ -118,7 +140,7 @@ function matchAgentsForSpecialty(
       ? scoredPool
       : allAgents
           .filter((a) => !a.isBanned)
-          .map((a) => ({ agent: a, score: scoreAgent(a, budgetUsdc) }))
+          .map((a) => ({ agent: a, score: scoreAgent(a, budgetUsdc, rep) }))
           .filter(({ score }) => score >= 0)
           .sort((a, b) => b.score - a.score);
 
@@ -132,7 +154,7 @@ function matchAgentsForSpecialty(
     result.push(item);
   }
 
-  return result.map(({ agent, score }) => toAgentMatch(agent, score));
+  return result.map(({ agent, score }) => toAgentMatch(agent, score, rep));
 }
 
 // ── Sub-task description builder ───────────────────────────────────────────────
@@ -287,12 +309,13 @@ export async function analyzeProject(
     breakdown = keywordAnalyze(description, totalBudget);
   }
 
-  // 2. Match agents with diversity tracking (top assigned agent per specialty is reserved)
-  const allAgents = await getAllAgents();
+  // 2. Suggest agents per specialty (nobody is assigned; the pool is open).
+  //    Diversity: the top suggestion for one specialty is deprioritised for the next.
+  const [allAgents, rep] = await Promise.all([getAllAgents(), onChainReputation()]);
   const assignedPubkeys = new Set<string>();
 
   const withAgents = breakdown.map((b) => {
-    const agents = matchAgentsForSpecialty(b.specialty, b.budgetUsdc, allAgents, assignedPubkeys);
+    const agents = matchAgentsForSpecialty(b.specialty, b.budgetUsdc, allAgents, assignedPubkeys, rep);
     if (agents[0]) assignedPubkeys.add(agents[0].pubkey);
     return { ...b, agents };
   });

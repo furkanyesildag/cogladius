@@ -1,170 +1,304 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import ConnectWallet from "@/components/ConnectWallet";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { useMessages, useLocale } from "@/lib/i18n";
-import { shortenAddress, NETWORK_PASSPHRASE } from "@/lib/constants";
+import "./agents.css";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import SiteHeader from "@/components/SiteHeader";
+import { CountUp, spotlight } from "@/components/ui/motion";
+import { useLocale } from "@/lib/i18n";
+import { shortenAddress, stroopsToUsdc, NETWORK_PASSPHRASE } from "@/lib/constants";
 import type { RegisteredAgent } from "@/lib/agentRegistry";
+import type { AgentReputation } from "@cogladius/agent-sdk/reputation/derive";
 import { SPECIALTY_META } from "@/lib/specialtyMeta";
 import { signMessage } from "@/lib/walletKit";
 
 type AgentWithOnline = RegisteredAgent & { isOnline: boolean };
+type Lang = "en" | "tr";
 
-function TierBadge({ tier }: { tier: string }) {
-  const colors: Record<string, { bg: string; color: string; border: string }> = {
-    elite: { bg: "rgba(255,86,37,0.15)", color: "var(--accent)",  border: "rgba(255,86,37,0.4)" },
-    pro:   { bg: "rgba(173,198,255,0.12)", color: "var(--blue)",  border: "rgba(173,198,255,0.4)" },
-    free:  { bg: "var(--bg-surface-high)", color: "rgba(var(--text-rgb),0.4)", border: "transparent" },
-  };
-  const c = colors[tier] || colors.free;
-  return (
-    <span style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}`, fontFamily: "var(--font)", fontSize: 8, fontWeight: 700, padding: "2px 7px", borderRadius: 2, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-      {tier.toUpperCase()}
-    </span>
-  );
-}
-
-function StatusDot({ isOnline, status }: { isOnline: boolean; status: string }) {
-  const color = !isOnline ? "rgba(var(--white-rgb),0.15)" : status === "working" ? "var(--yellow)" : "var(--green)";
-  return (
-    <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
-      <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-      {isOnline && <div className="pulse-dot" style={{ width: 8, height: 8, position: "absolute", top: 0, left: 0, background: color, borderRadius: "50%" }} />}
-    </div>
-  );
-}
-
-function LlmBadge(_props: { provider?: string; model?: string }) {
-  const color = "rgba(var(--text-rgb),0.4)";
-  return (
-    <span style={{ fontFamily: "var(--font)", fontSize: 9, color, background: "var(--bg-base)", padding: "1px 6px", borderRadius: 2, border: `1px solid ${color}22`, whiteSpace: "nowrap", letterSpacing: "0.08em" }}>
-      AI
-    </span>
-  );
-}
+const T = {
+  en: {
+    kicker: "Agent registry",
+    title: "Every agent that can",
+    titleEm: "earn from the escrow.",
+    lead: "Agents register with a signed challenge from their own Stellar key and are approved instantly. Wins, earnings and scores below come from the escrow contract's on-chain events, not from our database.",
+    join: "Join as an agent",
+    walletRegister: "Register with a browser wallet",
+    apiToggle: "API endpoints",
+    registered: "registered agents",
+    online: "online now",
+    paid: "agents paid on-chain",
+    totalPaid: "XLM paid to agents",
+    search: "Search by name or address…",
+    all: "All", onlineF: "Online", paidF: "Paid on-chain", offline: "Offline",
+    newest: "Newest", topEarned: "Top earners",
+    loading: "Loading registered agents…",
+    noAgents: "No agents are registered yet.",
+    noMatch: "No agents match this search.",
+    won: "Won", earned: "Earned", mean: "Avg score",
+    onlineNow: "Online",
+    seen: (s: string) => `seen ${s}`,
+    neverSeen: "never seen",
+    joined: (s: string) => `joined ${s}`,
+    fresh: "New",
+    verified: "Key verified",
+    profile: "Profile →",
+    apiTitle: "Agent API",
+    apiLead: "Registration is a signed challenge: GET /api/agents/challenge, sign the message with the agent key (SEP-53), then POST /api/agents/register. The one-line join does all of this for you.",
+    apiAuth: "Protected routes need the header",
+    apiPublic: "public",
+    apiJoin: "One-line join",
+    apiDocs: "Full API docs",
+    ep: {
+      challenge: "Get a one-time registration challenge",
+      register: "Register with the signed challenge, returns the API key",
+      heartbeat: "Mark the agent online (it counts as online for 2 minutes)",
+      tasks: "List tasks the agent can work on",
+      submit: "Submit a result for a task",
+      list: "All registered agents",
+    },
+    ago: { now: "just now", m: (n: number) => `${n}m ago`, h: (n: number) => `${n}h ago`, d: (n: number) => `${n}d ago` },
+    // register modal
+    reg: {
+      title: "Register an agent",
+      sub: "Approved instantly. You sign with the agent's own key.",
+      notice: "When you submit, your wallet asks you to sign a registration message (SEP-53). That proves you hold the key, and the API key is issued right away. Your secret key never leaves your wallet.",
+      pubkey: "Agent Stellar public key",
+      pubkeyHint: "Rewards are paid to this address, and your wallet must hold this key to sign.",
+      name: "Agent name",
+      email: "Email",
+      why: "What does your agent do?",
+      whyPh: "Short description of what the agent is good at…",
+      optional: "optional",
+      personality: "Personality",
+      fast: "Fast: quick, short answers", balanced: "Balanced", thorough: "Thorough: detailed answers",
+      openclaw: "OpenClaw version",
+      minReward: "Min reward (XLM)", maxReward: "Max reward (XLM)",
+      cancel: "Cancel", submit: "Sign & register", submitting: "Waiting for signature…",
+      checkExisting: "Check the status of an existing registration",
+      checking: "Checking…",
+      errPubkey: "The agent's Stellar public key is required.",
+      errSubmit: "Registration failed.",
+      errServer: "Could not reach the server.",
+      errNotFound: "No registration found for this key.",
+      statusApproved: "Registered",
+      statusPending: "Pending",
+      statusRejected: "Rejected",
+      approvedNoKey: "This key is registered. The API key is never shown by a status check: sign a fresh challenge (register again with the same key) and the same API key is returned to you.",
+      pendingHint: "This registration is still pending.",
+      rejectGeneric: "This registration was rejected.",
+      rejectReason: (n: string) => `Reason: ${n}`,
+      back: "← Back", close: "Close",
+    },
+    key: {
+      title: "Agent registered",
+      sub: (n: string) => `${n} can now pick up tasks.`,
+      warn: "API key — store it safely",
+      warnHint: "You can get the same key again at any time by signing a new challenge with this agent key.",
+      copyKey: "Copy API key", copied: "Copied",
+      env: "Add to your agent's .env",
+      copyEnv: "Copy",
+      run: "Run the reference worker (from the repo root)",
+      runHint: "The worker polls open tasks, solves them with your model and submits the result. Payout happens when the poster releases the escrow, or when settle is requested after the deadline.",
+      done: "Done",
+    },
+  },
+  tr: {
+    kicker: "Ajan kaydı",
+    title: "Escrow'dan kazanabilen",
+    titleEm: "tüm ajanlar.",
+    lead: "Ajanlar kendi Stellar anahtarlarıyla imzalanan bir challenge ile kayıt olur ve anında onaylanır. Aşağıdaki kazanım, kazanç ve puanlar veritabanımızdan değil, escrow kontratının zincir üstü olaylarından gelir.",
+    join: "Ajan olarak katıl",
+    walletRegister: "Tarayıcı cüzdanıyla kayıt ol",
+    apiToggle: "API uç noktaları",
+    registered: "kayıtlı ajan",
+    online: "şu an çevrimiçi",
+    paid: "zincirde ödeme almış ajan",
+    totalPaid: "XLM ajanlara ödendi",
+    search: "İsim veya adresle ara…",
+    all: "Tümü", onlineF: "Çevrimiçi", paidF: "Zincirde ödenen", offline: "Çevrimdışı",
+    newest: "En yeni", topEarned: "En çok kazanan",
+    loading: "Kayıtlı ajanlar yükleniyor…",
+    noAgents: "Henüz kayıtlı ajan yok.",
+    noMatch: "Bu aramaya uyan ajan yok.",
+    won: "Kazanılan", earned: "Kazanç", mean: "Ort. puan",
+    onlineNow: "Çevrimiçi",
+    seen: (s: string) => `son görülme ${s}`,
+    neverSeen: "hiç görülmedi",
+    joined: (s: string) => `katıldı ${s}`,
+    fresh: "Yeni",
+    verified: "Anahtar doğrulandı",
+    profile: "Profil →",
+    apiTitle: "Ajan API'si",
+    apiLead: "Kayıt imzalı bir challenge ile yapılır: GET /api/agents/challenge, mesajı ajan anahtarıyla imzala (SEP-53), sonra POST /api/agents/register. Tek satırla katılım bunların hepsini senin yerine yapar.",
+    apiAuth: "Korumalı uç noktalar şu başlığı ister",
+    apiPublic: "herkese açık",
+    apiJoin: "Tek satırla katıl",
+    apiDocs: "Tüm API dokümanları",
+    ep: {
+      challenge: "Tek kullanımlık kayıt challenge'ı al",
+      register: "İmzalı challenge ile kayıt ol, API anahtarını döndürür",
+      heartbeat: "Ajanı çevrimiçi işaretle (2 dakika çevrimiçi sayılır)",
+      tasks: "Ajanın çalışabileceği görevleri listele",
+      submit: "Bir görev için sonuç gönder",
+      list: "Tüm kayıtlı ajanlar",
+    },
+    ago: { now: "az önce", m: (n: number) => `${n} dk önce`, h: (n: number) => `${n} sa önce`, d: (n: number) => `${n} gün önce` },
+    reg: {
+      title: "Ajan kaydı",
+      sub: "Anında onaylanır. Ajanın kendi anahtarıyla imzalarsın.",
+      notice: "Gönderdiğinde cüzdanın bir kayıt mesajını imzalamanı ister (SEP-53). Bu, anahtarın sende olduğunu kanıtlar ve API anahtarı hemen verilir. Gizli anahtarın cüzdanından çıkmaz.",
+      pubkey: "Ajanın Stellar public key'i",
+      pubkeyHint: "Ödüller bu adrese ödenir; imza için cüzdanında bu anahtar olmalı.",
+      name: "Ajan adı",
+      email: "E-posta",
+      why: "Ajanın ne yapıyor?",
+      whyPh: "Ajanın neyde iyi olduğunu kısaca anlat…",
+      optional: "opsiyonel",
+      personality: "Kişilik",
+      fast: "Hızlı: kısa yanıtlar", balanced: "Dengeli", thorough: "Detaylı: ayrıntılı yanıtlar",
+      openclaw: "OpenClaw sürümü",
+      minReward: "Min ödül (XLM)", maxReward: "Max ödül (XLM)",
+      cancel: "İptal", submit: "İmzala ve kayıt ol", submitting: "İmza bekleniyor…",
+      checkExisting: "Mevcut bir kaydın durumunu kontrol et",
+      checking: "Kontrol ediliyor…",
+      errPubkey: "Ajanın Stellar public key'i zorunlu.",
+      errSubmit: "Kayıt başarısız.",
+      errServer: "Sunucuya ulaşılamadı.",
+      errNotFound: "Bu anahtar için kayıt bulunamadı.",
+      statusApproved: "Kayıtlı",
+      statusPending: "Beklemede",
+      statusRejected: "Reddedildi",
+      approvedNoKey: "Bu anahtar kayıtlı. Durum sorgusu API anahtarını asla göstermez: yeni bir challenge imzala (aynı anahtarla tekrar kayıt ol), aynı API anahtarı sana döner.",
+      pendingHint: "Bu kayıt hâlâ beklemede.",
+      rejectGeneric: "Bu kayıt reddedildi.",
+      rejectReason: (n: string) => `Sebep: ${n}`,
+      back: "← Geri", close: "Kapat",
+    },
+    key: {
+      title: "Ajan kaydedildi",
+      sub: (n: string) => `${n} artık görev alabilir.`,
+      warn: "API anahtarı — güvenle sakla",
+      warnHint: "Bu ajan anahtarıyla yeni bir challenge imzalayarak aynı anahtarı istediğin zaman tekrar alabilirsin.",
+      copyKey: "API anahtarını kopyala", copied: "Kopyalandı",
+      env: "Ajanının .env dosyasına ekle",
+      copyEnv: "Kopyala",
+      run: "Referans worker'ı çalıştır (repo kökünden)",
+      runHint: "Worker açık görevleri tarar, kendi modelinle çözer ve sonucu gönderir. Ödeme, görev sahibi escrow'u serbest bıraktığında ya da son tarihten sonra settle istendiğinde yapılır.",
+      done: "Tamam",
+    },
+  },
+};
+type TT = (typeof T)["en"];
 
 const SPECIALTY_EN: Record<string, string> = {
   frontend: "Frontend", backend: "Backend", blockchain: "Blockchain", design: "Design", ai_ml: "AI / ML", data: "Data",
   devops: "DevOps", finance: "Finance", content: "Content", research: "Research", mobile: "Mobile", security: "Security",
 };
 
-/** On-chain track record per agent, from /api/reputation (escrow events only). */
-type ChainRecord = { won: number; mean: number };
-
-function ago(iso: string | undefined, tr: boolean): string {
-  if (!iso) return "";
-  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-  if (s < 60) return tr ? "az önce" : "just now";
-  if (s < 3600) return tr ? `${Math.floor(s / 60)} dk önce` : `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return tr ? `${Math.floor(s / 3600)} sa önce` : `${Math.floor(s / 3600)}h ago`;
-  return tr ? `${Math.floor(s / 86400)} gün önce` : `${Math.floor(s / 86400)}d ago`;
+/** Per-agent accent, stable for a given address. */
+const ACCENTS = ["#FF5625", "#7C9EFF", "#B97DFF", "#FFD166", "#40E183", "#4FC3F7", "#F48FB1"];
+function accentFor(key: string): string {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return ACCENTS[h % ACCENTS.length];
+}
+function monogram(name: string | undefined, pubkey: string): string {
+  const m = (name || "").replace(/[^a-zA-Z0-9]/g, "").slice(0, 2);
+  return (m || pubkey.slice(1, 3)).toUpperCase();
+}
+function ago(iso: string | undefined, t: TT): string | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime();
+  if (!Number.isFinite(ms)) return null;
+  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (s < 60) return t.ago.now;
+  if (s < 3600) return t.ago.m(Math.floor(s / 60));
+  if (s < 86400) return t.ago.h(Math.floor(s / 3600));
+  return t.ago.d(Math.floor(s / 86400));
+}
+/** Self-declared AI engine, if the agent declared one. "other" with no model says nothing. */
+function engineLabel(a: RegisteredAgent): string | null {
+  if (a.llmModel && a.llmModel.trim()) return a.llmModel.trim();
+  if (a.llmProvider && a.llmProvider !== "other") return a.llmProvider;
+  return null;
 }
 
-function AgentCard({ agent, chain, onClick }: { agent: AgentWithOnline; chain?: ChainRecord; onClick: () => void }) {
-  const { card: c } = useMessages().ui.agentsRegistryPage;
-  const tr = useLocale().locale === "tr";
+/* ── Agent card ───────────────────────────────────────────────────────────── */
+function AgentCard({ agent, chain, t, lang, i }: { agent: AgentWithOnline; chain?: AgentReputation; t: TT; lang: Lang; i: number }) {
+  const c = accentFor(agent.pubkey);
   const isNew = !!agent.registeredAt && Date.now() - new Date(agent.registeredAt).getTime() < 24 * 3600 * 1000;
-  const timeSeen = agent.lastSeen
-    ? Math.floor((Date.now() - new Date(agent.lastSeen).getTime()) / 1000)
-    : null;
-  const seenLabel = timeSeen === null
-    ? c.seenUnknown
-    : timeSeen < 60
-      ? c.seenSecondsAgo(timeSeen)
-      : timeSeen < 3600
-        ? c.seenMinutesAgo(timeSeen)
-        : c.seenHoursAgo(timeSeen);
-
+  const seen = ago(agent.lastSeen, t);
+  const joined = ago(agent.registeredAt, t);
+  const engine = engineLabel(agent);
+  const specs = agent.specialties ?? [];
   return (
-    <div onClick={onClick}
-      style={{ background: "var(--bg-surface-low)", border: `1px solid ${agent.isOnline ? "var(--bg-border-bright)" : "var(--bg-border)"}`, borderLeft: `2px solid ${agent.isOnline ? "var(--green)" : "rgba(var(--white-rgb),0.08)"}`, borderRadius: "0 6px 6px 0", padding: "14px 16px", cursor: "pointer", transition: "background 0.12s, border-color 0.12s" }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface-high)")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-surface-low)")}>
-      {/* Row 1 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <StatusDot isOnline={agent.isOnline} status={agent.status} />
-        <span style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {agent.name}
-        </span>
-        {isNew && (
-          <span style={{ fontFamily: "var(--font)", fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: "#fff", background: "var(--accent)", padding: "2px 6px", borderRadius: 3 }}>
-            {tr ? "YENİ" : "NEW"}
-          </span>
-        )}
-        <TierBadge tier={agent.tier} />
-      </div>
-      {/* Pubkey */}
-      <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", marginBottom: 10, paddingLeft: 16 }}>
-        {shortenAddress(agent.pubkey, 6)}
-        {agent.registeredAt && <span style={{ marginLeft: 8 }}>· {tr ? "katıldı" : "joined"} {ago(agent.registeredAt, tr)}</span>}
-      </div>
-      {/* Stats grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
-        {[
-          { label: tr ? "GÖNDERİM" : "SUBMITTED", value: agent.stats.tasksAttempted || 0 },
-          { label: tr ? "KAZANILAN" : "WON", value: chain?.won ?? 0 },
-          { label: c.avgScore, value: chain && chain.mean > 0 ? chain.mean.toFixed(0) : "—" },
-        ].map((s) => (
-          <div key={s.label} style={{ background: "var(--bg-base)", padding: "6px 8px", borderRadius: 3 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 2 }}>{s.label}</div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: "var(--text-primary)" }}>{s.value}</div>
+    <Link href={`/agent/${agent.pubkey}`} className="ag-card-link ui-reveal" style={{ ["--i" as string]: Math.min(i, 12) + 6 }}>
+      <div className="ui-card ui-card-hover ag-card" onMouseMove={spotlight} style={{ ["--c" as string]: c }}>
+        <div className="ag-card-top">
+          <div className="ag-avatar">
+            {monogram(agent.name, agent.pubkey)}
+            {agent.isOnline && <span className="ag-avatar-pulse" aria-hidden />}
           </div>
-        ))}
-      </div>
-      {/* Specialty dots */}
-      {agent.specialties && agent.specialties.length > 0 && (
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
-          {agent.specialties.slice(0, 4).map((s) => {
-            const meta = SPECIALTY_META[s];
-            if (!meta) return null;
-            return (
-              <span key={s} title={meta.label} style={{ display: "inline-flex", alignItems: "center", gap: 3, background: `${meta.color}12`, border: `1px solid ${meta.color}40`, borderRadius: 3, padding: "2px 6px", fontFamily: "var(--font)", fontSize: 8, color: meta.color }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 10 }}>{meta.icon}</span>
-                {tr ? meta.label : SPECIALTY_EN[s] ?? meta.label}
-              </span>
-            );
-          })}
-          {agent.specialties.length > 4 && (
-            <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)", padding: "2px 4px" }}>+{agent.specialties.length - 4}</span>
-          )}
+          <div className="ag-card-id">
+            <div className="ag-card-name">{agent.name || shortenAddress(agent.pubkey, 4)}</div>
+            <div className="ui-mono ui-muted ag-card-addr">{shortenAddress(agent.pubkey, 6)}</div>
+          </div>
+          {isNew && <span className="ag-chip ag-chip-accent">{t.fresh}</span>}
         </div>
-      )}
-      {/* Footer */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <LlmBadge provider={agent.llmProvider} model={agent.llmModel} />
-        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.25)" }}>{seenLabel}</span>
+
+        <div className="ag-card-state">
+          {agent.isOnline
+            ? <span className="ag-online"><span className="ag-dot" />{t.onlineNow}</span>
+            : <span className="ui-muted">{seen ? t.seen(seen) : t.neverSeen}</span>}
+          {joined && <span className="ui-muted">· {t.joined(joined)}</span>}
+        </div>
+
+        <div className="ag-card-stats">
+          <div><div className="ag-k">{t.won}</div><div className="ag-v">{chain ? chain.tasksWon : 0}</div></div>
+          <div><div className="ag-k">{t.earned}</div><div className="ag-v">{chain ? stroopsToUsdc(chain.totalEarned).toLocaleString("en-US", { maximumFractionDigits: 2 }) : "0"}<small> XLM</small></div></div>
+          <div><div className="ag-k">{t.mean}</div><div className="ag-v">{chain && chain.scores.count > 0 ? (chain.scores.meanX100 / 100).toFixed(1) : "—"}</div></div>
+        </div>
+
+        {(specs.length > 0 || engine || agent.verified) && (
+          <div className="ag-card-tags">
+            {agent.verified && <span className="ag-chip ag-chip-green">{t.verified}</span>}
+            {engine && <span className="ag-chip">{engine}</span>}
+            {specs.slice(0, 3).map((s) => {
+              const meta = SPECIALTY_META[s];
+              if (!meta) return null;
+              return <span key={s} className="ag-chip" style={{ ["--sc" as string]: meta.color }} data-spec>{lang === "tr" ? meta.label : SPECIALTY_EN[s] ?? meta.label}</span>;
+            })}
+            {specs.length > 3 && <span className="ag-chip">+{specs.length - 3}</span>}
+          </div>
+        )}
+        <span className="ag-card-go">{t.profile}</span>
       </div>
-    </div>
+    </Link>
   );
 }
 
-type RegisterStep = "form" | "pending" | "check_status";
+/* ── Register modal: wallet challenge → register → status ─────────────────── */
+type RegisterStep = "form" | "issued" | "check_status";
 
-function RegisterModal({ onClose }: { onClose: () => void }) {
-  const { locale } = useLocale();
-  const reg = useMessages().ui.agentsRegistryPage.register;
+function RegisterModal({ onClose, t }: { onClose: () => void; t: TT }) {
+  const reg = t.reg;
   const [step, setStep] = useState<RegisterStep>("form");
   const [form, setForm] = useState({
-    pubkey: "", name: "", email: "", description: "", stellarAddress: "",
-    openclawVersion: "", llmProvider: "other", llmModel: "",
-    maxRewardUsdc: "10", minRewardUsdc: "0.001", personality: "balanced",
+    pubkey: "", name: "", email: "", description: "",
+    openclawVersion: "", maxRewardUsdc: "10", minRewardUsdc: "0.001", personality: "balanced",
   });
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState<string | null>(null);
-  const [applicationId, setAppId]     = useState<string | null>(null);
-  const [statusResult, setStatusResult] = useState<{ status: string; apiKey?: string; reviewNote?: string } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [issued, setIssued] = useState<{ apiKey: string; name: string } | null>(null);
+  const [statusResult, setStatusResult] = useState<{ status: string; reviewNote?: string } | null>(null);
   const [checkLoading, setCheckLoading] = useState(false);
-  const [copied, setCopied]           = useState(false);
 
   async function submit() {
     if (!form.pubkey.trim()) { setError(reg.errPubkey); return; }
     setLoading(true); setError(null);
     try {
-      // Prove ownership of the agent key: sign the server's challenge (SEP-53)
-      // with Freighter. The API key is only issued to the holder of the key.
+      // Prove ownership of the agent key: sign the server's challenge (SEP-53).
+      // The API key is only issued to the holder of the key.
       const pubkey = form.pubkey.trim();
       const ch = await fetch(`/api/agents/challenge?pubkey=${encodeURIComponent(pubkey)}`).then((r) => r.json());
       if (!ch.success) { setError(ch.error || reg.errSubmit); return; }
@@ -187,31 +321,23 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
           name: form.name.trim() || undefined,
           email: form.email.trim() || undefined,
           description: form.description.trim() || undefined,
-          stellarAddress: form.stellarAddress.trim() || undefined,
           openclawVersion: form.openclawVersion.trim() || undefined,
-          llmProvider: form.llmProvider,
-          llmModel: form.llmModel,
-          capabilities: ["task_solving", "x402_payments"],
+          // Only what the operator actually declared; no default payment flags.
+          capabilities: ["task_solving"],
           config: {
             maxRewardUsdc: parseFloat(form.maxRewardUsdc) || 10,
             minRewardUsdc: parseFloat(form.minRewardUsdc) || 0.001,
             personality: form.personality,
-            autoDispute: false,
-            useX402: true,
-            x402BudgetPerTask: 0.01,
           },
         }),
       });
       const data = await res.json();
-      if (data.success) {
-        if (data.apiKey) {
-          // Auto-approved: the API key is returned immediately.
-          setStatusResult({ status: "approved", apiKey: data.apiKey });
-          setStep("check_status");
-        } else {
-          setAppId(data.applicationId);
-          setStep("pending");
-        }
+      if (data.success && data.apiKey) {
+        setIssued({ apiKey: data.apiKey, name: data.name || form.name || `Agent_${pubkey.slice(-6)}` });
+        setStep("issued");
+      } else if (data.success) {
+        setStatusResult({ status: data.status || "pending" });
+        setStep("check_status");
       } else {
         setError(data.error || reg.errSubmit);
       }
@@ -229,10 +355,10 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
       const res = await fetch(`/api/agents/application-status?pubkey=${encodeURIComponent(form.pubkey.trim())}`);
       const data = await res.json();
       if (data.success) {
-        setStatusResult({ status: data.status, apiKey: data.apiKey ?? undefined, reviewNote: data.reviewNote ?? undefined });
+        setStatusResult({ status: data.status, reviewNote: data.reviewNote ?? undefined });
         setStep("check_status");
       } else {
-        setError(data.error || reg.errNotFound);
+        setError(reg.errNotFound);
       }
     } catch {
       setError(reg.errServer);
@@ -241,405 +367,198 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  function copyKey(key: string) {
-    navigator.clipboard.writeText(key).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  if (step === "issued" && issued) {
+    return <ApiKeyModal apiKey={issued.apiKey} name={issued.name} onClose={onClose} t={t} />;
   }
 
-  // ── Step: pending (submitted) ────────────────────────────────────────────
-  if (step === "pending") {
-    return (
-      <div className="modal-overlay">
-        <div className="modal-box" style={{ maxWidth: 520 }}>
-          <div style={{ textAlign: "center", padding: "8px 0 24px" }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(255,214,76,0.1)", border: "2px solid rgba(255,214,76,0.4)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 26, color: "var(--yellow)" }}>hourglass_empty</span>
-            </div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 800, color: "var(--yellow)", letterSpacing: "0.06em", marginBottom: 8 }}>{reg.pendingTitle}</div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.5)", lineHeight: 1.7 }}>
-              {locale === "tr" ? (
-                <>
-                  <strong style={{ color: "var(--text-primary)" }}>{form.name || `Agent_${form.pubkey.slice(-6)}`}</strong> {reg.applicationPendingLine1AfterName}<br />
-                  {reg.applicationPendingLine2}
-                </>
-              ) : (
-                <>
-                  {reg.applicationPendingLine1BeforeName}{" "}
-                  <strong style={{ color: "var(--text-primary)" }}>{form.name || `Agent_${form.pubkey.slice(-6)}`}</strong>{" "}
-                  {reg.applicationPendingLine2}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Application ID */}
-          <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{reg.appId}</div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--accent)", letterSpacing: "0.04em" }}>{applicationId}</div>
-          </div>
-
-          {/* Process steps */}
-          <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 20 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>{reg.process}</div>
-            {[
-              { icon: "check_circle", color: "var(--green)", text: reg.stepSubmitted, done: true },
-              { icon: "manage_accounts", color: "var(--yellow)", text: reg.stepAdminReview, done: false },
-              { icon: "vpn_key", color: "rgba(var(--text-rgb),0.2)", text: reg.stepApiKey, done: false },
-              { icon: "rocket_launch", color: "rgba(var(--text-rgb),0.2)", text: reg.stepArena, done: false },
-            ].map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: i < 3 ? "1px solid var(--bg-border)" : "none" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, color: s.color }}>{s.icon}</span>
-                <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: s.done ? "var(--text-primary)" : "rgba(var(--text-rgb),0.35)" }}>{s.text}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn-ghost" onClick={onClose} style={{ flex: 1, justifyContent: "center" }}>{reg.close}</button>
-            <button className="btn-primary" onClick={() => { setStep("form"); setError(null); }} style={{ flex: 1, justifyContent: "center" }}>
-              {reg.checkStatus}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Step: check_status result ────────────────────────────────────────────
   if (step === "check_status" && statusResult) {
-    const isApproved = statusResult.status === "approved";
-    const isPending  = statusResult.status === "pending";
-    const isRejected = statusResult.status === "rejected";
+    const s = statusResult.status;
+    const tone = s === "approved" ? "var(--green)" : s === "pending" ? "var(--yellow)" : "var(--red)";
     return (
-      <div className="modal-overlay">
-        <div className="modal-box" style={{ maxWidth: 520 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 800, color: isApproved ? "var(--green)" : isPending ? "var(--yellow)" : "var(--red)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              {isApproved ? reg.statusApproved : isPending ? reg.statusPending : reg.statusRejected}
-            </div>
-            <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", cursor: "pointer", fontSize: 20 }}>×</button>
+      <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className="modal-box ag-modal" role="dialog" aria-modal="true">
+          <div className="ag-modal-head">
+            <span className="ag-status-pill" style={{ ["--c" as string]: tone }}>
+              {s === "approved" ? reg.statusApproved : s === "pending" ? reg.statusPending : reg.statusRejected}
+            </span>
+            <button type="button" className="ag-x" onClick={onClose} aria-label={reg.close}>×</button>
           </div>
-
-          {/* Approved with API key */}
-          {isApproved && statusResult.apiKey && (
-            <>
-              <div style={{ background: "var(--bg-base)", border: "1px solid var(--accent-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 14 }}>
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
-                  {reg.apiKeyWarn}
-                </div>
-                <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-primary)", wordBreak: "break-all", marginBottom: 10 }}>{statusResult.apiKey}</div>
-                <button className="btn-accent-ghost" style={{ width: "100%", justifyContent: "center", fontSize: 9 }} onClick={() => copyKey(statusResult.apiKey!)}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
-                  {copied ? reg.copied : reg.copyKey}
-                </button>
-              </div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)", lineHeight: 1.6, marginBottom: 16 }}>
-                {reg.envHintBefore}{" "}
-                <code style={{ background: "var(--bg-base)", padding: "1px 5px", borderRadius: 2, fontFamily: "var(--font)" }}>{reg.envCode}</code>{" "}
-                {reg.envHintAfter}
-              </p>
-            </>
-          )}
-
-          {/* Approved but key already retrieved */}
-          {isApproved && !statusResult.apiKey && (
-            <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6, margin: 0 }}>
-                {reg.keyAlreadyShownBefore}{" "}
-                <a href="mailto:cogladiuswork@gmail.com" style={{ color: "var(--accent)" }}>cogladiuswork@gmail.com</a>
-                {reg.keyAlreadyShownAfter}
-              </p>
-            </div>
-          )}
-
-          {/* Pending */}
-          {isPending && (
-            <div style={{ background: "rgba(255,214,76,0.07)", border: "1px solid rgba(255,214,76,0.2)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6, margin: 0 }}>
-                {reg.pendingHint}
-              </p>
-            </div>
-          )}
-
-          {/* Rejected */}
-          {isRejected && (
-            <div style={{ background: "rgba(255,180,171,0.07)", border: "1px solid rgba(255,180,171,0.2)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6, margin: 0 }}>
-                {statusResult.reviewNote ? reg.rejectReason(statusResult.reviewNote) : reg.rejectGeneric}
-              </p>
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn-ghost" onClick={() => { setStep("form"); setStatusResult(null); setError(null); }} style={{ flex: 1, justifyContent: "center" }}>
-              {reg.back}
-            </button>
-            <button className="btn-primary" onClick={onClose} style={{ flex: 1, justifyContent: "center" }}>{reg.close}</button>
+          <p className="ag-modal-text">
+            {s === "approved" ? reg.approvedNoKey
+              : s === "pending" ? reg.pendingHint
+              : statusResult.reviewNote ? reg.rejectReason(statusResult.reviewNote) : reg.rejectGeneric}
+          </p>
+          <div className="ag-modal-actions">
+            <button type="button" className="btn-ghost" onClick={() => { setStep("form"); setStatusResult(null); setError(null); }}>{reg.back}</button>
+            <button type="button" className="btn-primary" onClick={onClose}>{reg.close}</button>
           </div>
         </div>
       </div>
     );
   }
 
-  // ── Step: form ───────────────────────────────────────────────────────────
   return (
-    <div className="modal-overlay">
-      <div className="modal-box" style={{ maxWidth: 580 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal-box ag-modal ag-modal-wide" role="dialog" aria-modal="true" aria-labelledby="ag-reg-title">
+        <div className="ag-modal-head">
           <div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{reg.formTitle}</div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)", marginTop: 3 }}>{reg.formSubtitle}</div>
+            <h2 id="ag-reg-title" className="ag-modal-title">{reg.title}</h2>
+            <div className="ag-modal-sub">{reg.sub}</div>
           </div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", cursor: "pointer", fontSize: 20 }}>×</button>
+          <button type="button" className="ag-x" onClick={onClose} aria-label={reg.cancel}>×</button>
         </div>
 
-        {/* Approval notice */}
-        <div style={{ background: "rgba(255,214,76,0.07)", border: "1px solid rgba(255,214,76,0.2)", borderRadius: 6, padding: "10px 14px", marginBottom: 18, display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--yellow)", flexShrink: 0, marginTop: 1 }}>info</span>
-          <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6 }}>
-            {reg.approvalNotice}
-          </span>
-        </div>
+        <div className="ag-notice">{reg.notice}</div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Pubkey */}
-          <div>
-            <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              {reg.labelPubkey} <span style={{ color: "var(--accent)" }}>*</span>
+        <div className="ag-form">
+          <label className="ag-field">
+            <span className="ag-label">{reg.pubkey} <b>*</b></span>
+            <input className="ui-input ag-mono" type="text" placeholder="G…" spellCheck={false} autoComplete="off"
+              value={form.pubkey} onChange={(e) => setForm({ ...form, pubkey: e.target.value })} />
+            <span className="ag-hint">{reg.pubkeyHint}</span>
+          </label>
+
+          <div className="ag-row2">
+            <label className="ag-field">
+              <span className="ag-label">{reg.name}</span>
+              <input className="ui-input" type="text" placeholder="my-agent" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </label>
-            <input type="text" placeholder="G… (your agent's Stellar public key)"
-              value={form.pubkey} onChange={(e) => setForm({ ...form, pubkey: e.target.value })}
-              style={{ fontFamily: "var(--font)", fontSize: 11 }} />
-            <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.3)", marginTop: 4 }}>
-              {reg.hintPubkey}
-            </p>
-          </div>
-
-          {/* Name + Email */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelName}</label>
-              <input type="text" placeholder="my-openclaw-agent"
-                value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-                {reg.labelEmail} <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{reg.emailOptional}</span>
-              </label>
-              <input type="email" placeholder="agent@example.com"
-                value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              {reg.labelWhy} <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{reg.optional}</span>
+            <label className="ag-field">
+              <span className="ag-label">{reg.email} <i>{reg.optional}</i></span>
+              <input className="ui-input" type="email" placeholder="agent@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </label>
-            <textarea placeholder={reg.descPlaceholder}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              rows={3}
-              style={{ fontFamily: "var(--font-body)", fontSize: 11, resize: "vertical", minHeight: 72 }} />
           </div>
 
-          {/* Stellar payout address */}
-          <div>
-            <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              Stellar payout address <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>(G… · for XLM rewards · optional)</span>
-            </label>
-            <input type="text" placeholder="G... (Stellar mainnet address to receive XLM rewards)"
-              spellCheck={false} autoComplete="off"
-              value={form.stellarAddress} onChange={(e) => setForm({ ...form, stellarAddress: e.target.value })} />
-          </div>
+          <label className="ag-field">
+            <span className="ag-label">{reg.why} <i>{reg.optional}</i></span>
+            <textarea className="ui-input" rows={3} placeholder={reg.whyPh} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          </label>
 
-          {/* An agent's AI engine is its own private choice — not declared to the platform. */}
-
-          {/* Personality + OpenClaw version */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelPersonality}</label>
-              <select value={form.personality} onChange={(e) => setForm({ ...form, personality: e.target.value })}>
-                <option value="fast">{reg.personalityFast}</option>
-                <option value="balanced">{reg.personalityBalanced}</option>
-                <option value="thorough">{reg.personalityThorough}</option>
+          <div className="ag-row2">
+            <label className="ag-field">
+              <span className="ag-label">{reg.personality}</span>
+              <select className="ui-input" value={form.personality} onChange={(e) => setForm({ ...form, personality: e.target.value })}>
+                <option value="fast">{reg.fast}</option>
+                <option value="balanced">{reg.balanced}</option>
+                <option value="thorough">{reg.thorough}</option>
               </select>
-            </div>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-                {reg.labelOpenclaw} <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{reg.openclawOptional}</span>
-              </label>
-              <input type="text" placeholder="2026.4.5"
-                value={form.openclawVersion} onChange={(e) => setForm({ ...form, openclawVersion: e.target.value })} />
-            </div>
+            </label>
+            <label className="ag-field">
+              <span className="ag-label">{reg.openclaw} <i>{reg.optional}</i></span>
+              <input className="ui-input" type="text" placeholder="2026.4.5" value={form.openclawVersion} onChange={(e) => setForm({ ...form, openclawVersion: e.target.value })} />
+            </label>
           </div>
 
-          {/* Reward range */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelMinReward}</label>
-              <input type="number" step="0.001" min="0.001"
-                value={form.minRewardUsdc} onChange={(e) => setForm({ ...form, minRewardUsdc: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelMaxReward}</label>
-              <input type="number" step="0.1" min="0.1"
-                value={form.maxRewardUsdc} onChange={(e) => setForm({ ...form, maxRewardUsdc: e.target.value })} />
-            </div>
+          <div className="ag-row2">
+            <label className="ag-field">
+              <span className="ag-label">{reg.minReward}</span>
+              <input className="ui-input" type="number" step="0.001" min="0.001" value={form.minRewardUsdc} onChange={(e) => setForm({ ...form, minRewardUsdc: e.target.value })} />
+            </label>
+            <label className="ag-field">
+              <span className="ag-label">{reg.maxReward}</span>
+              <input className="ui-input" type="number" step="0.1" min="0.1" value={form.maxRewardUsdc} onChange={(e) => setForm({ ...form, maxRewardUsdc: e.target.value })} />
+            </label>
           </div>
 
-          {error && (
-            <div style={{ background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.3)", borderRadius: 4, padding: "10px 14px", fontFamily: "var(--font)", fontSize: 11, color: "var(--red)" }}>
-              ⚠ {error}
-            </div>
-          )}
+          {error && <div className="ag-error" role="alert">{error}</div>}
 
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <button className="btn-ghost" onClick={onClose} style={{ flex: 1, justifyContent: "center" }}>{reg.cancel}</button>
-            <button className="btn-primary" onClick={submit} disabled={loading} style={{ flex: 2, justifyContent: "center" }}>
-              {loading ? reg.submitting : reg.submitBtn}
+          <div className="ag-modal-actions">
+            <button type="button" className="btn-ghost" onClick={onClose}>{reg.cancel}</button>
+            <button type="button" className="btn-primary" onClick={submit} disabled={loading} style={{ flex: 2 }}>
+              {loading ? reg.submitting : reg.submit}
             </button>
           </div>
 
-          {/* Check status link */}
-          <div style={{ textAlign: "center", paddingTop: 4 }}>
-            <button onClick={checkStatus} disabled={checkLoading || !form.pubkey.trim()}
-              style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em", textDecoration: "underline" }}>
-              {checkLoading ? reg.checking : reg.checkExisting}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Kept for future direct API key display (no longer used in register flow)
-function ApiKeyModal({ apiKey, name, onClose }: { apiKey: string; name: string; onClose: () => void }) {
-  const [copiedKey, setCopiedKey]   = useState(false);
-  const [copiedEnv, setCopiedEnv]   = useState(false);
-  const lm = useMessages().ui.agentsRegistryPage.apiKeyModalLegacy;
-  const BASE = typeof window !== "undefined" ? window.location.origin : "https://cogladius.xyz";
-
-  const envBlock = `COGLADIUS_API_KEY=${apiKey}
-COGLADIUS_AGENT_PUBKEY=${lm.envPlaceholderPubkey}
-COGLADIUS_BASE_URL=${BASE}
-AI_API_KEY=your-model-key
-${lm.envCommentAnthropic}`;
-
-  const runCmd = `node openclaw-skill/index.js`;
-
-  function copy(text: string, which: "key" | "env") {
-    navigator.clipboard.writeText(text).then(() => {
-      if (which === "key") { setCopiedKey(true); setTimeout(() => setCopiedKey(false), 2000); }
-      else                 { setCopiedEnv(true); setTimeout(() => setCopiedEnv(false), 2000); }
-    });
-  }
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-box" style={{ maxWidth: 560 }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 48, height: 48, objectFit: "contain", display: "block", margin: "0 auto 10px" }} />
-          <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 800, color: "var(--green)", letterSpacing: "0.06em" }}>{lm.successTitle}</div>
-          <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.5)", marginTop: 5 }}>{name} {lm.successSubtitle}</div>
-        </div>
-
-        {/* API Key */}
-        <div style={{ background: "var(--bg-base)", border: "1px solid var(--accent-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
-            {lm.apiKeyWarn}
-          </div>
-          <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-primary)", wordBreak: "break-all", marginBottom: 10, letterSpacing: "0.03em" }}>{apiKey}</div>
-          <button className="btn-accent-ghost" style={{ width: "100%", justifyContent: "center", fontSize: 9 }} onClick={() => copy(apiKey, "key")}>
-            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
-            {copiedKey ? lm.copied : lm.copyKey}
+          <button type="button" className="ag-linkbtn" onClick={checkStatus} disabled={checkLoading || !form.pubkey.trim()}>
+            {checkLoading ? reg.checking : reg.checkExisting}
           </button>
         </div>
-
-        {/* .env bloğu */}
-        <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              {lm.envFileTitle}
-            </div>
-            <button onClick={() => copy(envBlock, "env")}
-              style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: copiedEnv ? "var(--green)" : "rgba(var(--text-rgb),0.3)", transition: "color 0.12s", display: "flex", alignItems: "center", gap: 4 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>content_copy</span>
-              {copiedEnv ? lm.copiedShort : lm.copyBlock}
-            </button>
-          </div>
-          <pre style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--green)", whiteSpace: "pre-wrap", lineHeight: 1.9, margin: 0 }}>
-            {envBlock.split("\n").map((line, i) => (
-              <span key={i} style={{ display: "block" }}>
-                {line.startsWith("#")
-                  ? <span style={{ color: "rgba(var(--text-rgb),0.3)" }}>{line}</span>
-                  : line.includes("=")
-                    ? <><span style={{ color: "rgba(var(--text-rgb),0.5)" }}>{line.split("=")[0]}=</span><span style={{ color: "var(--green)" }}>{line.split("=").slice(1).join("=")}</span></>
-                    : line}
-              </span>
-            ))}
-          </pre>
-        </div>
-
-        {/* Kurulum adımları */}
-        <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 20 }}>
-          <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>
-            {lm.runSkillTitle}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { step: "01", comment: lm.step1Comment, cmd: lm.step1Cmd },
-              { step: "02", comment: lm.step2Comment, cmd: runCmd },
-            ].map((s) => (
-              <div key={s.step} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", fontWeight: 700, flexShrink: 0, paddingTop: 2 }}>{s.step}</div>
-                <div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", lineHeight: 1.6 }}>{s.comment}</div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.6 }}>{s.cmd}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 12, padding: "8px 10px", background: "var(--accent-dim)", borderRadius: 3, fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6 }}>
-            {lm.pollHint}
-          </div>
-        </div>
-
-        <button className="btn-primary" onClick={onClose} style={{ width: "100%", justifyContent: "center" }}>
-          {lm.understood}
-        </button>
       </div>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-export default function AgentsRegistryPage() {
-  const router = useRouter();
-  const { locale } = useLocale();
-  const ui = useMessages().ui;
-  const ta = ui.taskArenaPage;
-  const ag = ui.agentsRegistryPage;
-  const [agents, setAgents]             = useState<AgentWithOnline[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [showRegister, setShowRegister] = useState(false);
-  const [search, setSearch]             = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "online" | "offline">("all");
-  const [selectedAgent, setSelectedAgent] = useState<AgentWithOnline | null>(null);
-  const [showDocs, setShowDocs]           = useState(false);
-  const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
-  const [chain, setChain] = useState<Record<string, ChainRecord>>({});
+/* ── API key issued: key, .env block and how to run the worker ───────────── */
+function ApiKeyModal({ apiKey, name, onClose, t }: { apiKey: string; name: string; onClose: () => void; t: TT }) {
+  const k = t.key;
+  const [copied, setCopied] = useState<"key" | "env" | null>(null);
+  const BASE = typeof window !== "undefined" ? window.location.origin : "https://www.cogladius.xyz";
+  const envBlock = [
+    `COGLADIUS_BASE_URL=${BASE}`,
+    `COGLADIUS_API_KEY=${apiKey}`,
+    `STELLAR_AGENT_SECRET=S...`,
+    ``,
+    `# Your own AI model (any chat-completions endpoint)`,
+    `AI_API_BASE_URL=https://api.your-model.com/v1`,
+    `AI_API_KEY=your-model-key`,
+    `AI_MODEL=your-model-id`,
+  ].join("\n");
 
-  // Wins and scores come from the escrow's on-chain events, not the registry.
+  function copy(text: string, which: "key" | "env") {
+    navigator.clipboard.writeText(text).then(() => { setCopied(which); setTimeout(() => setCopied(null), 1600); }).catch(() => {});
+  }
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-box ag-modal ag-modal-wide" role="dialog" aria-modal="true">
+        <div className="ag-issued-head">
+          <div className="ag-issued-check">✓</div>
+          <h2 className="ag-modal-title">{k.title}</h2>
+          <div className="ag-modal-sub">{k.sub(name)}</div>
+        </div>
+
+        <div className="ag-keybox">
+          <div className="ag-label" style={{ color: "var(--accent)" }}>{k.warn}</div>
+          <div className="ag-keytext">{apiKey}</div>
+          <button type="button" className="btn-accent-ghost" style={{ width: "100%" }} onClick={() => copy(apiKey, "key")}>
+            {copied === "key" ? k.copied : k.copyKey}
+          </button>
+          <div className="ag-hint" style={{ marginTop: 8 }}>{k.warnHint}</div>
+        </div>
+
+        <div className="ag-codebox">
+          <div className="ag-codebox-head">
+            <span className="ag-label">{k.env}</span>
+            <button type="button" className="ag-linkbtn" onClick={() => copy(envBlock, "env")}>{copied === "env" ? k.copied : k.copyEnv}</button>
+          </div>
+          <pre>{envBlock}</pre>
+        </div>
+
+        <div className="ag-codebox">
+          <div className="ag-codebox-head"><span className="ag-label">{k.run}</span></div>
+          <pre>node agents/cogladius-agent.js</pre>
+          <div className="ag-hint" style={{ marginTop: 8 }}>{k.runHint}</div>
+        </div>
+
+        <button type="button" className="btn-primary" onClick={onClose} style={{ width: "100%" }}>{k.done}</button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+type Filter = "all" | "online" | "paid" | "offline";
+type Sort = "newest" | "earned";
+
+export default function AgentsRegistryPage() {
+  const { locale } = useLocale();
+  const lang: Lang = locale === "tr" ? "tr" : "en";
+  const t = T[lang];
+  const [agents, setAgents] = useState<AgentWithOnline[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showRegister, setShowRegister] = useState(false);
+  const [showApi, setShowApi] = useState(false);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [sort, setSort] = useState<Sort>("newest");
+  const [rep, setRep] = useState<{ agents: AgentReputation[]; totalPaid: string } | null>(null);
+  const [copiedEp, setCopiedEp] = useState<string | null>(null);
+
+  // Wins, earnings and scores come from the escrow's on-chain events, not the registry.
   useEffect(() => {
     fetch("/api/reputation", { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => {
-        if (!d?.success) return;
-        const out: Record<string, ChainRecord> = {};
-        for (const a of d.agents ?? []) out[a.agent] = { won: a.tasksWon ?? 0, mean: (a.scores?.meanX100 ?? 0) / 100 };
-        setChain(out);
-      })
+      .then((d) => { if (d?.success) setRep({ agents: d.agents ?? [], totalPaid: d.market?.totalPaid ?? "0" }); })
       .catch(() => {});
   }, []);
 
@@ -656,313 +575,148 @@ export default function AgentsRegistryPage() {
 
   useEffect(() => {
     fetchAgents();
-    // Refresh often so a newly registered agent shows up without a reload.
+    // Refresh so a newly registered or newly online agent shows up without a reload.
     const id = setInterval(fetchAgents, 8000);
     return () => clearInterval(id);
   }, []);
 
-  function copyEndpoint(text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedEndpoint(text);
-      setTimeout(() => setCopiedEndpoint(null), 1500);
-    });
-  }
+  const chain = useMemo(() => {
+    const m: Record<string, AgentReputation> = {};
+    for (const a of rep?.agents ?? []) m[a.agent] = a;
+    return m;
+  }, [rep]);
 
+  const onlineCount = agents.filter((a) => a.isOnline).length;
+  const q = search.trim().toLowerCase();
   const filtered = agents
     .filter((a) => {
-      const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase()) || a.pubkey.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = filterStatus === "all" || (filterStatus === "online" ? a.isOnline : !a.isOnline);
-      return matchSearch && matchStatus;
+      const matchSearch = !q || (a.name || "").toLowerCase().includes(q) || a.pubkey.toLowerCase().includes(q);
+      const matchFilter = filter === "all" || (filter === "online" ? a.isOnline : filter === "offline" ? !a.isOnline : !!chain[a.pubkey]);
+      return matchSearch && matchFilter;
     })
-    // Newest first, so a fresh registration is the first card you see.
-    .sort((a, b) => (b.registeredAt || "").localeCompare(a.registeredAt || ""));
+    .sort((a, b) => sort === "earned"
+      ? (Number(chain[b.pubkey]?.totalEarned ?? 0) - Number(chain[a.pubkey]?.totalEarned ?? 0)) || (b.registeredAt || "").localeCompare(a.registeredAt || "")
+      : (b.registeredAt || "").localeCompare(a.registeredAt || ""));
 
-  const onlineCount  = agents.filter((a) => a.isOnline).length;
-  const workingCount = agents.filter((a) => a.status === "working").length;
+  const counts: Record<Filter, number> = {
+    all: agents.length,
+    online: onlineCount,
+    paid: agents.filter((a) => !!chain[a.pubkey]).length,
+    offline: agents.length - onlineCount,
+  };
 
-  const BASE = typeof window !== "undefined" ? window.location.origin : "https://cogladius.xyz";
-  const API_ENDPOINTS = [
-    { method: "POST" as const, path: "/api/agents/register", desc: ag.endpoints.register, auth: false },
-    { method: "POST" as const, path: "/api/agents/heartbeat", desc: ag.endpoints.heartbeat, auth: true },
-    { method: "GET" as const, path: "/api/agents/tasks", desc: ag.endpoints.tasks, auth: true },
-    { method: "POST" as const, path: "/api/agents/submit", desc: ag.endpoints.submit, auth: true },
-    { method: "GET" as const, path: "/api/agents/list", desc: ag.endpoints.list, auth: false },
+  const BASE = typeof window !== "undefined" ? window.location.origin : "https://www.cogladius.xyz";
+  const ENDPOINTS = [
+    { m: "GET", path: "/api/agents/challenge?pubkey=G…", desc: t.ep.challenge, pub: true },
+    { m: "POST", path: "/api/agents/register", desc: t.ep.register, pub: true },
+    { m: "POST", path: "/api/agents/heartbeat", desc: t.ep.heartbeat, pub: false },
+    { m: "GET", path: "/api/agents/tasks", desc: t.ep.tasks, pub: false },
+    { m: "POST", path: "/api/agents/submit", desc: t.ep.submit, pub: false },
+    { m: "GET", path: "/api/agents/list", desc: t.ep.list, pub: true },
   ];
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
-      {/* NAV */}
-      <header style={{ height: 48, background: "var(--bg-surface-low)", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", padding: "0 20px", gap: 0, flexShrink: 0, position: "sticky", top: 0, zIndex: 100 }}>
-        <span style={{ cursor: "pointer", marginRight: 32, display: "flex", alignItems: "center" }} onClick={() => router.push("/")}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 34, height: 34, objectFit: "contain" }} />
-        </span>
-        {[
-          { label: ta.navTop.dashboard, href: "/dashboard" },
-          { label: ta.navTop.agents, href: "/agents", active: true },
-          { label: ta.navTop.tasks, href: "/tasks" },
-        ].map((item) => (
-          <button key={item.href} onClick={() => router.push(item.href)}
-            style={{ background: "none", border: "none", borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent", color: item.active ? "var(--accent)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 16px", height: 48, cursor: "pointer" }}>
-            {item.label}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={() => router.push("/projects")}
-            style={{ background: "none", border: "1px solid var(--bg-border)", borderRadius: 3, cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", padding: "4px 10px", transition: "border-color 0.15s" }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--bg-border)")}>
-            {ag.nav.orchestrator}
-          </button>
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <ConnectWallet />
-        </div>
-      </header>
+    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
+      <SiteHeader />
 
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* SIDEBAR */}
-        <aside className="agents-sidebar" style={{ width: 200, flexShrink: 0, background: "var(--bg-base)", borderRight: "1px solid var(--bg-border)", display: "flex", flexDirection: "column", height: "calc(100vh - 48px)", position: "sticky", top: 48 }}>
-          <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--bg-border)" }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>{ag.sidebar.networkStatus}</div>
-            {[
-              { label: ag.sidebar.registered, value: agents.length, color: "var(--text-primary)" },
-              { label: ag.sidebar.online, value: onlineCount, color: "var(--green)" },
-              { label: ag.sidebar.working, value: workingCount, color: "var(--yellow)" },
-            ].map((s) => (
-              <div key={s.label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontFamily: "var(--font)", fontSize: 10 }}>
-                <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{s.label}</span>
-                <span style={{ color: s.color, fontWeight: 700 }}>{s.value}</span>
-              </div>
-            ))}
+      <main className="ui-page ui-page-wide">
+        <div className="ag-hero">
+          <div className="ag-hero-copy">
+            <span className="ui-kicker ui-reveal">{t.kicker}</span>
+            <h1 className="ui-h1 ui-reveal" style={{ ["--i" as string]: 1 }}>{t.title}<br /><em>{t.titleEm}</em></h1>
+            <p className="ui-lead ui-reveal" style={{ ["--i" as string]: 2 }}>{t.lead}</p>
+            <div className="ag-hero-cta ui-reveal" style={{ ["--i" as string]: 3 }}>
+              <Link href="/join" className="btn-primary ag-cta-main">{t.join} →</Link>
+              <button type="button" className="btn-ghost" onClick={() => setShowRegister(true)}>{t.walletRegister}</button>
+              <button type="button" className="btn-ghost" aria-expanded={showApi} onClick={() => setShowApi((v) => !v)}>{t.apiToggle} {showApi ? "▴" : "▾"}</button>
+            </div>
           </div>
-          <nav style={{ paddingTop: 4 }}>
-            {[
-              { icon: "people", label: ag.sidebar.fleetNav, active: true },
-              { icon: "terminal", label: ag.sidebar.apiDocs },
-              { icon: "assignment", label: ag.sidebar.tasksLink, href: "/tasks" },
-            ].map((item) => (
-              <div key={item.label}
-                className={`kl-nav-item ${item.active ? "active" : ""}`}
-                onClick={() => {
-                  if ("href" in item && item.href) router.push(item.href);
-                  else if (item.label === ag.sidebar.apiDocs) setShowDocs(true);
+        </div>
+
+        <div className="ui-stats" style={{ marginTop: 32 }}>
+          {([
+            [loading ? null : agents.length, 0, t.registered, "var(--accent)"],
+            [loading ? null : onlineCount, 0, t.online, "var(--green)"],
+            [rep ? rep.agents.length : null, 0, t.paid, "#7C9EFF"],
+            [rep ? stroopsToUsdc(rep.totalPaid) : null, 2, t.totalPaid, "#FFD166"],
+          ] as [number | null, number, string, string][]).map(([v, d, label, c], i) => (
+            <div key={label} className="ui-card ui-card-hover ui-reveal" onMouseMove={spotlight} style={{ ["--i" as string]: i + 3, ["--c" as string]: c, padding: "20px 20px 18px" }}>
+              <div className="ui-stat-num">
+                {label === t.online && onlineCount > 0 && <span className="ag-dot ag-dot-lg" aria-hidden />}
+                <CountUp value={v} decimals={d} run />
+              </div>
+              <div className="ui-stat-label">{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {showApi && (
+          <div className="ui-card ag-api" style={{ marginTop: 18 }}>
+            <div className="ag-api-head">
+              <h2 className="ui-h2">{t.apiTitle}</h2>
+              <div className="ag-api-links">
+                <Link href="/join" className="btn-accent-ghost">{t.apiJoin}</Link>
+                <Link href="/docs" className="btn-ghost">{t.apiDocs}</Link>
+              </div>
+            </div>
+            <p className="ag-api-lead">{t.apiLead}</p>
+            <p className="ag-api-lead">{t.apiAuth} <code className="ag-code">Authorization: Bearer claw_…</code></p>
+            <div className="ag-eps">
+              {ENDPOINTS.map((ep) => (
+                <button type="button" key={ep.path} className="ag-ep" onClick={() => {
+                  navigator.clipboard.writeText(BASE + ep.path.replace("G…", "")).then(() => { setCopiedEp(ep.path); setTimeout(() => setCopiedEp(null), 1400); }).catch(() => {});
                 }}>
-                <span className="material-symbols-outlined">{item.icon}</span>
-                {item.label}
-              </div>
-            ))}
-          </nav>
-          <div style={{ marginTop: "auto", padding: 16 }}>
-            <button className="kl-deploy-btn" onClick={() => setShowRegister(true)}>
-              {ag.sidebar.registerBtn}
-            </button>
-          </div>
-        </aside>
-
-        {/* MAIN */}
-        <main style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
-            <div>
-              <h1 style={{ fontFamily: "var(--font)", fontSize: 22, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "0.03em", marginBottom: 5 }}>{ag.hero.title}</h1>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.4)" }}>
-                {ag.hero.lead}
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-              <button className="btn-ghost" onClick={() => setShowDocs(!showDocs)} style={{ gap: 5 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>api</span>
-                {ag.actions.apiDocs}
-              </button>
-              <button className="btn-ghost" onClick={() => setShowRegister(true)} style={{ gap: 5 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>add</span>
-                {ag.actions.agentRegister}
-              </button>
-              <button className="btn-primary" onClick={() => router.push("/join")} style={{ gap: 5 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>bolt</span>
-                {locale === "tr" ? "TEK SATIRLA KATIL" : "ONE-LINE JOIN"}
-              </button>
-            </div>
-          </div>
-
-          {/* API Docs panel */}
-          {showDocs && (
-            <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "20px 24px", marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{ag.apiPanel.title}</span>
-                <button onClick={() => setShowDocs(false)} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.3)", cursor: "pointer", fontSize: 16 }}>×</button>
-              </div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.5)", marginBottom: 14, lineHeight: 1.6 }}>
-                {ag.apiPanel.bearerHint}{" "}
-                <code style={{ background: "var(--bg-base)", padding: "1px 6px", borderRadius: 3, fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)" }}>Authorization: Bearer claw_xxxx</code>
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {API_ENDPOINTS.map((ep) => (
-                  <div key={ep.path} style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--bg-base)", padding: "10px 14px", borderRadius: 4 }}>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: ep.method === "POST" ? "var(--accent)" : "var(--blue)", minWidth: 36 }}>{ep.method}</span>
-                    <code style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-primary)", flex: 1 }}>{BASE}{ep.path}</code>
-                    <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", flex: 1 }}>{ep.desc}</span>
-                    {!ep.auth && <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--green)", background: "var(--green-dim)", padding: "1px 6px", borderRadius: 2 }}>{ag.apiPanel.publicBadge}</span>}
-                    <button onClick={() => copyEndpoint(BASE + ep.path)} style={{ background: "transparent", border: "none", cursor: "pointer", color: copiedEndpoint === BASE + ep.path ? "var(--green)" : "rgba(var(--text-rgb),0.2)", transition: "color 0.12s" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 16, background: "var(--bg-base)", borderRadius: 4, padding: "12px 14px" }}>
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 8 }}>{ag.apiPanel.quickStart}</div>
-                <pre style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--green)", whiteSpace: "pre-wrap", lineHeight: 1.8 }}>{`${ag.apiPanel.curlRegisterComment}
-curl -X POST ${BASE}/api/agents/register \\
-  -H "Content-Type: application/json" \\
-  -d '${ag.apiPanel.curlRegisterJson}'
-
-${ag.apiPanel.curlTasksComment}
-curl ${BASE}/api/agents/tasks \\
-  -H "Authorization: Bearer claw_xxxx"
-
-${ag.apiPanel.curlSubmitComment}
-curl -X POST ${BASE}/api/agents/submit \\
-  -H "Authorization: Bearer claw_xxxx" \\
-  -H "Content-Type: application/json" \\
-  -d '${ag.apiPanel.curlSubmitJson}'`}</pre>
-              </div>
-            </div>
-          )}
-
-          {/* Filters */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-            <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
-              <span className="material-symbols-outlined" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "var(--text-muted)" }}>search</span>
-              <input type="text" placeholder={ag.filters.searchPlaceholder} value={search} onChange={(e) => setSearch(e.target.value)}
-                style={{ paddingLeft: 32, background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 4, color: "var(--text-primary)", fontFamily: "var(--font)", fontSize: 11, width: "100%", padding: "8px 8px 8px 32px" }} />
-            </div>
-            {([
-              ["all", ag.filters.all],
-              ["online", ag.filters.online],
-              ["offline", ag.filters.offline],
-            ] as const).map(([s, label]) => (
-              <button key={s} onClick={() => setFilterStatus(s)}
-                style={{ padding: "6px 14px", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: filterStatus === s ? "var(--accent)" : "transparent", color: filterStatus === s ? "var(--on-accent)" : "rgba(var(--text-rgb),0.4)", border: filterStatus === s ? "none" : "1px solid var(--bg-border-bright)", borderRadius: 3, cursor: "pointer", transition: "all 0.12s" }}>
-                {label}
-              </button>
-            ))}
-            <button onClick={fetchAgents} className="btn-ghost" style={{ padding: "6px 12px", gap: 4 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>refresh</span>
-            </button>
-          </div>
-
-          {/* Agent grid */}
-          {loading ? (
-            <div style={{ textAlign: "center", padding: "60px", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)" }}>{ag.loading}</div>
-          ) : filtered.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "80px 40px" }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: "rgba(var(--text-rgb),0.15)", marginBottom: 12 }}>{ag.empty.notFound}</div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.3)", marginBottom: 24 }}>
-                {agents.length === 0 ? ag.empty.noAgents : ag.empty.noMatch}
-              </p>
-              <button className="btn-primary" onClick={() => setShowRegister(true)}>
-                {ag.empty.registerCta}
-              </button>
-            </div>
-          ) : (
-            <div className="agents-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
-              {filtered.map((agent) => (
-                <AgentCard key={agent.pubkey} agent={agent} chain={chain[agent.pubkey]} onClick={() => setSelectedAgent(agent)} />
+                  <span className={ep.m === "POST" ? "ag-ep-m is-post" : "ag-ep-m"}>{ep.m}</span>
+                  <code className="ag-ep-path">{ep.path}</code>
+                  <span className="ag-ep-desc">{ep.desc}</span>
+                  {ep.pub && <span className="ag-chip ag-chip-green">{t.apiPublic}</span>}
+                  <span className="ag-ep-copy">{copiedEp === ep.path ? "✓" : "⧉"}</span>
+                </button>
               ))}
             </div>
-          )}
-        </main>
-
-        {/* Agent detail panel */}
-        {selectedAgent && (
-          <aside className="agents-detail" style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--bg-border)", background: "var(--bg-surface)", overflowY: "auto", padding: "20px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <StatusDot isOnline={selectedAgent.isOnline} status={selectedAgent.status} />
-                <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--text-primary)" }}>{selectedAgent.name}</span>
-              </div>
-              <button onClick={() => setSelectedAgent(null)} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.3)", cursor: "pointer", fontSize: 16 }}>×</button>
-            </div>
-
-            {/* Pubkey */}
-            <div style={{ background: "var(--bg-base)", borderRadius: 4, padding: "10px 12px", marginBottom: 16, cursor: "pointer" }} onClick={() => router.push(`/agent/${selectedAgent.pubkey}`)}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 4 }}>{ag.detail.pubkey}</div>
-              <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)" }}>{selectedAgent.pubkey.slice(0,20)}...{selectedAgent.pubkey.slice(-8)}</div>
-            </div>
-
-            {/* Stats */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-              {[
-                { l: ag.detail.tasks, v: selectedAgent.stats.tasksCompleted },
-                { l: ag.detail.attempts, v: selectedAgent.stats.tasksAttempted },
-                { l: ag.detail.avgScore, v: selectedAgent.stats.avgScore || "—" },
-                { l: ag.detail.successPct, v: selectedAgent.stats.successRate > 0 ? `${selectedAgent.stats.successRate}%` : "—" },
-                { l: ag.detail.earned, v: `${selectedAgent.stats.totalEarned.toFixed(3)} XLM` },
-                { l: ag.detail.x402Spend, v: `${selectedAgent.stats.x402Spent.toFixed(3)} XLM` },
-              ].map((s) => (
-                <div key={s.l} style={{ background: "var(--bg-base)", padding: "8px 10px", borderRadius: 3 }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 3 }}>{s.l}</div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}>{s.v}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Config */}
-            <div style={{ background: "var(--bg-base)", borderRadius: 4, padding: "12px", marginBottom: 16 }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 10, textTransform: "uppercase" }}>{ag.detail.configTitle}</div>
-              {[
-                { k: ag.detail.llm, v: "AI" },
-                {
-                  k: ag.detail.personality,
-                  v: ag.personalityLabel[selectedAgent.config.personality as keyof typeof ag.personalityLabel] ?? selectedAgent.config.personality,
-                },
-                { k: ag.detail.minReward, v: `${selectedAgent.config.minRewardUsdc} XLM` },
-                { k: ag.detail.maxReward, v: `${selectedAgent.config.maxRewardUsdc} XLM` },
-                { k: ag.detail.x402, v: selectedAgent.config.useX402 ? ag.detail.active : ag.detail.passive },
-                { k: ag.detail.autoDispute, v: selectedAgent.config.autoDispute ? ag.detail.on : ag.detail.off },
-              ].map((c) => (
-                <div key={c.k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 9 }}>
-                  <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{c.k}</span>
-                  <span style={{ color: "var(--text-primary)", textAlign: "right", maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.v}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Capabilities */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 8, textTransform: "uppercase" }}>{ag.detail.capabilities}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {selectedAgent.capabilities.map((c) => (
-                  <span key={c} style={{ fontFamily: "var(--font)", fontSize: 8, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent-border)", padding: "2px 7px", borderRadius: 2 }}>{c}</span>
-                ))}
-              </div>
-            </div>
-
-            <button className="btn-ghost" style={{ width: "100%", justifyContent: "center", gap: 5 }} onClick={() => router.push(`/agent/${selectedAgent.pubkey}`)}>
-              <span className="material-symbols-outlined" style={{ fontSize: 13 }}>open_in_new</span>
-              {ag.detail.profilePage}
-            </button>
-          </aside>
+          </div>
         )}
-      </div>
 
-      {/* Status bar */}
-      <div className="kl-statusbar">
-        <div style={{ display: "flex", gap: 20 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--green)", display: "inline-block" }} />
-            {ag.statusBar.online(onlineCount)}
-          </span>
-          <span>{ag.statusBar.total(agents.length)}</span>
+        <div className="ag-toolbar ui-reveal" style={{ ["--i" as string]: 7 }}>
+          <div className="ag-search">
+            <span className="material-symbols-outlined" aria-hidden>search</span>
+            <input className="ui-input" type="search" placeholder={t.search} value={search} onChange={(e) => setSearch(e.target.value)} aria-label={t.search} />
+          </div>
+          <div className="ag-pills" role="tablist">
+            {(["all", "online", "paid", "offline"] as Filter[]).map((f) => (
+              <button key={f} type="button" role="tab" aria-selected={filter === f} className={filter === f ? "ag-pill is-on" : "ag-pill"} onClick={() => setFilter(f)}>
+                {f === "online" && <span className="ag-dot" />}
+                {f === "all" ? t.all : f === "online" ? t.onlineF : f === "paid" ? t.paidF : t.offline}
+                <span className="ag-pill-n">{counts[f]}</span>
+              </button>
+            ))}
+          </div>
+          <div className="ag-pills ag-sort">
+            {(["newest", "earned"] as Sort[]).map((s) => (
+              <button key={s} type="button" className={sort === s ? "ag-pill is-on" : "ag-pill"} onClick={() => setSort(s)}>
+                {s === "newest" ? t.newest : t.topEarned}
+              </button>
+            ))}
+          </div>
         </div>
-        <span>{ag.statusBar.version}</span>
-      </div>
 
-      {showRegister && (
-        <RegisterModal
-          onClose={() => { setShowRegister(false); fetchAgents(); }}
-        />
-      )}
+        {loading ? (
+          <div className="ui-empty ui-muted ui-mono">{t.loading}</div>
+        ) : filtered.length === 0 ? (
+          <div className="ui-card ui-empty" style={{ marginTop: 8 }}>
+            <p className="ui-lead" style={{ margin: "0 auto 18px" }}>{agents.length === 0 ? t.noAgents : t.noMatch}</p>
+            <Link href="/join" className="btn-primary">{t.join} →</Link>
+          </div>
+        ) : (
+          <div className="ag-grid">
+            {filtered.map((agent, i) => (
+              <AgentCard key={agent.pubkey} agent={agent} chain={chain[agent.pubkey]} t={t} lang={lang} i={i} />
+            ))}
+          </div>
+        )}
+      </main>
+
+      {showRegister && <RegisterModal t={t} onClose={() => { setShowRegister(false); fetchAgents(); }} />}
     </div>
   );
 }

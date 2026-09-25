@@ -2,10 +2,20 @@
 
 import { useState } from "react";
 import { useWallet } from "@/lib/useWallet";
-import { Task } from "@/lib/types";
-import { explorerTx } from "@/lib/constants";
+import type { Task } from "@/lib/types";
+import { explorerTx, shortenAddress } from "@/lib/constants";
 import { disputeAsPoster } from "@/lib/sorobanEscrow";
-import { useMessages } from "@/lib/i18n";
+import { useLocale } from "@/lib/i18n";
+
+/**
+ * Flags an already-settled task as disputed on the escrow contract.
+ *
+ * What actually happens: the poster signs a SEP-53 message, the server checks
+ * it against the escrow's recorded poster, then the platform admin key calls
+ * `flag_disputed`. That only changes the on-chain status to Disputed and emits
+ * an event. No funds move, nothing is re-judged, and there is no stake or
+ * refund. Styling comes from app/task/[id]/task.css (the only page using it).
+ */
 
 interface DisputePanelProps {
   task: Task;
@@ -13,49 +23,76 @@ interface DisputePanelProps {
   onDisputed: (txHash: string) => void;
 }
 
-export default function DisputePanel({
-  task,
-  onClose,
-  onDisputed,
-}: DisputePanelProps) {
-  const dp = useMessages().ui.disputePanel;
+const T = {
+  en: {
+    what: "This writes a dispute record for this task on the escrow contract.",
+    points: [
+      "You sign a message with the wallet that posted the task.",
+      "The platform admin key then calls flag_disputed on the escrow. The task's on-chain status becomes Disputed and an event is emitted.",
+      "Nothing else happens: the payout stays with the winner, no one re-judges the work, and there is no stake and no refund.",
+    ],
+    onlySettled: "A dispute can only be recorded after the reward has been released.",
+    status: "Current status",
+    noEscrow: "This task has no escrowed reward on-chain, so there is nothing to flag.",
+    connect: "Connect the wallet that posted this task to sign.",
+    notPoster: (a: string) => `Only the poster (${a}) can flag this task.`,
+    cancel: "Cancel",
+    confirm: "Sign and record dispute",
+    working: "Waiting for signature…",
+    already: "This task is already flagged as disputed on-chain.",
+    doneTitle: "Dispute recorded on-chain",
+    doneText: "The escrow now shows this task as Disputed. No funds moved.",
+    tx: "Transaction",
+    close: "Close",
+    failed: "Could not record the dispute",
+  },
+  tr: {
+    what: "Bu işlem, görev için escrow kontratına bir itiraz kaydı yazar.",
+    points: [
+      "Görevi yayınlayan cüzdanla bir mesaj imzalarsın.",
+      "Ardından platform yönetici anahtarı escrow üzerinde flag_disputed çağırır. Görevin zincirdeki durumu Disputed olur ve bir olay yayımlanır.",
+      "Başka hiçbir şey olmaz: ödeme kazananda kalır, iş yeniden puanlanmaz, stake ve iade yoktur.",
+    ],
+    onlySettled: "İtiraz kaydı yalnızca ödül ödendikten sonra yazılabilir.",
+    status: "Mevcut durum",
+    noEscrow: "Bu görevin zincirde escrow'da ödülü yok; işaretlenecek bir şey bulunmuyor.",
+    connect: "İmzalamak için bu görevi yayınlayan cüzdanı bağla.",
+    notPoster: (a: string) => `Bu görevi yalnızca yayınlayan (${a}) işaretleyebilir.`,
+    cancel: "Vazgeç",
+    confirm: "İmzala ve itirazı kaydet",
+    working: "İmza bekleniyor…",
+    already: "Bu görev zincirde zaten itirazlı olarak işaretli.",
+    doneTitle: "İtiraz zincire kaydedildi",
+    doneText: "Escrow bu görevi artık Disputed olarak gösteriyor. Hiçbir fon hareket etmedi.",
+    tx: "İşlem",
+    close: "Kapat",
+    failed: "İtiraz kaydedilemedi",
+  },
+};
+
+export default function DisputePanel({ task, onClose, onDisputed }: DisputePanelProps) {
+  const { locale } = useLocale();
+  const t = T[locale === "tr" ? "tr" : "en"];
   const { connected, address } = useWallet();
 
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const rewardUsdc = task.rewardUsdc ?? task.reward / 1e7;
-  const stakeUsdc = rewardUsdc * 0.2;
-
-  const canDispute =
-    task.status === "Settled" && connected;
+  const isPoster = connected && !!address && address === task.poster;
 
   async function handleDispute() {
-    if (!connected) {
-      setError(dp.errors.walletFirst);
-      return;
-    }
-
+    if (!isPoster || task.contractTaskId === undefined) return;
     setLoading(true);
     setError(null);
-
     try {
-      // Flag the task as disputed on-chain (Soroban). Full Agent Court
-      // resolution on Stellar is a deferred deliverable.
-      // The poster signs the dispute (SEP-53); the server checks it against the
-      // escrow's recorded poster before the platform key flags the task.
-      if (task.contractTaskId === undefined) throw new Error(dp.errors.txFailed);
-      const data = await disputeAsPoster({
-        taskId: task.id,
-        contractTaskId: task.contractTaskId,
-        posterAddress: address!,
-      });
-      if (!data?.success) throw new Error(data?.error || dp.errors.txFailed);
+      // The poster signs (SEP-53); the server verifies it against the escrow's poster, then the admin key runs flag_disputed.
+      const data = await disputeAsPoster({ taskId: task.id, contractTaskId: task.contractTaskId, posterAddress: address! });
+      if (!data?.success) throw new Error(data?.error || t.failed);
       setTxHash(data.hash);
       onDisputed(data.hash);
     } catch (err: any) {
-      setError(err.message || dp.errors.txFailed);
+      setError(err?.message || t.failed);
     } finally {
       setLoading(false);
     }
@@ -63,146 +100,48 @@ export default function DisputePanel({
 
   if (txHash) {
     return (
-      <div className="terminal-panel">
-        <div
-          className="terminal-header"
-          style={{ color: "var(--orange)" }}
-        >
-            {dp.openedTitle(task.id)}
-          </div>
-          <div className="p-4 space-y-3">
-            <div className="text-center">
-              <div className="text-3xl mb-2">⚠️</div>
-              <div className="text-[var(--orange)] font-bold text-sm">
-                {dp.openedSubtitle}
-              </div>
-              <div className="text-xs text-[var(--muted)] mt-1">
-                {dp.judgesSubtitle}
-              </div>
-            </div>
-          <div className="bg-[var(--bg)] border border-[var(--dim)] rounded p-3">
-              <div className="text-[10px] text-[var(--muted)] mb-1">{dp.txHashLabel}</div>
-            <a
-              href={explorerTx(txHash)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--lobster)] text-xs hover:underline font-mono break-all"
-            >
-              {txHash}
-            </a>
-          </div>
-          <button onClick={onClose} className="btn-lobster w-full text-xs">
-            {dp.close}
-          </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div className="td-ok">
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>{t.doneTitle}</div>
+          {t.doneText}
         </div>
+        <div className="td-kv">
+          <span>{t.tx}</span>
+          <a href={explorerTx(txHash)} target="_blank" rel="noopener noreferrer" title={txHash}>{shortenAddress(txHash, 8)} ↗</a>
+        </div>
+        <button type="button" className="btn-ghost" onClick={onClose}>{t.close}</button>
       </div>
     );
   }
 
   return (
-    <div className="terminal-panel">
-      <div
-        className="terminal-header"
-        style={{
-          color: task.status === "Disputed" ? "var(--red)" : "var(--orange)",
-        }}
-      >
-        <span
-          style={{
-            background:
-              task.status === "Disputed" ? "var(--red)" : "var(--orange)",
-          }}
-        />
-            {dp.disputeTitle(task.id)}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, ["--c" as string]: "var(--red)" }}>
+      <p className="td-text">{t.what}</p>
+      <ul className="td-list" style={{ marginTop: 0 }}>
+        {t.points.map((p) => (
+          <li key={p}><span className="material-symbols-outlined">chevron_right</span>{p}</li>
+        ))}
+      </ul>
 
-      <div className="p-4 space-y-4">
-        {task.status === "Disputed" ? (
-          <div className="text-center py-4">
-            <div className="text-3xl mb-2">⚠️</div>
-            <div className="font-bold text-sm" style={{ color: "var(--red)" }}>
-                {dp.alreadyOpen}
-            </div>
-            <div className="text-xs text-[var(--muted)] mt-1">
-              {dp.evaluatingSubtitle}
-            </div>
+      {task.status === "Disputed" ? (
+        <div className="td-err">{t.already}</div>
+      ) : task.status !== "Settled" ? (
+        <div className="td-hint">{t.onlySettled} {t.status}: <b style={{ color: "var(--text-primary)" }}>{task.status}</b></div>
+      ) : task.contractTaskId === undefined ? (
+        <div className="td-hint">{t.noEscrow}</div>
+      ) : (
+        <>
+          {!connected && <div className="td-hint">{t.connect}</div>}
+          {connected && !isPoster && task.poster && <div className="td-hint">{t.notPoster(shortenAddress(task.poster, 5))}</div>}
+          {error && <div className="td-err">{error}</div>}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 8 }}>
+            <button type="button" className="btn-ghost" onClick={onClose}>{t.cancel}</button>
+            <button type="button" className="btn-danger" onClick={handleDispute} disabled={!isPoster || loading} style={!isPoster ? { opacity: 0.5, cursor: "not-allowed" } : undefined}>
+              {loading ? t.working : t.confirm}
+            </button>
           </div>
-        ) : task.status === "Settled" ? (
-          <>
-            {/* Explanation */}
-            <div className="text-xs text-[var(--text-muted)] space-y-2">
-              <p className="text-[var(--orange)] font-bold">
-                {dp.notHappyTitle}
-              </p>
-              <p>{dp.stakeExplanation(stakeUsdc.toFixed(2))}</p>
-            </div>
-
-            {/* Outcome table */}
-            <div className="bg-[var(--bg)] border border-[var(--dim)] rounded p-3 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-[var(--muted)]">{dp.ifWin}</span>
-                <span className="text-[var(--green)] font-bold">
-                  {dp.ifWinDetail}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--muted)]">{dp.ifLose}</span>
-                <span className="font-bold" style={{ color: "var(--red)" }}>
-                  {dp.ifLoseDetail}
-                </span>
-              </div>
-              <div className="flex justify-between border-t border-[var(--dim)] pt-2">
-                <span className="text-[var(--muted)]">{dp.stakeAmountLabel}</span>
-                <span className="text-[var(--orange)] font-bold">
-                  {stakeUsdc.toFixed(2)} XLM
-                </span>
-              </div>
-            </div>
-
-            {/* Error */}
-            {error && (
-              <div className="rounded p-3 text-xs" style={{ background: "var(--red-dim)", border: "1px solid var(--red)", color: "var(--red)" }}>
-                {error}
-              </div>
-            )}
-
-            {/* Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={onClose}
-                className="btn-lobster flex-1 text-xs opacity-60"
-              >
-                {dp.cancel}
-              </button>
-              {canDispute ? (
-                <button
-                  onClick={handleDispute}
-                  disabled={loading}
-                  className="btn-lobster flex-1 text-xs font-bold disabled:opacity-50"
-                  style={{ borderColor: "var(--red)", color: "var(--red)" }}
-                >
-                  {loading ? (
-                    <span className="animate-pulse">{dp.opening}</span>
-                  ) : (
-                    dp.openCta(stakeUsdc.toFixed(2))
-                  )}
-                </button>
-              ) : (
-                <div className="text-xs text-[var(--muted)] flex-1 text-center pt-2">
-                  {dp.connectWallet}
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-4 text-[var(--muted)] text-xs">
-            {dp.onlyAfterComplete}
-            <br />
-            {dp.currentStatus}{" "}
-            <span className="text-[var(--orange)]">{task.status}</span>
-          </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
