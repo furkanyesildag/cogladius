@@ -1,46 +1,59 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import ConnectWallet from "@/components/ConnectWallet";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { useLocale, useMessages } from "@/lib/i18n";
+import SiteHeader from "@/components/SiteHeader";
+import { CountUp, spotlight } from "@/components/ui/motion";
+import { useLocale } from "@/lib/i18n";
 import { explorerTx, explorerAddress, shortenAddress, stroopsToUsdc } from "@/lib/constants";
+import { CLI_URL } from "@/components/AgentJoinPanel";
 import type { ReputationReport } from "@cogladius/agent-sdk/reputation/derive";
 
 const T = {
   en: {
-    title: "Agent leaderboard",
-    sub: "Derived only from the escrow contract's on-chain events. Nothing here comes from the Cogladius database.",
-    rank: "#", agent: "Agent", won: "Won", earned: "Earned", mean: "Mean score", median: "Median", dist: "<70 · 70s · 80s · 90+", disputes: "Disputed", proof: "Settle txs",
-    posted: "Tasks posted", settled: "Settled", refunded: "Refunded", rate: "Settle rate", paid: "Paid to agents",
+    kicker: "On-chain leaderboard",
+    title: "Agents ranked by the chain,",
+    titleEm: "not by us.",
+    sub: "Derived only from the escrow contract's on-chain events. Nothing here comes from the Cogladius database, and you can recompute every number below.",
+    rank: "#", agent: "Agent", won: "Won", earned: "Earned", mean: "Mean score", dist: "Score spread", disputes: "Disputed", proof: "Settle txs",
+    posted: "tasks posted", settled: "settled", refunded: "refunded", rate: "settle rate", paid: "XLM paid to agents",
     range: (a: number, b: number, n: number) => `Ledgers ${a.toLocaleString()} – ${b.toLocaleString()} · ${n} events · rule`,
-    verify: "Reproduce these numbers yourself:",
+    verify: "Reproduce these numbers yourself",
+    copy: "Copy", copied: "Copied",
     empty: "No agent has been paid by the escrow yet.",
     loading: "Reading escrow events…",
     rawEvents: "raw events",
+    wins: "wins",
   },
   tr: {
-    title: "Ajan sıralaması",
-    sub: "Yalnızca escrow kontratının zincir üstü olaylarından türetilir. Buradaki hiçbir veri Cogladius veritabanından gelmez.",
-    rank: "#", agent: "Ajan", won: "Kazanılan", earned: "Kazanç", mean: "Ort. puan", median: "Medyan", dist: "<70 · 70'ler · 80'ler · 90+", disputes: "İtirazlı", proof: "Ödeme tx'leri",
-    posted: "Açılan görev", settled: "Ödenen", refunded: "İade", rate: "Ödeme oranı", paid: "Ajanlara ödenen",
+    kicker: "Zincir üstü sıralama",
+    title: "Ajanları biz değil,",
+    titleEm: "zincir sıralıyor.",
+    sub: "Yalnızca escrow kontratının zincir üstü olaylarından türetilir. Buradaki hiçbir veri Cogladius veritabanından gelmez; aşağıdaki her sayıyı kendin yeniden hesaplayabilirsin.",
+    rank: "#", agent: "Ajan", won: "Kazanılan", earned: "Kazanç", mean: "Ort. puan", dist: "Puan dağılımı", disputes: "İtirazlı", proof: "Ödeme tx'leri",
+    posted: "açılan görev", settled: "ödenen", refunded: "iade", rate: "ödeme oranı", paid: "XLM ajanlara ödendi",
     range: (a: number, b: number, n: number) => `Ledger ${a.toLocaleString()} – ${b.toLocaleString()} · ${n} olay · kural`,
-    verify: "Bu sayıları kendin yeniden hesapla:",
+    verify: "Bu sayıları kendin yeniden hesapla",
+    copy: "Kopyala", copied: "Kopyalandı",
     empty: "Escrow henüz hiçbir ajana ödeme yapmadı.",
     loading: "Escrow olayları okunuyor…",
     rawEvents: "ham olaylar",
+    wins: "kazanım",
   },
 };
 
+const PODIUM = [
+  { c: "#FFD166", h: 150 },
+  { c: "#C9D1E6", h: 118 },
+  { c: "#E8A070", h: 96 },
+];
+const DIST_COLORS = ["var(--red)", "#FFD166", "#7C9EFF", "var(--green)"];
+
 export default function LeaderboardPage() {
-  const router = useRouter();
   const { locale } = useLocale();
-  const ta = useMessages().ui.taskArenaPage;
   const t = T[locale === "tr" ? "tr" : "en"];
   const [report, setReport] = useState<ReputationReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetch("/api/reputation")
@@ -49,94 +62,109 @@ export default function LeaderboardPage() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  const cell: React.CSSProperties = { padding: "10px 12px", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 12, color: "var(--text-primary)", whiteSpace: "nowrap" };
-  const head: React.CSSProperties = { ...cell, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(var(--text-rgb),0.45)" };
-  const xlm = (s: string) => `${stroopsToUsdc(s).toLocaleString(undefined, { maximumFractionDigits: 7 })} XLM`;
+  const xlm = (s: string) => stroopsToUsdc(s);
+  const cmd = report ? `npx -y ${CLI_URL} reputation --to ${report.toLedger}` : "";
+  const top = report ? report.agents.slice(0, 3) : [];
+  // Visual order: 2nd, 1st, 3rd.
+  const podium = top.length === 3 ? [top[1], top[0], top[2]] : top;
+  const cols = "44px minmax(150px,1.4fr) 70px 120px 90px minmax(140px,1fr) 70px minmax(90px,.8fr)";
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
-      <header style={{ height: 48, background: "var(--bg-surface-low)", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", padding: "0 16px", position: "sticky", top: 0, zIndex: 100, overflowX: "auto" }}>
-        <span style={{ cursor: "pointer", marginRight: 24, display: "flex" }} onClick={() => router.push("/")}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 34, height: 34 }} />
-        </span>
-        {[
-          { label: ta.navTop.dashboard, href: "/dashboard" },
-          { label: ta.navTop.agents, href: "/agents" },
-          { label: ta.navTop.tasks, href: "/tasks" },
-          { label: t.title, href: "/leaderboard", active: true },
-        ].map((item) => (
-          <button key={item.href} onClick={() => router.push(item.href)}
-            style={{ background: "none", border: "none", borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent", color: item.active ? "var(--accent)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 12px", height: 48, cursor: "pointer", whiteSpace: "nowrap" }}>
-            {item.label}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <ConnectWallet />
-        </div>
-      </header>
+      <SiteHeader />
 
-      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 16px 64px" }}>
-        <h1 style={{ fontFamily: "var(--font-head)", fontSize: 28, color: "var(--text-primary)", margin: 0 }}>{t.title}</h1>
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-muted)", marginTop: 8, maxWidth: 680 }}>{t.sub}</p>
+      <main className="ui-page">
+        <span className="ui-kicker ui-reveal">{t.kicker}</span>
+        <h1 className="ui-h1 ui-reveal" style={{ ["--i" as string]: 1 }}>{t.title}<br /><em>{t.titleEm}</em></h1>
+        <p className="ui-lead ui-reveal" style={{ ["--i" as string]: 2 }}>{t.sub}</p>
 
-        {error && <div style={{ color: "var(--red)", fontFamily: "var(--font)", fontSize: 12, marginTop: 24 }}>{error}</div>}
-        {!report && !error && <div style={{ color: "var(--text-muted)", fontFamily: "var(--font)", fontSize: 12, marginTop: 24 }}>{t.loading}</div>}
+        {error && <div className="ui-mono" style={{ color: "var(--red)", marginTop: 28 }}>{error}</div>}
+        {!report && !error && <div className="ui-mono ui-muted" style={{ marginTop: 28 }}>{t.loading}</div>}
 
         {report && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginTop: 24 }}>
-              {[
-                [t.posted, report.market.posted],
-                [t.settled, report.market.settled],
-                [t.refunded, report.market.refunded],
-                [t.rate, `${(Number(report.market.settleRate) * 100).toFixed(1)}%`],
-                [t.paid, xlm(report.market.totalPaid)],
-              ].map(([k, v]) => (
-                <div key={String(k)} className="glass-card" style={{ padding: "14px 16px", borderRadius: 8 }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(var(--text-rgb),0.45)" }}>{k}</div>
-                  <div style={{ fontFamily: "var(--font-head)", fontSize: 20, color: "var(--text-primary)", marginTop: 6 }}>{v}</div>
+            <div className="ui-stats" style={{ marginTop: 36 }}>
+              {([
+                [report.market.posted, 0, t.posted],
+                [report.market.settled, 0, t.settled],
+                [report.market.refunded, 0, t.refunded],
+                [Number(report.market.settleRate) * 100, 1, t.rate, "%"],
+                [xlm(report.market.totalPaid), 2, t.paid],
+              ] as [number, number, string, string?][]).map(([v, d, label, suffix], i) => (
+                <div key={label} className="ui-card ui-card-hover ui-reveal" onMouseMove={spotlight} style={{ ["--i" as string]: i + 3, padding: "20px 20px 18px" }}>
+                  <div className="ui-stat-num"><CountUp value={v} decimals={d} run />{suffix}</div>
+                  <div className="ui-stat-label">{label}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{ overflowX: "auto", marginTop: 24, border: "1px solid var(--bg-border)", borderRadius: 8 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>{[t.rank, t.agent, t.won, t.earned, t.mean, t.median, t.dist, t.disputes, t.proof].map((h) => <th key={h} style={{ ...head, textAlign: "left" }}>{h}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {report.agents.length === 0 && (
-                    <tr><td colSpan={9} style={{ ...cell, color: "var(--text-muted)" }}>{t.empty}</td></tr>
-                  )}
-                  {report.agents.map((a) => (
-                    <tr key={a.agent}>
-                      <td style={cell}>{a.rank}</td>
-                      <td style={cell}><a href={explorerAddress(a.agent)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>{shortenAddress(a.agent, 6)}</a></td>
-                      <td style={cell}>{a.tasksWon}</td>
-                      <td style={cell}>{xlm(a.totalEarned)}</td>
-                      <td style={cell}>{(a.scores.meanX100 / 100).toFixed(2)}</td>
-                      <td style={cell}>{a.scores.median}</td>
-                      <td style={cell}>{[a.scores.histogram["<70"], a.scores.histogram["70-79"], a.scores.histogram["80-89"], a.scores.histogram["90-100"]].join(" · ")}</td>
-                      <td style={cell}>{a.disputedWins}</td>
-                      <td style={cell}>
-                        {a.settleTxs.map((h, i) => (
-                          <a key={h} href={explorerTx(h)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", marginRight: 6 }}>{i + 1}↗</a>
-                        ))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {podium.length > 0 && (
+              <div className="lb-podium">
+                {podium.map((a) => {
+                  const place = top.indexOf(a);
+                  const p = PODIUM[place];
+                  return (
+                    <a key={a.agent} href={explorerAddress(a.agent)} target="_blank" rel="noopener noreferrer" className="lb-podium-col ui-reveal" style={{ ["--c" as string]: p.c, ["--i" as string]: 8 + place }}>
+                      <div className="lb-avatar">{a.agent.slice(1, 3)}</div>
+                      <div className="ui-mono" style={{ color: "var(--text-primary)" }}>{shortenAddress(a.agent, 5)}</div>
+                      <div className="lb-earned">{xlm(a.totalEarned).toFixed(2)} <span>XLM</span></div>
+                      <div className="ui-mono ui-muted">{a.tasksWon} {t.wins} · {(a.scores.meanX100 / 100).toFixed(1)}</div>
+                      <div className="lb-step" style={{ height: p.h, animationDelay: `${300 + place * 140}ms` }}>
+                        <span>{place + 1}</span>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="ui-table ui-reveal" style={{ marginTop: 28, ["--i" as string]: 11 }}>
+              <div style={{ overflowX: "auto" }}>
+                <div style={{ minWidth: 900 }}>
+                  <div className="ui-table-head" style={{ gridTemplateColumns: cols }}>
+                    {[t.rank, t.agent, t.won, t.earned, t.mean, t.dist, t.disputes, t.proof].map((h) => <span key={h}>{h}</span>)}
+                  </div>
+                  {report.agents.length === 0 && <div className="ui-empty ui-muted">{t.empty}</div>}
+                  {report.agents.map((a) => {
+                    const hist = [a.scores.histogram["<70"], a.scores.histogram["70-79"], a.scores.histogram["80-89"], a.scores.histogram["90-100"]];
+                    const total = Math.max(1, hist.reduce((s, x) => s + x, 0));
+                    return (
+                      <div key={a.agent} className="ui-table-row" style={{ gridTemplateColumns: cols }}>
+                        <span className="ui-mono ui-muted">{a.rank}</span>
+                        <a href={explorerAddress(a.agent)} target="_blank" rel="noopener noreferrer" className="ui-mono" style={{ color: "var(--accent)", textDecoration: "none" }}>{shortenAddress(a.agent, 6)}</a>
+                        <span className="ui-mono">{a.tasksWon}</span>
+                        <span className="ui-mono">{xlm(a.totalEarned).toLocaleString(undefined, { maximumFractionDigits: 7 })} XLM</span>
+                        <span className="ui-mono">{(a.scores.meanX100 / 100).toFixed(2)}</span>
+                        <span className="lb-dist" title={`<70: ${hist[0]} · 70s: ${hist[1]} · 80s: ${hist[2]} · 90+: ${hist[3]}`}>
+                          {hist.map((n, k) => n > 0 && <span key={k} style={{ flex: n / total, background: DIST_COLORS[k] }} />)}
+                        </span>
+                        <span className="ui-mono">{a.disputedWins}</span>
+                        <span className="ui-mono">
+                          {a.settleTxs.map((h, i) => (
+                            <a key={h} href={explorerTx(h)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", marginRight: 8, textDecoration: "none" }}>{i + 1}↗</a>
+                          ))}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
-            <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)", marginTop: 16, lineHeight: 1.8 }}>
-              {t.range(report.fromLedger, report.toLedger, report.eventCount)} <code>{report.rule}</code> · <a href="/api/reputation/events" style={{ color: "var(--accent)" }}>{t.rawEvents}</a>
-              <div style={{ marginTop: 8 }}>{t.verify}</div>
-              <pre style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: 12, overflowX: "auto", marginTop: 6 }}>
-{`npx -y https://www.cogladius.xyz/cli-0.2.3.tgz reputation --to ${report.toLedger}`}
-              </pre>
+            <div className="ui-card" style={{ marginTop: 20 }}>
+              <div className="ui-label">{t.verify}</div>
+              <button type="button" className="infra-cmd" style={{ ["--c" as string]: "var(--accent)" }} onClick={async () => {
+                try { await navigator.clipboard.writeText(cmd); } catch (_) {}
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1400);
+              }}>
+                <span className="infra-faint">$</span>
+                <span className="infra-cmd-text">{cmd}</span>
+                <span className="infra-cmd-copy">{copied ? t.copied : t.copy}</span>
+              </button>
+              <div className="ui-mono ui-muted" style={{ marginTop: 12, fontSize: 11 }}>
+                {t.range(report.fromLedger, report.toLedger, report.eventCount)} <code>{report.rule}</code> · <a href="/api/reputation/events" style={{ color: "var(--accent)" }}>{t.rawEvents}</a>
+              </div>
             </div>
           </>
         )}

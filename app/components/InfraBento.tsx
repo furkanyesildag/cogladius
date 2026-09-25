@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { CountUp, spotlight, useInView, useLoop, useReducedMotion, useTicker } from "@/components/ui/motion";
 import { useLocale, useMessages } from "@/lib/i18n";
 import { explorerTx } from "@/lib/constants";
 import { CLI_URL } from "@/components/AgentJoinPanel";
+import { useApi } from "@/lib/useApi";
 
 /**
  * "Under the platform" bento on the landing page. Every number on it is live:
@@ -96,83 +98,7 @@ function statusKey(s: string): keyof (typeof T)["en"]["status"] {
   return "closed";
 }
 
-/* ── hooks ─────────────────────────────────────────────────────────────── */
-
-function useInView<T extends Element>(threshold = 0.2) {
-  const ref = useRef<T>(null);
-  const [seen, setSeen] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || seen) return;
-    if (typeof IntersectionObserver === "undefined") { setSeen(true); return; }
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setSeen(true); io.disconnect(); } }, { threshold });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [seen, threshold]);
-  return [ref, seen] as const;
-}
-
-function useReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const q = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    if (!q) return;
-    setReduced(q.matches);
-    const on = () => setReduced(q.matches);
-    q.addEventListener?.("change", on);
-    return () => q.removeEventListener?.("change", on);
-  }, []);
-  return reduced;
-}
-
-/** Steps 0..n, one every `ms`, then holds `hold` ms and starts over. */
-function useLoop(n: number, ms: number, hold: number, run: boolean) {
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    if (!run || n <= 0) return;
-    const id = setTimeout(() => setStep((s) => (s >= n ? 0 : s + 1)), step >= n ? hold : ms);
-    return () => clearTimeout(id);
-  }, [step, n, ms, hold, run]);
-  return step;
-}
-
-function useTicker(len: number, ms: number, run: boolean) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (!run || len < 2) return;
-    const id = setInterval(() => setI((x) => (x + 1) % len), ms);
-    return () => clearInterval(id);
-  }, [len, ms, run]);
-  return len ? i % len : 0;
-}
-
-function CountUp({ value, decimals = 0, run }: { value: number | null; decimals?: number; run: boolean }) {
-  const [v, setV] = useState(0);
-  const reduced = useReducedMotion();
-  useEffect(() => {
-    if (value === null || !run) return;
-    if (reduced) { setV(value); return; }
-    let raf = 0;
-    const t0 = performance.now();
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - t0) / 1400);
-      setV(value * (1 - Math.pow(1 - p, 3)));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value, run, reduced]);
-  if (value === null) return <>—</>;
-  return <>{v.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}</>;
-}
-
 /* ── card shell ────────────────────────────────────────────────────────── */
-
-function spotlight(e: MouseEvent<HTMLDivElement>) {
-  const r = e.currentTarget.getBoundingClientRect();
-  e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-  e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-}
 
 function Card({ color, className = "", delay, children, style }: { color: string; className?: string; delay: number; children: ReactNode; style?: CSSProperties }) {
   return (
@@ -210,18 +136,12 @@ export default function InfraBento() {
   const reduced = useReducedMotion();
   const run = inView && !reduced;
 
-  const [rep, setRep] = useState<Rep | null | "down">(null);
-  const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [mpp, setMpp] = useState<MppResource[] | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    const get = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
-    get("/api/reputation").then((d) => alive && setRep(d?.success ? d : "down")).catch(() => alive && setRep("down"));
-    get("/api/tasks").then((d) => alive && setTasks(Array.isArray(d?.tasks) ? d.tasks : [])).catch(() => alive && setTasks([]));
-    get("/api/mpp").then((d) => alive && setMpp(Array.isArray(d?.resources) ? d.resources : [])).catch(() => alive && setMpp([]));
-    return () => { alive = false; };
-  }, []);
+  const repApi = useApi<Rep>("/api/reputation");
+  const tasksApi = useApi<{ tasks?: Task[] }>("/api/tasks");
+  const mppApi = useApi<{ resources?: MppResource[] }>("/api/mpp");
+  const rep: Rep | null | "down" = repApi.failed ? "down" : repApi.data;
+  const tasks: Task[] | null = tasksApi.failed ? [] : tasksApi.data ? (Array.isArray(tasksApi.data.tasks) ? tasksApi.data.tasks : []) : null;
+  const mpp: MppResource[] | null = mppApi.failed ? [] : mppApi.data ? (Array.isArray(mppApi.data.resources) ? mppApi.data.resources : []) : null;
 
   const repOk = rep && rep !== "down" ? rep : null;
 
