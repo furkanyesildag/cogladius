@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import "./projects.css";
+import { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext } from "react";
+import Link from "next/link";
+import SiteHeader from "@/components/SiteHeader";
+import { spotlight } from "@/components/ui/motion";
 import { useWallet } from "@/lib/useWallet";
-import ConnectWallet from "@/components/ConnectWallet";
-import { useRouter } from "next/navigation";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useMessages, useLocale } from "@/lib/i18n";
+import { shortenAddress } from "@/lib/constants";
 import type {
   Project, OrchestratorBreakdown, AgentSpecialty,
 } from "@/lib/types";
@@ -14,10 +15,14 @@ import { SPECIALTY_META } from "@/lib/specialtyMeta";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+/** The chat route returns the LLM's PLAN block as-is: it names agents by
+ *  (often truncated) pubkey and may list technologies. /orchestrate fills `agents`. */
+type PlanItem = OrchestratorBreakdown & { agentPubkeys?: string[]; technologies?: string[] };
+
 interface ChatMsg {
   role: "assistant" | "user";
   content: string;
-  breakdown?: OrchestratorBreakdown[];
+  breakdown?: PlanItem[];
   ts: string;
 }
 
@@ -34,8 +39,8 @@ interface NexusModalDraftStored {
 interface NexusChatStored {
   v: 1;
   messages: ChatMsg[];
-  pendingBreakdown: OrchestratorBreakdown[] | null;
-  editableBreakdown: OrchestratorBreakdown[] | null;
+  pendingBreakdown: PlanItem[] | null;
+  editableBreakdown: PlanItem[] | null;
   showPayment: boolean;
 }
 
@@ -89,8 +94,8 @@ function readNexusChat(projectId: number): NexusChatStored | null {
     return {
       v: 1,
       messages: o.messages as ChatMsg[],
-      pendingBreakdown: Array.isArray(o.pendingBreakdown) ? (o.pendingBreakdown as OrchestratorBreakdown[]) : null,
-      editableBreakdown: Array.isArray(o.editableBreakdown) ? (o.editableBreakdown as OrchestratorBreakdown[]) : null,
+      pendingBreakdown: Array.isArray(o.pendingBreakdown) ? (o.pendingBreakdown as PlanItem[]) : null,
+      editableBreakdown: Array.isArray(o.editableBreakdown) ? (o.editableBreakdown as PlanItem[]) : null,
       showPayment: Boolean(o.showPayment),
     };
   } catch {
@@ -111,45 +116,233 @@ async function postOrchestratorChatApi(
   projectId: number,
   history: { role: string; content: string }[],
   userMessage: string,
-): Promise<{ success: false; error: string } | { success: true; reply: string; breakdown?: OrchestratorBreakdown[] }> {
+): Promise<{ success: false; error: string } | { success: true; reply: string; breakdown?: PlanItem[] }> {
   const r = await fetch(`/api/projects/${projectId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ messages: history, userMessage }),
   });
   const data = await r.json();
-  if (!data.success) return { success: false, error: data.error ?? "Hata" };
-  return { success: true, reply: data.reply as string, breakdown: data.breakdown as OrchestratorBreakdown[] | undefined };
+  if (!data.success) return { success: false, error: data.error ?? `HTTP ${r.status}` };
+  return { success: true, reply: data.reply as string, breakdown: data.breakdown as PlanItem[] | undefined };
+}
+
+// ── Local strings ────────────────────────────────────────────────────────────
+// Posting a plan creates ordinary off-chain task entries; it does not sign
+// anything or lock XLM. The copy below says exactly that.
+
+const T = {
+  en: {
+    kicker: "NEXUS · project planner",
+    heroTitle: "Split a big project into sub-tasks,",
+    heroEm: "then post them to the pool.",
+    heroLead: "Describe the project and a total XLM budget. NEXUS, an LLM planner, proposes how to split it across specialties; you adjust the split in chat and approve. Approved sub-tasks are posted to the open task list. Posting does not lock any XLM: fund work through the escrow from the dashboard.",
+    steps: [
+      { t: "Describe", d: "Title, brief, total budget and a target window." },
+      { t: "Plan with NEXUS", d: "It proposes specialties and a % split. Ask for changes in chat." },
+      { t: "Adjust", d: "Fine-tune the split with − / + before you approve." },
+      { t: "Post to the pool", d: "Sub-tasks appear in the open task list, not escrowed, for any agent." },
+    ],
+    start: "Start a new project",
+    newProject: "New project",
+    turkishNote: "NEXUS currently replies in Turkish.",
+    myProjects: "My projects",
+    allProjects: "All projects",
+    allProjectsHint: "Connect a wallet to see only yours.",
+    noProjects: "No projects yet.",
+    status: { draft: "Draft", analyzing: "Analyzing", squadFormed: "Plan ready", active: "Posted", completed: "Completed" } as Record<string, string>,
+    budget: "Total budget",
+    deadline: "Target",
+    you: "You",
+    thinking: "NEXUS is thinking…",
+    plan: "Proposed split",
+    ofBudget: (x: number) => `of ${x} XLM`,
+    suggested: "Suggested agents",
+    suggestedHint: "Suggestions only. Nobody is assigned: any agent can take a sub-task from the pool.",
+    won: (n: number) => `${n} won on-chain`,
+    noWins: "no on-chain wins yet",
+    decrease: "Decrease share",
+    increase: "Increase share",
+    approve: "Post sub-tasks to the pool",
+    placeholder: "Write to NEXUS… change the split, the budget, or ask for the plan",
+    send: "Send",
+    confirmTitle: "Post sub-tasks to the open pool",
+    confirmBody: (n: number, x: number) => `This adds ${n} sub-task${n === 1 ? "" : "s"} (${x} XLM in listed rewards) to the open task list with a 24-hour deadline.`,
+    confirmNotLocked: "Not escrowed. Nothing is signed and no XLM leaves your wallet or is locked, so agents see these as unfunded tasks.",
+    confirmFund: "To fund work, use “Post task” on the dashboard: it locks the reward in the Soroban escrow as a new task.",
+    cancel: "Back",
+    posting: "Posting…",
+    confirm: "Post to the pool",
+    postedTitle: "Sub-tasks posted to the open pool",
+    postedBody: "They are listed without escrow; no XLM is locked. To fund a sub-task, post it as an escrowed task from the dashboard.",
+    postedTask: (id: number) => `Task #${id}`,
+    notEscrowed: "not escrowed",
+    toDashboard: "Open dashboard",
+    toTasks: "View open tasks",
+    modalSteps: "Brief · Plan · Post",
+    modalInfo: "Next, NEXUS reads the brief and proposes a split across specialties. Nothing is posted until you approve, and posting does not lock XLM.",
+    modalCta: "Next: work out the split with NEXUS. Nothing is paid or locked.",
+    close: "Close",
+    genericError: "Something went wrong.",
+  },
+  tr: {
+    kicker: "NEXUS · proje planlayıcı",
+    heroTitle: "Büyük bir projeyi alt görevlere böl,",
+    heroEm: "sonra havuza gönder.",
+    heroLead: "Projeyi ve toplam XLM bütçesini anlat. Bir LLM planlayıcı olan NEXUS, işi uzmanlık alanlarına nasıl böleceğini önerir; dağılımı sohbette ayarlar ve onaylarsın. Onaylanan alt görevler açık görev listesine eklenir. Bu adım XLM kilitlemez: işi escrow ile fonlamak için panelden görev yayınla.",
+    steps: [
+      { t: "Anlat", d: "Başlık, açıklama, toplam bütçe ve hedef süre." },
+      { t: "NEXUS ile planla", d: "Uzmanlık alanlarını ve yüzde dağılımını önerir. Değişiklikleri sohbette iste." },
+      { t: "Ayarla", d: "Onaylamadan önce dağılımı − / + ile ince ayarla." },
+      { t: "Havuza gönder", d: "Alt görevler açık görev listesinde escrow'suz olarak her ajana görünür." },
+    ],
+    start: "Yeni proje başlat",
+    newProject: "Yeni proje",
+    turkishNote: "NEXUS şu an Türkçe yanıt veriyor.",
+    myProjects: "Projelerim",
+    allProjects: "Tüm projeler",
+    allProjectsHint: "Yalnızca kendi projelerini görmek için cüzdan bağla.",
+    noProjects: "Henüz proje yok.",
+    status: { draft: "Taslak", analyzing: "Analiz", squadFormed: "Plan hazır", active: "Gönderildi", completed: "Tamamlandı" } as Record<string, string>,
+    budget: "Toplam bütçe",
+    deadline: "Hedef",
+    you: "Sen",
+    thinking: "NEXUS düşünüyor…",
+    plan: "Önerilen dağılım",
+    ofBudget: (x: number) => `/ ${x} XLM`,
+    suggested: "Önerilen ajanlar",
+    suggestedHint: "Yalnızca öneri. Kimse atanmaz: havuzdaki alt görevi herhangi bir ajan alabilir.",
+    won: (n: number) => `zincirde ${n} kazanım`,
+    noWins: "henüz zincirde kazanım yok",
+    decrease: "Payı azalt",
+    increase: "Payı artır",
+    approve: "Alt görevleri havuza gönder",
+    placeholder: "NEXUS'a yaz… dağılımı ya da bütçeyi değiştir, planı iste",
+    send: "Gönder",
+    confirmTitle: "Alt görevleri açık havuza gönder",
+    confirmBody: (n: number, x: number) => `Açık görev listesine ${n} alt görev (${x} XLM ilan edilen ödül) 24 saatlik süreyle eklenir.`,
+    confirmNotLocked: "Escrow yok. Hiçbir şey imzalanmaz, cüzdanından XLM çıkmaz ve kilitlenmez; ajanlar bunları fonlanmamış görev olarak görür.",
+    confirmFund: "İşi fonlamak için paneldeki “Görev yayınla”yı kullan: ödülü yeni bir görev olarak Soroban escrow'una kilitler.",
+    cancel: "Geri",
+    posting: "Gönderiliyor…",
+    confirm: "Havuza gönder",
+    postedTitle: "Alt görevler açık havuza gönderildi",
+    postedBody: "Escrow olmadan listelendiler; XLM kilitlenmedi. Bir alt görevi fonlamak için panelden escrow'lu görev olarak yayınla.",
+    postedTask: (id: number) => `Görev #${id}`,
+    notEscrowed: "escrow yok",
+    toDashboard: "Paneli aç",
+    toTasks: "Açık görevler",
+    modalSteps: "Açıklama · Plan · Gönder",
+    modalInfo: "Sonra NEXUS açıklamayı okur ve uzmanlık alanlarına bir dağılım önerir. Sen onaylamadan hiçbir şey gönderilmez; göndermek de XLM kilitlemez.",
+    modalCta: "Sıradaki adım: dağılımı NEXUS ile netleştir. Hiçbir ödeme ya da kilit yok.",
+    close: "Kapat",
+    genericError: "Bir şeyler ters gitti.",
+  },
+};
+type Strings = (typeof T)["en"];
+
+const SPECIALTY_LABEL: Record<"en" | "tr", Record<AgentSpecialty, string>> = {
+  en: { frontend: "Frontend", backend: "Backend", blockchain: "Blockchain", design: "Design", ai_ml: "AI / ML", data: "Data", devops: "DevOps", finance: "Finance", content: "Content", research: "Research", mobile: "Mobile", security: "Security" },
+  tr: { frontend: "Frontend", backend: "Backend", blockchain: "Blockchain", design: "Tasarım", ai_ml: "AI / ML", data: "Veri", devops: "DevOps", finance: "Finans", content: "İçerik", research: "Araştırma", mobile: "Mobil", security: "Güvenlik" },
+};
+
+// ── Agent directory (names + on-chain wins) for suggestions ─────────────────
+
+type DirAgent = { pubkey: string; name: string; stellarAddress?: string; isOnline?: boolean };
+type Directory = { agents: DirAgent[]; wins: Map<string, number> };
+const DirectoryCtx = createContext<Directory>({ agents: [], wins: new Map() });
+const StringsCtx = createContext<{ t: Strings; lang: "en" | "tr" }>({ t: T.en, lang: "en" });
+
+function useDirectory(): Directory {
+  const [dir, setDir] = useState<Directory>({ agents: [], wins: new Map() });
+  useEffect(() => {
+    let alive = true;
+    Promise.all([
+      fetch("/api/agents/list").then((r) => r.json()).catch(() => null),
+      fetch("/api/reputation").then((r) => r.json()).catch(() => null),
+    ]).then(([list, rep]) => {
+      if (!alive) return;
+      const agents: DirAgent[] = Array.isArray(list?.agents) ? list.agents : [];
+      const wins = new Map<string, number>();
+      if (rep?.success && Array.isArray(rep.agents)) for (const a of rep.agents) wins.set(a.agent, a.tasksWon);
+      setDir({ agents, wins });
+    });
+    return () => { alive = false; };
+  }, []);
+  return dir;
+}
+
+/** Resolve the plan's agent references to registered agents. The LLM only sees
+ *  8-character pubkey prefixes, so accept an unambiguous prefix of 6+ chars. */
+function resolveSuggested(item: PlanItem, dir: Directory): DirAgent[] {
+  const refs = [
+    ...((item.agents ?? []).map((a) => a.pubkey)),
+    ...(item.agentPubkeys ?? []),
+  ];
+  const out: DirAgent[] = [];
+  for (const raw of refs) {
+    const ref = String(raw).trim().replace(/[.…]+$/, "");
+    if (ref.length < 6) continue;
+    const hits = dir.agents.filter((a) => a.pubkey === ref || a.pubkey.startsWith(ref));
+    const hit = hits.length === 1 ? hits[0] : hits.find((a) => a.pubkey === ref);
+    if (hit && !out.some((o) => o.pubkey === hit.pubkey)) out.push(hit);
+    if (out.length >= 3) break;
+  }
+  return out;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function pad(n: number) { return String(n).padStart(2, "0"); }
 function nowStr() { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+const round4 = (x: number) => parseFloat(x.toFixed(4));
+
+const STATUS_COLOR: Record<string, string> = {
+  draft: "var(--text-muted)",
+  analyzing: "#FFD166",
+  squadFormed: "#7C9EFF",
+  active: "var(--green)",
+  completed: "#B97DFF",
+};
 
 function StatusBadge({ status }: { status: Project["status"] }) {
-  const map: Record<string, [string, string]> = {
-    draft:       ["TASLAK",       "rgba(var(--text-rgb),0.3)"],
-    analyzing:   ["ANALİZ",       "#FFD166"],
-    squadFormed: ["PLAN HAZIR",   "#7C9EFF"],
-    active:      ["AKTİF",        "#40E183"],
-    completed:   ["TAMAMLANDI",   "#B97DFF"],
-  };
-  const [label, color] = map[status] ?? ["?", "gray"];
+  const { t } = useContext(StringsCtx);
   return (
-    <span style={{ fontFamily: "var(--font)", fontSize: 8, fontWeight: 700, color, letterSpacing: "0.1em", background: `${color}18`, border: `1px solid ${color}44`, borderRadius: 3, padding: "2px 7px" }}>
-      {label}
+    <span className="nx-status" style={{ ["--c" as string]: STATUS_COLOR[status] ?? "var(--text-muted)" }}>
+      {t.status[status] ?? status}
     </span>
   );
 }
 
-// ── Markdown-lite renderer (reuse from other pages) ──────────────────────────
+/** Move one specialty's share by `delta` points and rebalance the rest so the total stays 100. */
+function rebalance(list: PlanItem[], idx: number, delta: number, totalBudget: number): PlanItem[] {
+  if (list.length < 2) return list;
+  const next = list.map((b) => ({ ...b }));
+  const others = next.map((_, i) => i).filter((i) => i !== idx);
+  const target = Math.max(5, Math.min(100 - others.length * 5, next[idx].workloadPct + delta));
+  if (target === next[idx].workloadPct) return list;
+  const remaining = 100 - target;
+  const otherSum = others.reduce((s, i) => s + next[i].workloadPct, 0) || 1;
+  for (const i of others) next[i].workloadPct = Math.max(5, Math.round((next[i].workloadPct / otherSum) * remaining));
+  let diff = remaining - others.reduce((s, i) => s + next[i].workloadPct, 0);
+  for (const i of [...others].sort((a, b) => next[b].workloadPct - next[a].workloadPct)) {
+    if (!diff) break;
+    const v = Math.max(5, next[i].workloadPct + diff);
+    diff -= v - next[i].workloadPct;
+    next[i].workloadPct = v;
+  }
+  next[idx].workloadPct = target;
+  for (const b of next) b.budgetUsdc = round4((totalBudget * b.workloadPct) / 100);
+  return next;
+}
+
+// ── Markdown-lite renderer ──────────────────────────────────────────────────
 function RenderLine({ text }: { text: string }) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
   return (
     <>
       {parts.map((p, i) =>
-        p.startsWith("**")
-          ? <strong key={i} style={{ color: "var(--text-primary)", fontWeight: 700 }}>{p.replace(/\*\*/g, "")}</strong>
+        p.startsWith("**") && p.endsWith("**")
+          ? <strong key={i}>{p.replace(/\*\*/g, "")}</strong>
           : <span key={i}>{p}</span>
       )}
     </>
@@ -159,193 +352,156 @@ function RenderLine({ text }: { text: string }) {
 function AgentMessageBody({ text }: { text: string }) {
   if (!text) return null;
   return (
-    <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.82)", lineHeight: 1.8 }}>
+    <div className="nx-md">
       {text.split("\n").map((line, i) => {
-        if (!line.trim()) return <div key={i} style={{ height: 6 }} />;
+        if (!line.trim()) return <div key={i} className="nx-md-gap" />;
         if (/^#{1,3}\s/.test(line)) {
           const lvl = (line.match(/^#+/) ?? [""])[0].length;
-          return <div key={i} style={{ fontFamily: "var(--font)", fontSize: lvl === 1 ? 13 : 11, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "0.04em", marginTop: 14, marginBottom: 5, textTransform: lvl === 1 ? "uppercase" : "none", borderBottom: lvl === 1 ? "1px solid var(--bg-border)" : "none", paddingBottom: lvl === 1 ? 5 : 0 }}>{line.replace(/^#+\s/, "")}</div>;
+          return <div key={i} className={lvl === 1 ? "nx-md-h1" : "nx-md-h2"}><RenderLine text={line.replace(/^#+\s/, "")} /></div>;
         }
-        if (/^═+$/.test(line.trim())) return <div key={i} style={{ height: 1, background: "var(--bg-border)", margin: "8px 0" }} />;
-        const listM = line.match(/^([•\-\*]|\d+\.)\s+(.*)/);
+        if (/^[═─━-]{3,}$/.test(line.trim())) return <div key={i} className="nx-md-rule" />;
+        const listM = line.match(/^\s*([•\-\*]|\d+\.)\s+(.*)/);
         if (listM) {
           const isNum = /^\d/.test(listM[1]);
           return (
-            <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
-              <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 10, flexShrink: 0, marginTop: 2 }}>{isNum ? listM[1] : "▸"}</span>
+            <div key={i} className="nx-md-li">
+              <span className="nx-md-bullet">{isNum ? listM[1] : "•"}</span>
               <span><RenderLine text={listM[2]} /></span>
             </div>
           );
         }
-        return <p key={i} style={{ margin: "0 0 4px" }}><RenderLine text={line} /></p>;
+        return <p key={i}><RenderLine text={line} /></p>;
       })}
     </div>
   );
 }
 
-// ── Breakdown proposal card ───────────────────────────────────────────────────
+// ── NEXUS avatar (gradient ring spins while thinking) ───────────────────────
+function NexusAvatar({ thinking, size = 34 }: { thinking?: boolean; size?: number }) {
+  return (
+    <span className={thinking ? "nx-avatar is-thinking" : "nx-avatar"} style={{ width: size, height: size, fontSize: Math.round(size * 0.5) }} aria-hidden>
+      <span className="nx-avatar-core">
+        <span className="material-symbols-outlined">hub</span>
+      </span>
+    </span>
+  );
+}
+
+// ── Breakdown card ──────────────────────────────────────────────────────────
 function BreakdownCard({
   breakdown, totalBudget, editable, onChange,
 }: {
-  breakdown: OrchestratorBreakdown[];
+  breakdown: PlanItem[];
   totalBudget: number;
   editable?: boolean;
-  onChange?: (b: OrchestratorBreakdown[]) => void;
+  onChange?: (b: PlanItem[]) => void;
 }) {
-  function adjust(idx: number, delta: number) {
-    if (!onChange) return;
-    const next = breakdown.map((b) => ({ ...b }));
-    next[idx].workloadPct = Math.max(5, Math.min(90, next[idx].workloadPct + delta));
-    const sum = next.reduce((s, b) => s + b.workloadPct, 0);
-    const diff = 100 - sum;
-    const others = next.filter((_, i) => i !== idx);
-    if (others.length > 0) {
-      const step = Math.round(diff / others.length);
-      let rem = diff;
-      next.forEach((b, i) => {
-        if (i !== idx) {
-          const adj = i === next.findIndex((_, j) => j !== idx && j >= next.length - 1) ? rem : step;
-          b.workloadPct = Math.max(5, b.workloadPct + adj);
-          rem -= step;
-        }
-      });
-    }
-    next.forEach((b) => { b.budgetUsdc = parseFloat(((totalBudget * b.workloadPct) / 100).toFixed(4)); });
-    onChange(next);
-  }
+  const { t, lang } = useContext(StringsCtx);
+  const dir = useContext(DirectoryCtx);
+  const items = breakdown.filter((b) => SPECIALTY_META[b.specialty as AgentSpecialty]);
+  const canEdit = !!editable && !!onChange && items.length > 1;
 
   return (
-    <div style={{ border: "1px solid var(--accent-border)", borderRadius: 6, overflow: "hidden", marginTop: 12 }}>
-      <div style={{ padding: "10px 14px", background: "var(--accent-dim)", display: "flex", alignItems: "center", gap: 8 }}>
-        <span className="material-symbols-outlined" style={{ fontSize: 15, color: "var(--accent)" }}>hub</span>
-        <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.08em" }}>PROJE PLANI — {totalBudget} XLM</span>
+    <div className="nx-plan">
+      <div className="nx-plan-head">
+        <span className="material-symbols-outlined" aria-hidden>donut_small</span>
+        <span className="nx-plan-title">{t.plan}</span>
+        <span className="nx-plan-total">{t.ofBudget(totalBudget)}</span>
       </div>
-      {breakdown.map((b, i) => {
-        const meta = SPECIALTY_META[b.specialty as AgentSpecialty];
-        if (!meta) return null;
-        return (
-          <div key={b.specialty} style={{ padding: "12px 14px", borderTop: i > 0 ? "1px solid var(--bg-border)" : "none", background: i % 2 === 0 ? "var(--bg-base)" : "transparent" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14, color: meta.color }}>{meta.icon}</span>
-              <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 800, color: meta.color, flex: 1, letterSpacing: "0.06em" }}>{meta.label.toUpperCase()}</span>
-              <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)" }}>{b.budgetUsdc.toFixed(3)} XLM</span>
-            </div>
-            {/* Progress bar + pct controls */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <div style={{ flex: 1, height: 3, background: "var(--bg-border)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ width: `${b.workloadPct}%`, height: "100%", background: meta.color, transition: "width 0.3s" }} />
+
+      {/* Stacked allocation bar */}
+      <div className="nx-stack" role="img" aria-label={items.map((b) => `${SPECIALTY_LABEL[lang][b.specialty]} ${b.workloadPct}%`).join(", ")}>
+        {items.map((b, i) => (
+          <span key={b.specialty} style={{ width: `${b.workloadPct}%`, background: SPECIALTY_META[b.specialty].color, animationDelay: `${i * 90}ms` }} />
+        ))}
+      </div>
+
+      <div className="nx-plan-rows">
+        {items.map((b, i) => {
+          const meta = SPECIALTY_META[b.specialty];
+          const suggested = resolveSuggested(b, dir);
+          return (
+            <div key={b.specialty} className="nx-row" style={{ ["--c" as string]: meta.color, ["--i" as string]: i }}>
+              <div className="nx-row-top">
+                <span className="nx-row-icon material-symbols-outlined" aria-hidden>{meta.icon}</span>
+                <span className="nx-row-name">{SPECIALTY_LABEL[lang][b.specialty] ?? meta.label}</span>
+                <span className="nx-row-xlm">{Number(b.budgetUsdc).toFixed(3)} <small>XLM</small></span>
               </div>
-              {editable ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <button type="button" onClick={() => adjust(i, -5)} style={{ width: 18, height: 18, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 2, cursor: "pointer", color: "var(--text-muted)", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: "var(--text-primary)", minWidth: 28, textAlign: "center" }}>{b.workloadPct}%</span>
-                  <button type="button" onClick={() => adjust(i, 5)} style={{ width: 18, height: 18, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 2, cursor: "pointer", color: "var(--text-muted)", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+              <div className="nx-row-bar">
+                <div className="nx-bar"><span className="nx-bar-fill" style={{ width: `${b.workloadPct}%`, animationDelay: `${160 + i * 90}ms` }} /></div>
+                {canEdit ? (
+                  <div className="nx-stepper">
+                    <button type="button" onClick={() => onChange!(rebalance(breakdown, breakdown.indexOf(b), -5, totalBudget))} aria-label={t.decrease}>−</button>
+                    <span>{b.workloadPct}%</span>
+                    <button type="button" onClick={() => onChange!(rebalance(breakdown, breakdown.indexOf(b), 5, totalBudget))} aria-label={t.increase}>+</button>
+                  </div>
+                ) : (
+                  <span className="nx-pct">{b.workloadPct}%</span>
+                )}
+              </div>
+              {b.reasoning && <p className="nx-row-why">{b.reasoning}</p>}
+              {Array.isArray(b.technologies) && b.technologies.length > 0 && (
+                <div className="nx-tags">
+                  {b.technologies.map((tech) => <span key={tech}>{tech}</span>)}
                 </div>
-              ) : (
-                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)" }}>{b.workloadPct}%</span>
+              )}
+              {suggested.length > 0 && (
+                <div className="nx-sugg" title={t.suggestedHint}>
+                  <span className="nx-sugg-label">{t.suggested}</span>
+                  {suggested.map((a) => {
+                    const wins = dir.wins.get(a.stellarAddress ?? a.pubkey) ?? dir.wins.get(a.pubkey) ?? 0;
+                    return (
+                      <Link key={a.pubkey} href={`/agent/${a.pubkey}`} className="nx-sugg-chip">
+                        <span className="nx-sugg-dot" />
+                        {a.name || shortenAddress(a.pubkey, 4)}
+                        <small>{wins > 0 ? t.won(wins) : t.noWins}</small>
+                      </Link>
+                    );
+                  })}
+                </div>
               )}
             </div>
-            {/* Reasoning */}
-            {b.reasoning && <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", margin: "0 0 6px", lineHeight: 1.5 }}>{b.reasoning}</p>}
-            {/* Technologies */}
-            {(b as any).technologies?.length > 0 && (
-              <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {(b as any).technologies.map((t: string) => (
-                  <span key={t} style={{ fontFamily: "var(--font)", fontSize: 8, color: meta.color, background: `${meta.color}12`, border: `1px solid ${meta.color}40`, borderRadius: 2, padding: "1px 6px" }}>{t}</span>
-                ))}
-              </div>
-            )}
-            {/* Agents */}
-            {b.agents?.length > 0 && (
-              <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
-                {b.agents.slice(0, 2).map((a) => (
-                  <div key={a.pubkey} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 3, padding: "3px 8px" }}>
-                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: meta.color, display: "inline-block" }} />
-                    <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-secondary)" }}>{a.name}</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)" }}>◈ {a.avgScore}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── OpenAI Key Modal ──────────────────────────────────────────────────────────
-function ApiKeyModal({ onSave, onSkip }: { onSave: (key: string) => void; onSkip: () => void }) {
-  const [key, setKey] = useState("");
-  return (
-    <div className="modal-overlay">
-      <div className="modal-box" style={{ maxWidth: 440 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--accent)" }}>key</span>
-          <span style={{ fontFamily: "var(--font-head)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>AI Engine Key</span>
-        </div>
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.7, marginBottom: 16 }}>
-          Orkestratör Agent'i için yapay zeka motoru anahtarını gir. Anahtar yalnızca tarayıcında saklanır, sunucuya gönderilmez.
-        </p>
-        <input
-          type="password"
-          value={key}
-          onChange={(e) => setKey(e.target.value)}
-          placeholder="sk-..."
-          autoFocus
-          onKeyDown={(e) => { if (e.key === "Enter" && key.startsWith("sk-")) onSave(key.trim()); }}
-          style={{ fontFamily: "var(--font)", fontSize: 12, marginBottom: 12 }}
-        />
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onSkip} className="btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 10 }}>Şimdi değil</button>
-          <button
-            disabled={!key.startsWith("sk-")}
-            onClick={() => onSave(key.trim())}
-            className="btn-primary"
-            style={{ flex: 2, justifyContent: "center", opacity: key.startsWith("sk-") ? 1 : 0.4 }}
-          >
-            Kaydet &amp; Başlat
-          </button>
-        </div>
+          );
+        })}
       </div>
+      {items.some((b) => resolveSuggested(b, dir).length > 0) && <p className="nx-plan-foot">{t.suggestedHint}</p>}
     </div>
   );
 }
 
-// ── Payment Confirmation Modal ────────────────────────────────────────────────
-function PaymentModal({
-  breakdown, totalBudget, onConfirm, onCancel, loading,
+// ── Confirm (post to pool) modal ─────────────────────────────────────────────
+function ConfirmPostModal({
+  breakdown, totalBudget, onConfirm, onCancel, loading, error,
 }: {
-  breakdown: OrchestratorBreakdown[];
+  breakdown: PlanItem[];
   totalBudget: number;
   onConfirm: () => void;
   onCancel: () => void;
   loading: boolean;
+  error: string | null;
 }) {
-  const n = useMessages().nexusSection;
-  const common = useMessages().common;
+  const { t } = useContext(StringsCtx);
+  const listed = round4(breakdown.reduce((s, b) => s + Number(b.budgetUsdc || 0), 0));
   return (
-    <div className="modal-overlay">
-      <div className="modal-box" style={{ maxWidth: 520 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--green)" }}>payments</span>
-          <span style={{ fontFamily: "var(--font-head)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{n.paymentTitle}</span>
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="nx-confirm" role="dialog" aria-modal="true" aria-labelledby="nx-confirm-title" onClick={(e) => e.stopPropagation()}>
+        <div className="nx-confirm-head">
+          <span className="nx-confirm-icon material-symbols-outlined" aria-hidden>outbox</span>
+          <h2 id="nx-confirm-title">{t.confirmTitle}</h2>
         </div>
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.7, marginBottom: 16 }}>
-          {n.paymentDesc(totalBudget)}
-        </p>
-        <BreakdownCard breakdown={breakdown} totalBudget={totalBudget} editable={false} />
-        <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-          <button onClick={onCancel} className="btn-ghost" style={{ flex: 1, justifyContent: "center" }}>{common.back.replace("← ", "")}</button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="btn-green"
-            style={{ flex: 2, justifyContent: "center", opacity: loading ? 0.6 : 1 }}
-          >
-            {loading
-              ? <><span className="material-symbols-outlined" style={{ fontSize: 14, animation: "spin 1s linear infinite" }}>sync</span>{n.confirmLoading}</>
-              : <><span className="material-symbols-outlined" style={{ fontSize: 14 }}>check_circle</span>{n.confirmLock(totalBudget)}</>}
+        <p className="nx-confirm-p">{t.confirmBody(breakdown.length, listed || totalBudget)}</p>
+        <div className="nx-note is-warn">
+          <span className="material-symbols-outlined" aria-hidden>lock_open</span>
+          <span>{t.confirmNotLocked}</span>
+        </div>
+        <p className="nx-confirm-p nx-muted">{t.confirmFund}</p>
+        <BreakdownCard breakdown={breakdown} totalBudget={totalBudget} />
+        {error && <div className="nx-error"><span className="material-symbols-outlined" aria-hidden>warning</span>{error}</div>}
+        <div className="nx-confirm-actions">
+          <button type="button" onClick={onCancel} className="btn-ghost">{t.cancel}</button>
+          <button type="button" onClick={onConfirm} disabled={loading} className="btn-primary">
+            <span className={loading ? "material-symbols-outlined nx-spin" : "material-symbols-outlined"} aria-hidden>{loading ? "sync" : "send"}</span>
+            {loading ? t.posting : t.confirm}
           </button>
         </div>
       </div>
@@ -364,6 +520,7 @@ function PostProjectModal({
 }) {
   const m = useMessages();
   const n = m.nexusSection;
+  const { t } = useContext(StringsCtx);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [budget, setBudget] = useState(1.0);
@@ -452,7 +609,7 @@ function PostProjectModal({
       });
       const d = await r.json();
       if (!d.success) throw new Error(d.error);
-      localStorage.removeItem(nexusModalDraftKey(posterPubkey));
+      try { localStorage.removeItem(nexusModalDraftKey(posterPubkey)); } catch { /* ignore */ }
       onCreated(d.project);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -465,40 +622,29 @@ function PostProjectModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="nexus-modal-shell" onClick={(e) => e.stopPropagation()} role="dialog" aria-labelledby="nexus-modal-title" aria-modal="true">
+      <div className="nexus-modal-shell nx-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-labelledby="nexus-modal-title" aria-modal="true">
 
         <header className="nexus-modal-header">
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--accent-dim)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 0 28px color-mix(in srgb, var(--accent) 22%, transparent)" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 22, color: "var(--accent)" }}>hub</span>
-              </div>
+          <div className="nx-modal-headrow">
+            <div className="nx-modal-brand">
+              <NexusAvatar size={44} />
               <div>
-                <h2 id="nexus-modal-title" style={{ margin: 0, fontFamily: "var(--font-head)", fontSize: "clamp(1.05rem, 2.8vw, 1.35rem)", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-                  {n.modalTitle}
-                </h2>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase" }}>NEXUS</span>
-                  <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(var(--text-rgb),0.2)" }} />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.38)", letterSpacing: "0.12em", textTransform: "uppercase" }}>{n.step1} · {n.step2} · {n.step3}</span>
+                <h2 id="nexus-modal-title">{n.modalTitle}</h2>
+                <div className="nx-modal-sub">
+                  <span>NEXUS</span>
+                  <i />
+                  <span>{t.modalSteps}</span>
                 </div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close"
-              style={{ width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(var(--white-rgb),0.04)", border: "1px solid var(--bg-border)", borderRadius: 10, cursor: "pointer", color: "var(--text-muted)", flexShrink: 0, transition: "background 0.15s ease, color 0.15s ease" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-high)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(var(--white-rgb),0.04)"; e.currentTarget.style.color = "var(--text-muted)"; }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+            <button type="button" onClick={onClose} aria-label={t.close} className="nx-icon-btn">
+              <span className="material-symbols-outlined" aria-hidden>close</span>
             </button>
           </div>
         </header>
 
         <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "22px 26px 10px", maxHeight: "min(68vh, 560px)", overflowY: "auto" }}>
+          <div className="nx-modal-body">
 
             <div className="nexus-modal-section-label">
               <span className="nexus-modal-step">1</span>
@@ -520,10 +666,7 @@ function PostProjectModal({
                 />
               </div>
               {fieldErrors.title && (
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font)", fontSize: 10, color: "var(--red)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>error</span>
-                  {fieldErrors.title}
-                </p>
+                <p className="nx-field-err"><span className="material-symbols-outlined" aria-hidden>error</span>{fieldErrors.title}</p>
               )}
             </div>
 
@@ -539,17 +682,12 @@ function PostProjectModal({
                   onChange={(e) => { setDescription(e.target.value); clearDescErr(); }}
                   placeholder={n.modalDescPlaceholder}
                   maxLength={2000}
-                  style={{ minHeight: 168, padding: "14px 14px 40px", fontFamily: "var(--font-body)", fontSize: 13, lineHeight: 1.75 }}
+                  style={{ minHeight: 168, padding: "14px 14px 40px", fontFamily: "var(--font-body)", fontSize: 14, lineHeight: 1.7 }}
                 />
               </div>
-              <p style={{ margin: "10px 0 0", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.42)", lineHeight: 1.65 }}>
-                {n.modalDescHelper}
-              </p>
+              <p className="nx-help">{n.modalDescHelper}</p>
               {fieldErrors.desc && (
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font)", fontSize: 10, color: "var(--red)", display: "flex", alignItems: "center", gap: 6 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>error</span>
-                  {fieldErrors.desc}
-                </p>
+                <p className="nx-field-err"><span className="material-symbols-outlined" aria-hidden>error</span>{fieldErrors.desc}</p>
               )}
             </div>
 
@@ -561,7 +699,7 @@ function PostProjectModal({
             <div className="nexus-params-card">
               <div>
                 <label className="nexus-modal-field-label" htmlFor="nexus-budget" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 13, color: "var(--accent)", opacity: 0.85 }}>account_balance_wallet</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--accent)" }} aria-hidden>account_balance_wallet</span>
                   {n.modalBudgetLabel}
                 </label>
                 <div style={{ position: "relative" }}>
@@ -573,16 +711,16 @@ function PostProjectModal({
                     min={0.01}
                     max={1000}
                     step={0.1}
-                    style={{ fontFamily: "var(--font)", fontSize: 24, fontWeight: 900, color: "var(--accent)", padding: "12px 46px 12px 14px", borderRadius: 10 }}
+                    style={{ fontFamily: "var(--font-head)", fontSize: 24, fontWeight: 700, color: "var(--accent)", padding: "12px 46px 12px 14px", borderRadius: 12 }}
                   />
-                  <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)", opacity: 0.55 }}>XLM</span>
+                  <span className="nx-unit">XLM</span>
                 </div>
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.36)", lineHeight: 1.5 }}>{n.modalBudgetSub}</p>
+                <p className="nx-help">{n.modalBudgetSub}</p>
               </div>
 
               <div>
                 <label className="nexus-modal-field-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 13, color: "var(--accent)", opacity: 0.85 }}>schedule</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--accent)" }} aria-hidden>schedule</span>
                   {n.modalDurationLabel}
                 </label>
                 <div className="nexus-duration-row" role="group" aria-label={n.modalDurationLabel}>
@@ -598,41 +736,23 @@ function PostProjectModal({
                     </button>
                   ))}
                 </div>
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.36)", lineHeight: 1.5 }}>{n.modalDurationSub}</p>
+                <p className="nx-help">{n.modalDurationSub}</p>
               </div>
             </div>
 
-            <div className="nexus-info-rail" style={{ marginTop: 18 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--accent)", flexShrink: 0 }}>bolt</span>
-              <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.78)", lineHeight: 1.65 }}>
-                {n.s1Desc}
-              </span>
+            <div className="nx-note" style={{ marginTop: 18 }}>
+              <span className="material-symbols-outlined" aria-hidden>info</span>
+              <span>{t.modalInfo}</span>
             </div>
 
-            {error && (
-              <div style={{ marginTop: 14, background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.28)", borderRadius: 10, padding: "12px 14px", fontFamily: "var(--font)", fontSize: 11, color: "var(--red)", display: "flex", alignItems: "center", gap: 8 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>warning</span>
-                {error}
-              </div>
-            )}
+            {error && <div className="nx-error"><span className="material-symbols-outlined" aria-hidden>warning</span>{error}</div>}
           </div>
 
           <div className="nexus-modal-footer">
-            <p style={{ margin: "0 0 12px", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.38)", textAlign: "center", lineHeight: 1.55 }}>
-              {n.modalCtaHint}
-            </p>
+            <p className="nx-help" style={{ textAlign: "center", margin: "0 0 12px" }}>{t.modalCta}</p>
             <button type="submit" disabled={loading} className="nexus-modal-submit">
-              {loading ? (
-                <>
-                  <span className="material-symbols-outlined" style={{ fontSize: 17, animation: "spin 1s linear infinite" }}>sync</span>
-                  {n.modalLoading}
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined" style={{ fontSize: 17 }}>arrow_forward</span>
-                  {n.modalSubmit}
-                </>
-              )}
+              <span className={loading ? "material-symbols-outlined nx-spin" : "material-symbols-outlined"} style={{ fontSize: 17 }} aria-hidden>{loading ? "sync" : "arrow_forward"}</span>
+              {loading ? n.modalLoading : n.modalSubmit}
             </button>
           </div>
         </form>
@@ -648,20 +768,22 @@ function OrchestratorChat({
   project: Project;
   onPlanConfirmed: (updated: Project) => void;
 }) {
-  const msgs = useMessages();
+  const { t } = useContext(StringsCtx);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [pendingBreakdown, setPendingBreakdown] = useState<OrchestratorBreakdown[] | null>(null);
-  const [editableBreakdown, setEditableBreakdown] = useState<OrchestratorBreakdown[] | null>(null);
+  const [pendingBreakdown, setPendingBreakdown] = useState<PlanItem[] | null>(null);
+  const [editableBreakdown, setEditableBreakdown] = useState<PlanItem[] | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [chatBootDone, setChatBootDone] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages, sending]);
 
   // Restore cached transcript or bootstrap first orchestrator reply.
@@ -689,7 +811,7 @@ function OrchestratorChat({
         if (cancelled) return;
 
         if (!data.success) {
-          setError(data.error ?? "Hata");
+          setError(data.error || t.genericError);
           return;
         }
 
@@ -702,7 +824,7 @@ function OrchestratorChat({
         setMessages([assistantMsg]);
         if (data.breakdown) {
           setPendingBreakdown(data.breakdown);
-          setEditableBreakdown(data.breakdown.map((b: OrchestratorBreakdown) => ({ ...b })));
+          setEditableBreakdown(data.breakdown.map((b) => ({ ...b })));
         }
       } catch (e: unknown) {
         if (!cancelled) setError(e instanceof Error ? e.message : String(e));
@@ -720,6 +842,7 @@ function OrchestratorChat({
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
 
   useEffect(() => {
@@ -739,6 +862,7 @@ function OrchestratorChat({
 
     const newMessages = [...messages, { role: "user" as const, content: userMsg, ts: nowStr() }];
     setMessages(newMessages);
+    setInput("");
 
     const history = newMessages.map((m) => ({ role: m.role, content: m.content }));
 
@@ -746,7 +870,7 @@ function OrchestratorChat({
       const data = await postOrchestratorChatApi(project.id, history, userMsg);
 
       if (!data.success) {
-        setError(data.error ?? "Hata");
+        setError(data.error || t.genericError);
         return;
       }
 
@@ -761,19 +885,19 @@ function OrchestratorChat({
 
       if (data.breakdown) {
         setPendingBreakdown(data.breakdown);
-        setEditableBreakdown(data.breakdown.map((b: OrchestratorBreakdown) => ({ ...b })));
+        setEditableBreakdown(data.breakdown.map((b) => ({ ...b })));
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
-      setInput("");
     }
   }
 
   async function handlePaymentConfirm() {
     if (!editableBreakdown) return;
     setPaying(true);
+    setConfirmError(null);
     try {
       const r = await fetch(`/api/projects/${project.id}/confirm`, {
         method: "POST",
@@ -781,138 +905,120 @@ function OrchestratorChat({
         body: JSON.stringify({ breakdown: editableBreakdown }),
       });
       const d = await r.json();
-      if (d.success) onPlanConfirmed(d.project);
+      if (!d.success) { setConfirmError(d.error || t.genericError); return; }
+      onPlanConfirmed(d.project);
       setShowPayment(false);
+    } catch (e: unknown) {
+      setConfirmError(e instanceof Error ? e.message : String(e));
     } finally { setPaying(false); }
   }
 
   const isActive = project.status === "active" || project.status === "completed";
+  const lastPlanIdx = messages.reduce((acc, m, i) => (m.role === "assistant" && m.breakdown ? i : acc), -1);
+  const posted = project.subTasks.filter((st) => typeof st.taskId === "number");
+  const canSend = !!input.trim() && chatBootDone && !sending;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-
-      {/* Chat area */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
-
-        {messages.length === 0 && sending && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0" }}>
-            <div style={{ display: "flex", gap: 4 }}>
-              {[0, 1, 2].map((i) => (
-                <span key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block", animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
-              ))}
-            </div>
-            <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)" }}>{msgs.nexusSection.s1Title}…</span>
-          </div>
-        )}
-
+    <div className="nx-chat">
+      <div className="nx-chat-scroll" ref={scrollRef}>
         {messages.map((msg, i) => {
           const isAgent = msg.role === "assistant";
+          const isLatestPlan = i === lastPlanIdx;
           return (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: isAgent ? "flex-start" : "flex-end", gap: 6 }}>
-              {/* Speaker label */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                {isAgent && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block" }} />}
-                <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isAgent ? "var(--accent)" : "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em" }}>
-                  {isAgent ? "NEXUS" : msgs.common.or === "VEYA" ? "SİZ" : "YOU"} · {msg.ts}
-                </span>
-              </div>
-              {/* Bubble */}
-              <div style={{
-                background: isAgent ? "var(--bg-surface)" : "var(--accent-dim)",
-                border: `1px solid ${isAgent ? "var(--bg-border-bright)" : "rgba(255,86,37,0.3)"}`,
-                borderRadius: isAgent ? "0 8px 8px 8px" : "8px 0 8px 8px",
-                padding: "12px 16px",
-                maxWidth: "90%",
-                animation: "fadeIn 0.25s ease",
-              }}>
-                {isAgent ? <AgentMessageBody text={msg.content} /> : (
-                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-primary)" }}>{msg.content}</span>
-                )}
-                {/* Plan visualization in message */}
+            <div key={i} className={isAgent ? "nx-msg is-agent" : "nx-msg is-user"}>
+              {isAgent && <NexusAvatar />}
+              <div className="nx-msg-col">
+                <div className="nx-msg-meta">{isAgent ? "NEXUS" : t.you} · {msg.ts}</div>
+                <div className="nx-bubble">
+                  {isAgent ? <AgentMessageBody text={msg.content} /> : <span className="nx-user-text">{msg.content}</span>}
+                </div>
                 {isAgent && msg.breakdown && (
                   <BreakdownCard
-                    breakdown={editableBreakdown ?? msg.breakdown}
+                    breakdown={isLatestPlan && editableBreakdown ? editableBreakdown : msg.breakdown}
                     totalBudget={project.totalBudgetUsdc}
-                    editable={!isActive}
-                    onChange={isActive ? undefined : setEditableBreakdown}
+                    editable={isLatestPlan && !isActive}
+                    onChange={isLatestPlan && !isActive ? setEditableBreakdown : undefined}
                   />
                 )}
+                {isAgent && isLatestPlan && !isActive && i === messages.length - 1 && (
+                  <button type="button" onClick={() => { setConfirmError(null); setShowPayment(true); }} className="btn-primary nx-approve">
+                    <span className="material-symbols-outlined" aria-hidden>outbox</span>
+                    {t.approve}
+                  </button>
+                )}
               </div>
-              {/* Approve button right after plan message */}
-              {isAgent && msg.breakdown && !isActive && i === messages.length - 1 && (
-                <button
-                  onClick={() => setShowPayment(true)}
-                  className="btn-green"
-                  style={{ alignSelf: "flex-start", padding: "10px 20px", fontSize: 11, marginTop: 4 }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check_circle</span>
-                  {msgs.nexusSection.chatPlanApprove}
-                </button>
-              )}
             </div>
           );
         })}
 
-        {/* Sending indicator (mid-conversation) */}
-        {sending && messages.length > 0 && (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
-            <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.06em" }}>NEXUS</span>
-            <div style={{ display: "flex", gap: 4, padding: "10px 14px", background: "var(--bg-surface)", border: "1px solid var(--bg-border-bright)", borderRadius: "0 8px 8px 8px" }}>
-              {[0, 1, 2].map((i) => (
-                <span key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block", animation: `pulse 1.2s ease-in-out ${i * 0.25}s infinite` }} />
-              ))}
+        {sending && (
+          <div className="nx-msg is-agent" aria-live="polite">
+            <NexusAvatar thinking />
+            <div className="nx-msg-col">
+              <div className="nx-msg-meta">NEXUS</div>
+              <div className="nx-bubble nx-typing" aria-label={t.thinking}>
+                <span /><span /><span />
+                <em>{t.thinking}</em>
+              </div>
             </div>
           </div>
         )}
 
         {error && (
-          <div style={{ background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.3)", borderRadius: 4, padding: "10px 14px", fontFamily: "var(--font)", fontSize: 11, color: "var(--red)", display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>warning</span>
-            {error}
-          </div>
+          <div className="nx-error"><span className="material-symbols-outlined" aria-hidden>warning</span>{error}</div>
         )}
 
         {isActive && (
-          <div style={{ padding: "12px 16px", background: "var(--green-dim)", border: "1px solid rgba(64,225,131,0.3)", borderRadius: 6, display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--green)" }}>check_circle</span>
-            <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--green)" }}>{msgs.nexusSection.chatActive}</span>
+          <div className="nx-posted">
+            <div className="nx-posted-head">
+              <span className="material-symbols-outlined" aria-hidden>task_alt</span>
+              <strong>{t.postedTitle}</strong>
+            </div>
+            <p>{t.postedBody}</p>
+            {posted.length > 0 && (
+              <div className="nx-posted-list">
+                {posted.map((st) => (
+                  <Link key={st.id} href={`/task/${st.taskId}`} className="nx-posted-item" style={{ ["--c" as string]: SPECIALTY_META[st.specialty]?.color ?? "var(--accent)" }}>
+                    <span className="nx-sugg-dot" />
+                    {t.postedTask(st.taskId as number)}
+                    <small>{Number(st.budgetUsdc).toFixed(3)} XLM · {t.notEscrowed}</small>
+                  </Link>
+                ))}
+              </div>
+            )}
+            <div className="nx-posted-actions">
+              <Link href="/dashboard" className="btn-primary">{t.toDashboard} →</Link>
+              <Link href="/tasks" className="btn-ghost">{t.toTasks}</Link>
+            </div>
           </div>
         )}
-
-        <div ref={bottomRef} />
       </div>
 
-      {/* Input area */}
       {!isActive && (
-        <div style={{ borderTop: "1px solid var(--bg-border)", padding: "12px 16px", display: "flex", gap: 8, flexShrink: 0 }}>
+        <form className="nx-composer" onSubmit={(e) => { e.preventDefault(); if (canSend) void sendMessage(input.trim()); }}>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && input.trim() && chatBootDone && !sending) { e.preventDefault(); sendMessage(input.trim()); } }}
-            placeholder={msgs.nexusSection.chatPlaceholder}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (canSend) void sendMessage(input.trim()); } }}
+            placeholder={t.placeholder}
             rows={2}
             disabled={sending || !chatBootDone}
-            style={{ flex: 1, resize: "none", fontFamily: "var(--font-body)", fontSize: 12, lineHeight: 1.6, background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 4, padding: "8px 12px", color: "var(--text-primary)", outline: "none" }}
+            aria-label={t.placeholder}
           />
-          <button
-            onClick={() => { if (input.trim()) sendMessage(input.trim()); }}
-            disabled={sending || !chatBootDone || !input.trim()}
-            className="btn-primary"
-            style={{ alignSelf: "flex-end", padding: "9px 18px", fontSize: 11, opacity: (!input.trim() || sending || !chatBootDone) ? 0.4 : 1 }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>send</span>
+          <button type="submit" disabled={!canSend} className="nx-send" aria-label={t.send}>
+            <span className="material-symbols-outlined" aria-hidden>arrow_upward</span>
           </button>
-        </div>
+        </form>
       )}
 
-      {/* Payment modal */}
       {showPayment && editableBreakdown && (
-        <PaymentModal
+        <ConfirmPostModal
           breakdown={editableBreakdown}
           totalBudget={project.totalBudgetUsdc}
           onConfirm={handlePaymentConfirm}
           onCancel={() => setShowPayment(false)}
           loading={paying}
+          error={confirmError}
         />
       )}
     </div>
@@ -920,92 +1026,44 @@ function OrchestratorChat({
 }
 
 // ── Empty state ───────────────────────────────────────────────────────────────
+const STEP_STYLE = [
+  { c: "#B97DFF", icon: "edit_note" },
+  { c: "var(--accent)", icon: "hub" },
+  { c: "#7C9EFF", icon: "tune" },
+  { c: "var(--green)", icon: "outbox" },
+];
+
 function EmptyState({ onNew }: { onNew: () => void }) {
-  const m = useMessages();
-  const steps: { label: string; color: string; icon: string }[] = [
-    { label: m.nexusSection.step1, color: "#B97DFF", icon: "psychology" },
-    { label: m.nexusSection.step2, color: "#FF5625", icon: "hub" },
-    { label: m.nexusSection.step3, color: "#40E183", icon: "currency_bitcoin" },
-    { label: m.nexusSection.step4, color: "#7C9EFF", icon: "check_circle" },
-  ];
-
-  const specs: AgentSpecialty[] = ["frontend","backend","blockchain","design","finance","ai_ml","devops","security","data","mobile"];
-
+  const { t, lang } = useContext(StringsCtx);
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-      {/* Ambient glow */}
-      <div style={{ position: "absolute", top: "40%", left: "50%", transform: "translate(-50%,-50%)", width: 500, height: 400, background: "radial-gradient(ellipse, rgba(255,86,37,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+    <div className="nx-empty">
+      <div className="nx-empty-glow" aria-hidden />
+      <div className="nx-empty-inner">
+        <div className="ui-reveal"><NexusAvatar size={64} thinking /></div>
+        <span className="ui-kicker ui-reveal" style={{ ["--i" as string]: 1 }}>{t.kicker}</span>
+        <h1 className="ui-h1 ui-reveal" style={{ ["--i" as string]: 2 }}>{t.heroTitle}<br /><em>{t.heroEm}</em></h1>
+        <p className="ui-lead ui-reveal" style={{ ["--i" as string]: 3 }}>{t.heroLead}</p>
 
-      <div style={{ position: "relative", maxWidth: 520, width: "100%" }}>
-
-        {/* NEXUS icon mark */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-          <div style={{ position: "relative" }}>
-            {/* Outer glow ring */}
-            <div style={{ position: "absolute", inset: -10, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,86,37,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, rgba(255,86,37,0.2) 0%, rgba(255,86,37,0.05) 100%)", border: "1px solid rgba(255,86,37,0.35)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 36, color: "var(--accent)" }}>hub</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Badge */}
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 14px", background: "var(--accent-dim)", border: "1px solid var(--accent-border)", borderRadius: 20, fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 20 }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--accent)", display: "inline-block", animation: "pulse 2s infinite" }} />
-          NEXUS · Orchestrator
-        </div>
-
-        {/* Headline */}
-        <h1 style={{ fontFamily: "var(--font-head)", fontSize: "clamp(22px, 4vw, 32px)", fontWeight: 900, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.15, margin: "0 0 14px" }}>
-          {m.nexusSection.emptyHeadline.split("\n")[0]}<br />
-          <span style={{ color: "var(--accent)" }}>{m.nexusSection.emptyHeadline.split("\n")[1]}</span>
-        </h1>
-
-        {/* Subtitle */}
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.8, maxWidth: 380, margin: "0 auto 36px" }}>
-          {m.nexusSection.emptySub}
-        </p>
-
-        {/* 4-step flow */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, marginBottom: 36, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 10, overflow: "hidden", width: "fit-content", margin: "0 auto 36px" }}>
-          {steps.map((s, i) => (
-            <div key={s.label} style={{ display: "flex", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRight: i < steps.length - 1 ? "1px solid var(--bg-border)" : "none" }}>
-                <div style={{ width: 24, height: 24, borderRadius: 6, background: `${s.color}16`, border: `1px solid ${s.color}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 13, color: s.color }}>{s.icon}</span>
-                </div>
-                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)", fontWeight: 600, whiteSpace: "nowrap" }}>{s.label}</span>
+        <ol className="nx-flow">
+          {t.steps.map((s, i) => (
+            <li key={s.t} className="ui-card ui-card-hover nx-flow-card ui-reveal" onMouseMove={(e) => spotlight(e as unknown as React.MouseEvent<HTMLDivElement>)} style={{ ["--c" as string]: STEP_STYLE[i].c, ["--i" as string]: 4 + i }}>
+              <div className="nx-flow-top">
+                <span className="nx-flow-icon material-symbols-outlined" aria-hidden>{STEP_STYLE[i].icon}</span>
+                <span className="nx-flow-n">0{i + 1}</span>
               </div>
-              {i < steps.length - 1 && (
-                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.15)", padding: "0 0", marginLeft: -8, display: "block" }}>›</span>
-              )}
-            </div>
+              <div className="nx-flow-title">{s.t}</div>
+              <div className="nx-flow-desc">{s.d}</div>
+            </li>
           ))}
+        </ol>
+
+        <div className="nx-empty-cta ui-reveal" style={{ ["--i" as string]: 8 }}>
+          <button type="button" onClick={onNew} className="btn-primary nx-cta">
+            <span className="material-symbols-outlined" aria-hidden>add</span>
+            {t.start}
+          </button>
+          {lang === "en" && <span className="ui-mono ui-muted">{t.turkishNote}</span>}
         </div>
-
-        {/* Specialty pills */}
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "center", marginBottom: 36 }}>
-          {specs.map((s) => {
-            const meta = SPECIALTY_META[s];
-            return (
-              <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: `${meta.color}0c`, border: `1px solid ${meta.color}30`, borderRadius: 20, padding: "4px 10px", fontFamily: "var(--font)", fontSize: 8, color: meta.color, letterSpacing: "0.04em" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 10 }}>{meta.icon}</span>
-                {meta.label}
-              </span>
-            );
-          })}
-        </div>
-
-        {/* CTA */}
-        <button onClick={onNew} className="btn-primary" style={{ padding: "14px 36px", fontSize: 12, borderRadius: 10 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
-          {m.nexusSection.emptyStart}
-        </button>
-
-        {/* Subtle footnote */}
-        <p style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", marginTop: 20, letterSpacing: "0.06em" }}>
-          Cogladius · NEXUS Orchestrator · Stellar Mainnet
-        </p>
       </div>
     </div>
   );
@@ -1014,9 +1072,11 @@ function EmptyState({ onNew }: { onNew: () => void }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProjectsPage() {
   const { publicKey } = useWallet();
-  const router = useRouter();
-  const m = useMessages();
   const { locale } = useLocale();
+  const lang: "en" | "tr" = locale === "tr" ? "tr" : "en";
+  const t = T[lang];
+  const strings = useMemo(() => ({ t, lang }), [t, lang]);
+  const directory = useDirectory();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -1027,9 +1087,11 @@ export default function ProjectsPage() {
 
   const loadProjects = useCallback(async () => {
     const url = publicKey ? `/api/projects?poster=${publicKey.toString()}` : "/api/projects";
-    const r = await fetch(url);
-    const d = await r.json();
-    if (d.success) setProjects(d.projects);
+    try {
+      const r = await fetch(url);
+      const d = await r.json();
+      if (d.success) setProjects(d.projects);
+    } catch { /* keep the current list */ }
   }, [publicKey]);
 
   useEffect(() => { if (mounted) loadProjects(); }, [mounted, loadProjects]);
@@ -1055,141 +1117,128 @@ export default function ProjectsPage() {
 
   const selectedProject = projects.find((p) => p.id === selectedId) ?? null;
 
-  function handleCreated(project: Project) {
-    if (typeof window !== "undefined" && publicKey) {
+  function selectProject(id: number | null) {
+    setSelectedId(id);
+    if (id !== null && typeof window !== "undefined" && publicKey) {
       try {
-        localStorage.setItem(nexusLastProjectKey(publicKey.toString()), String(project.id));
+        localStorage.setItem(nexusLastProjectKey(publicKey.toString()), String(id));
       } catch {
         /* ignore */
       }
     }
+  }
+
+  function handleCreated(project: Project) {
     setProjects((prev) => [project, ...prev.filter((p) => p.id !== project.id)]);
     setShowModal(false);
-    setSelectedId(project.id);
+    selectProject(project.id);
   }
 
   function handlePlanConfirmed(updated: Project) {
     setProjects((prev) => prev.map((p) => p.id === updated.id ? updated : p));
   }
 
+  const dateFmt = (unix: number) => new Date(unix * 1000).toLocaleDateString(lang === "tr" ? "tr-TR" : "en-US", { day: "numeric", month: "short", year: "numeric" });
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
+    <StringsCtx.Provider value={strings}>
+      <DirectoryCtx.Provider value={directory}>
+        <div className="nx-root">
+          <SiteHeader />
 
-      {/* ── TOP NAV ────────────────────────────────────────────── */}
-      <header style={{ height: 52, background: "var(--bg-surface-low)", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", padding: "0 20px", gap: 16, position: "sticky", top: 0, zIndex: 100, flexShrink: 0 }}>
-        <span style={{ cursor: "pointer", display: "flex", alignItems: "center" }} onClick={() => router.push("/")}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 32, height: 32, objectFit: "contain" }} />
-        </span>
-        <div style={{ width: 1, height: 20, background: "var(--bg-border)" }} />
-        <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.1em" }}>ORCHESTRATOR</span>
-        <div style={{ flex: 1 }} />
-        {[{ label: "DASHBOARD", href: "/dashboard" }, { label: "AGENTS", href: "/agents" }].map((l) => (
-          <button key={l.href} onClick={() => router.push(l.href)} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", letterSpacing: "0.08em", textTransform: "uppercase" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.4)")}>
-            {l.label} ↗
-          </button>
-        ))}
-        <span style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", background: "var(--accent-dim)", border: "1px solid var(--accent-border)", borderRadius: 3, padding: "2px 8px" }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 11 }}>hub</span>
-          NEXUS
-        </span>
-        <LanguageSwitcher />
-        <ThemeToggle />
-        <ConnectWallet />
-      </header>
-
-      {/* ── BODY ───────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-
-        {/* LEFT SIDEBAR */}
-        <aside className="projects-sidebar" style={{ width: 250, flexShrink: 0, background: "var(--bg-base)", borderRight: "1px solid var(--bg-border)", display: "flex", flexDirection: "column", height: "calc(100vh - 52px)", position: "sticky", top: 52, overflowY: "auto" }}>
-          <div style={{ padding: "12px 12px 8px" }}>
-            <button onClick={() => setShowModal(true)} className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "9px 0", fontSize: 10 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
-              {m.nexusSection.emptyStart}
-            </button>
-          </div>
-          <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.22)", letterSpacing: "0.14em", textTransform: "uppercase", padding: "4px 12px 6px" }}>
-            {m.common.or === "VEYA" ? "Projelerim" : "My Projects"} ({projects.length})
-          </div>
-          {projects.length === 0 ? (
-            <div style={{ padding: "16px 12px", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.22)", textAlign: "center" }}>Henüz proje yok</div>
-          ) : (
-            projects.map((p) => (
-              <button key={p.id} onClick={() => {
-                setSelectedId(p.id);
-                if (typeof window !== "undefined" && publicKey) {
-                  try {
-                    localStorage.setItem(nexusLastProjectKey(publicKey.toString()), String(p.id));
-                  } catch {
-                    /* ignore */
-                  }
-                }
-              }}
-                style={{ width: "100%", background: selectedId === p.id ? "var(--bg-surface)" : "transparent", border: "none", borderLeft: `2px solid ${selectedId === p.id ? "var(--accent)" : "transparent"}`, padding: "9px 12px", cursor: "pointer", textAlign: "left", transition: "background 0.12s" }}
-                onMouseEnter={(e) => { if (selectedId !== p.id) e.currentTarget.style.background = "rgba(var(--white-rgb),0.03)"; }}
-                onMouseLeave={(e) => { if (selectedId !== p.id) e.currentTarget.style.background = "transparent"; }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
-                  <StatusBadge status={p.status} />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)", marginLeft: "auto" }}>#{p.id}</span>
-                </div>
-                <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: selectedId === p.id ? "var(--text-primary)" : "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{p.title}</div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)" }}>{p.totalBudgetUsdc.toFixed(2)} XLM</span>
-                  {p.subTasks.length > 0 && (
-                    <div style={{ display: "flex", gap: 2 }}>
-                      {p.subTasks.slice(0, 5).map((st) => <span key={st.id} style={{ width: 5, height: 5, borderRadius: "50%", background: SPECIALTY_META[st.specialty]?.color ?? "var(--bg-border)", display: "inline-block" }} title={SPECIALTY_META[st.specialty]?.label} />)}
-                    </div>
-                  )}
-                </div>
+          <div className={selectedProject ? "nx-shell has-sel" : "nx-shell"}>
+            {/* ── PROJECT LIST ───────────────────────────────────── */}
+            <aside className="nx-side">
+              <button type="button" onClick={() => setShowModal(true)} className="btn-primary nx-side-new">
+                <span className="material-symbols-outlined" aria-hidden>add</span>
+                {t.newProject}
               </button>
-            ))
-          )}
-        </aside>
+              <div className="nx-side-label">
+                <span className="ui-label">{publicKey ? t.myProjects : t.allProjects}</span>
+                <span className="ui-label">{projects.length}</span>
+              </div>
+              {!publicKey && projects.length > 0 && <p className="nx-side-hint">{t.allProjectsHint}</p>}
+              <div className="nx-side-list">
+                {projects.length === 0 ? (
+                  <div className="nx-side-empty">{t.noProjects}</div>
+                ) : (
+                  projects.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => selectProject(p.id)}
+                      className={selectedId === p.id ? "nx-proj is-active" : "nx-proj"}
+                      aria-current={selectedId === p.id ? "true" : undefined}
+                    >
+                      <div className="nx-proj-top">
+                        <StatusBadge status={p.status} />
+                        <span className="nx-proj-id">#{p.id}</span>
+                      </div>
+                      <div className="nx-proj-title">{p.title}</div>
+                      <div className="nx-proj-foot">
+                        <span className="nx-proj-xlm">{p.totalBudgetUsdc.toFixed(2)} XLM</span>
+                        {p.subTasks.length > 0 && (
+                          <span className="nx-proj-dots">
+                            {p.subTasks.slice(0, 6).map((st) => <i key={st.id} style={{ background: SPECIALTY_META[st.specialty]?.color ?? "var(--bg-border)" }} title={SPECIALTY_LABEL[lang][st.specialty]} />)}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </aside>
 
-        {/* MAIN CONTENT */}
-        <main style={{ flex: 1, height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {selectedProject ? (
-            <>
-              {/* Project header bar */}
-              <div style={{ padding: "14px 24px", borderBottom: "1px solid var(--bg-border)", background: "var(--bg-surface)", flexShrink: 0, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                    <h2 style={{ fontFamily: "var(--font-head)", fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedProject.title}</h2>
-                    <StatusBadge status={selectedProject.status} />
+            {/* ── MAIN ───────────────────────────────────────────── */}
+            <main className="nx-main">
+              {selectedProject ? (
+                <>
+                  <div className="nx-proj-head">
+                    <button type="button" className="nx-icon-btn nx-back" onClick={() => selectProject(null)} aria-label={t.cancel}>
+                      <span className="material-symbols-outlined" aria-hidden>arrow_back</span>
+                    </button>
+                    <div className="nx-proj-head-main">
+                      <div className="nx-proj-head-title">
+                        <h2>{selectedProject.title}</h2>
+                        <StatusBadge status={selectedProject.status} />
+                      </div>
+                      <p>{selectedProject.description}</p>
+                    </div>
+                    <div className="nx-proj-head-stats">
+                      <div>
+                        <div className="nx-stat-num">{selectedProject.totalBudgetUsdc.toFixed(2)} <small>XLM</small></div>
+                        <div className="ui-label">{t.budget}</div>
+                      </div>
+                      {selectedProject.deadline > 0 && (
+                        <div>
+                          <div className="nx-stat-date">{dateFmt(selectedProject.deadline)}</div>
+                          <div className="ui-label">{t.deadline}</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedProject.description.slice(0, 120)}…</p>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 20, fontWeight: 900, color: "var(--accent)", letterSpacing: "-0.02em" }}>{selectedProject.totalBudgetUsdc.toFixed(2)} XLM</div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)" }}>TOPLAM BÜTÇE</div>
-                </div>
-              </div>
 
-              {/* Chat */}
-              <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                <OrchestratorChat
-                  key={selectedProject.id}
-                  project={selectedProject}
-                  onPlanConfirmed={handlePlanConfirmed}
-                />
-              </div>
-            </>
-          ) : (
-            <EmptyState onNew={() => setShowModal(true)} />
+                  <OrchestratorChat
+                    key={selectedProject.id}
+                    project={selectedProject}
+                    onPlanConfirmed={handlePlanConfirmed}
+                  />
+                </>
+              ) : (
+                <EmptyState onNew={() => setShowModal(true)} />
+              )}
+            </main>
+          </div>
+
+          {showModal && mounted && (
+            <PostProjectModal
+              onClose={() => setShowModal(false)}
+              onCreated={handleCreated}
+              posterPubkey={publicKey?.toString() ?? "anonymous"}
+            />
           )}
-        </main>
-      </div>
-
-      {/* ── MODALS ─────────────────────────────────────────────── */}
-      {showModal && mounted && (
-        <PostProjectModal
-          onClose={() => setShowModal(false)}
-          onCreated={handleCreated}
-          posterPubkey={publicKey?.toString() ?? "anonymous"}
-        />
-      )}
-    </div>
+        </div>
+      </DirectoryCtx.Provider>
+    </StringsCtx.Provider>
   );
 }

@@ -1,243 +1,287 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import ConnectWallet from "@/components/ConnectWallet";
-import { useMessages, useLocale } from "@/lib/i18n";
-import type { AppLocale } from "@/lib/i18n/types";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import type { Task } from "@/lib/types";
-import { getMockTasks } from "@/lib/sampleTasks";
-import { shortenAddress, ESCROW_CONTRACT_ID, explorerContract } from "@/lib/constants";
+import "./tasks.css";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import SiteHeader from "@/components/SiteHeader";
+import { CountUp, spotlight } from "@/components/ui/motion";
+import { useLocale } from "@/lib/i18n";
+import type { Task, TaskStatus } from "@/lib/types";
+import { explorerTx, explorerContract, shortenAddress, ESCROW_CONTRACT_ID } from "@/lib/constants";
 
-function badgeClass(status: string): string {
-  if (status === "Open") return "badge badge-open";
-  if (status === "UnderReview") return "badge badge-review";
-  if (status === "AwaitingDecision") return "badge badge-awaiting";
-  if (status === "Settled") return "badge badge-settled";
-  if (status === "Disputed") return "badge badge-disputed";
-  if (status === "Resolved") return "badge badge-resolved";
-  return "badge badge-stopped";
+type Filter = "all" | "open" | "awaiting" | "settled";
+
+const T = {
+  en: {
+    kicker: "Task market",
+    title: "Work that pays in XLM,",
+    titleEm: "locked in escrow first.",
+    sub: "Every reward below sits in a Soroban escrow contract until it is released to a winning agent or refunded to the poster. Three AI judges score each submission; the chain checks the averaged score before any payout.",
+    open: "open now", settled: "settled", locked: "XLM escrowed in unsettled tasks",
+    filters: { all: "All", open: "Open", awaiting: "Awaiting", settled: "Settled" } as Record<Filter, string>,
+    search: "Search tasks, criteria or #id",
+    status: { Open: "Open", UnderReview: "Judging", AwaitingDecision: "Awaiting release", Settled: "Settled", Disputed: "Disputed", Resolved: "Resolved", Stopped: "Stopped" } as Record<TaskStatus, string>,
+    escrowed: "Escrowed", notEscrowed: "Off-chain only",
+    subs: (n: number) => (n === 1 ? "submission" : "submissions"),
+    left: "left", ended: "Deadline passed", due: "Due",
+    winner: "Winner",
+    loading: "Loading tasks…",
+    errorTitle: "Could not load tasks",
+    errorText: "The task list did not load. Nothing is shown rather than made-up tasks.",
+    retry: "Try again",
+    emptyTitle: "No tasks yet",
+    emptyText: "Post the first one: its XLM reward is locked in the escrow contract the moment you post, and agents can start working on it right away.",
+    post: "Post a task", join: "Join as an agent",
+    noMatch: "No task matches this filter.",
+    clear: "Clear filters",
+    escrowLink: "Escrow contract",
+  },
+  tr: {
+    kicker: "Görev pazarı",
+    title: "XLM ile ödenen işler,",
+    titleEm: "önce escrow'a kilitlenir.",
+    sub: "Aşağıdaki her ödül, kazanan ajana ödenene ya da yayınlayana iade edilene kadar bir Soroban escrow kontratında durur. Her gönderimi üç AI hakem puanlar; ödeme öncesinde ortalama puanı zincir kontrol eder.",
+    open: "şu an açık", settled: "ödendi", locked: "ödenmemiş görevlerde escrow'daki XLM",
+    filters: { all: "Tümü", open: "Açık", awaiting: "Bekleyen", settled: "Ödenen" } as Record<Filter, string>,
+    search: "Görev, kriter veya #id ara",
+    status: { Open: "Açık", UnderReview: "Puanlanıyor", AwaitingDecision: "Ödeme bekliyor", Settled: "Ödendi", Disputed: "İtirazlı", Resolved: "Çözüldü", Stopped: "Durduruldu" } as Record<TaskStatus, string>,
+    escrowed: "Escrow'da", notEscrowed: "Yalnızca zincir dışı",
+    subs: (_n: number) => "gönderim",
+    left: "kaldı", ended: "Süre doldu", due: "Bitiş",
+    winner: "Kazanan",
+    loading: "Görevler yükleniyor…",
+    errorTitle: "Görevler yüklenemedi",
+    errorText: "Görev listesi alınamadı. Uydurma görev göstermek yerine hiçbir şey gösterilmiyor.",
+    retry: "Tekrar dene",
+    emptyTitle: "Henüz görev yok",
+    emptyText: "İlkini sen yayınla: XLM ödülü, yayınladığın anda escrow kontratına kilitlenir ve ajanlar hemen çalışmaya başlayabilir.",
+    post: "Görev yayınla", join: "Ajan olarak katıl",
+    noMatch: "Bu filtreye uyan görev yok.",
+    clear: "Filtreleri temizle",
+    escrowLink: "Escrow kontratı",
+  },
+};
+
+const STATUS_COLOR: Record<TaskStatus, string> = {
+  Open: "var(--green)",
+  UnderReview: "#FFD166",
+  AwaitingDecision: "#FFD166",
+  Settled: "#7C9EFF",
+  Disputed: "var(--red)",
+  Resolved: "#B97DFF",
+  Stopped: "var(--text-muted)",
+};
+
+function group(s: TaskStatus): Filter | null {
+  if (s === "Open") return "open";
+  if (s === "UnderReview" || s === "AwaitingDecision") return "awaiting";
+  if (s === "Settled" || s === "Resolved" || s === "Disputed") return "settled";
+  return null;
 }
 
-function formatDeadline(ts: number, locale: AppLocale): string {
-  const loc = locale === "tr" ? "tr-TR" : "en-US";
-  return new Date(ts * 1000).toLocaleString(loc, { dateStyle: "short", timeStyle: "short" });
+const rewardOf = (t: Task) => t.rewardUsdc ?? (t.reward || 0) / 1e7;
+const fmtXlm = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+
+function left(sec: number): string {
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (d > 0) return `${d}d ${h}h ${m}m`;
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+  return `${m}m ${String(s).padStart(2, "0")}s`;
 }
 
 export default function TasksListPage() {
-  const router = useRouter();
   const { locale } = useLocale();
-  const ui = useMessages().ui;
-  const ta = ui.taskArenaPage;
-  const list = ui.tasksListPage;
-  const statusLabels = ui.status as Record<string, string>;
+  const t = T[locale === "tr" ? "tr" : "en"];
+  const dateLoc = locale === "tr" ? "tr-TR" : "en-US";
   const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [usedFallback, setUsedFallback] = useState(false);
-
-  const navItems = useMemo(
-    () => [
-      { label: ta.navTop.dashboard, href: "/dashboard" as const },
-      { label: ta.navTop.tasks, href: "/tasks" as const, active: true },
-      { label: ta.navTop.agents, href: "/agents" as const },
-    ],
-    [ta.navTop]
-  );
+  const [error, setError] = useState(false);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [q, setQ] = useState("");
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
+    let alive = true;
+    const load = async () => {
       try {
         const res = await fetch("/api/tasks");
-        if (!res.ok) throw new Error("bad status");
+        if (!res.ok) throw new Error(String(res.status));
         const d = await res.json();
-        if (cancelled) return;
-        if (Array.isArray(d.tasks)) {
-          setTasks(d.tasks);
-          return;
-        }
+        if (!Array.isArray(d.tasks)) throw new Error("bad shape");
+        if (alive) { setTasks(d.tasks); setError(false); }
       } catch {
-        if (cancelled) return;
-        setUsedFallback(true);
-        setTasks(getMockTasks());
+        // Keep the last good list on a failed refresh; only show the error when there is nothing real to show.
+        if (alive) setError(true);
       }
-    })();
-    return () => {
-      cancelled = true;
     };
-  }, []);
+    load();
+    const id = setInterval(load, 20000);
+    return () => { alive = false; clearInterval(id); };
+  }, [reload]);
+
+  const hasOpen = !!tasks?.some((x) => x.status === "Open");
+  useEffect(() => {
+    if (!hasOpen) return;
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [hasOpen]);
+
+  const sorted = useMemo(() => [...(tasks ?? [])].sort((a, b) => b.id - a.id), [tasks]);
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: sorted.length, open: 0, awaiting: 0, settled: 0 };
+    for (const x of sorted) { const g = group(x.status); if (g) c[g]++; }
+    return c;
+  }, [sorted]);
+  const locked = useMemo(
+    () => sorted.filter((x) => x.contractTaskId !== undefined && (group(x.status) === "open" || group(x.status) === "awaiting")).reduce((s, x) => s + rewardOf(x), 0),
+    [sorted]
+  );
+  const shown = useMemo(() => {
+    const needle = q.trim().toLowerCase().replace(/^#/, "");
+    return sorted.filter((x) => {
+      if (filter !== "all" && group(x.status) !== filter) return false;
+      if (!needle) return true;
+      return String(x.id) === needle || (x.description || "").toLowerCase().includes(needle) || (x.criteria || "").toLowerCase().includes(needle);
+    });
+  }, [sorted, filter, q]);
+
+  const loaded = tasks !== null;
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
-      <header
-        style={{
-          height: 48,
-          background: "var(--bg-surface-low)",
-          borderBottom: "1px solid var(--bg-border)",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 20px",
-          gap: 0,
-          flexShrink: 0,
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <span style={{ cursor: "pointer", marginRight: 32, display: "flex", alignItems: "center" }} onClick={() => router.push("/")}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 34, height: 34, objectFit: "contain" }} />
-        </span>
-        {navItems.map((item) => (
-          <button
-            key={item.href}
-            onClick={() => router.push(item.href)}
-            style={{
-              background: "none",
-              border: "none",
-              borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent",
-              color: item.active ? "var(--accent)" : "rgba(var(--text-rgb),0.4)",
-              fontFamily: "var(--font)",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              padding: "0 16px",
-              height: 48,
-              cursor: "pointer",
-              transition: "color 0.12s",
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <ConnectWallet />
-        </div>
-      </header>
+    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
+      <SiteHeader />
 
-      <main style={{ flex: 1, padding: "28px 32px", maxWidth: 1100, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
-        <h1 style={{ fontFamily: "var(--font-head)", fontSize: 22, color: "var(--text-primary)", margin: "0 0 8px" }}>{list.title}</h1>
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", margin: "0 0 24px", lineHeight: 1.6 }}>
-          {list.subtitle}
-        </p>
-        {usedFallback && (
-          <div
-            style={{
-              fontFamily: "var(--font)",
-              fontSize: 11,
-              color: "var(--yellow)",
-              marginBottom: 16,
-              padding: "10px 14px",
-              background: "var(--bg-surface-low)",
-              border: "1px solid var(--bg-border)",
-              borderRadius: 6,
-            }}
-          >
-            {list.loadError}
+      <main className="ui-page">
+        <span className="ui-kicker ui-reveal">{t.kicker}</span>
+        <h1 className="ui-h1 ui-reveal" style={{ ["--i" as string]: 1 }}>{t.title}<br /><em>{t.titleEm}</em></h1>
+        <p className="ui-lead ui-reveal" style={{ ["--i" as string]: 2 }}>{t.sub}</p>
+
+        {loaded && (
+          <div className="ui-stats tl-stats">
+            {([
+              [counts.open, 0, t.open, "var(--green)"],
+              [counts.settled, 0, t.settled, "#7C9EFF"],
+              [locked, 2, t.locked, "var(--accent)", "XLM"],
+            ] as [number, number, string, string, string?][]).map(([v, d, label, c, unit], i) => (
+              <div key={label} className="ui-card ui-card-hover ui-reveal" onMouseMove={spotlight} style={{ ["--i" as string]: i + 3, ["--c" as string]: c, padding: "20px 20px 18px" }}>
+                <div className="ui-stat-num"><CountUp value={v} decimals={d} run />{unit && <span className="tl-stat-unit">{unit}</span>}</div>
+                <div className="ui-stat-label">{label}</div>
+              </div>
+            ))}
           </div>
         )}
 
-        {tasks === null ? (
-          <div style={{ fontFamily: "var(--font)", fontSize: 12, color: "rgba(var(--text-rgb),0.35)" }}>{ta.loading}</div>
-        ) : tasks.length === 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "72px 24px 48px", gap: 18 }}>
-            <div style={{ width: 66, height: 66, borderRadius: 18, background: "var(--accent-dim)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 32, color: "var(--accent)" }}>inventory_2</span>
+        {!loaded && !error && (
+          <div className="tl-grid" style={{ marginTop: 34 }} aria-label={t.loading}>
+            {[0, 1, 2, 3].map((i) => <div key={i} className="ui-card tl-skel" />)}
+          </div>
+        )}
+
+        {!loaded && error && (
+          <div className="ui-card tl-empty ui-reveal" style={{ marginTop: 34, ["--c" as string]: "var(--red)" }}>
+            <div className="tl-empty-icon" style={{ color: "var(--red)", background: "var(--red-dim)", borderColor: "color-mix(in srgb, var(--red) 35%, transparent)" }}>
+              <span className="material-symbols-outlined">cloud_off</span>
             </div>
-            <div>
-              <div style={{ fontFamily: "var(--font-head)", fontSize: 19, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{list.empty}</div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", maxWidth: 440, lineHeight: 1.65, margin: "0 auto" }}>
-                {locale === "tr"
-                  ? "İlk görevi yayınla — XLM ödülü, bir karar verilene kadar canlı bir Soroban escrow kontratında kilitlenir. Hiçbir platform cüzdanı fonları tutmaz."
-                  : "Post the first task — its XLM reward is locked in a live Soroban escrow contract until a verdict is reached. No platform wallet holds the funds."}
-              </div>
+            <div className="tl-empty-title">{t.errorTitle}</div>
+            <p className="tl-empty-text">{t.errorText}</p>
+            <button type="button" className="btn-ghost" onClick={() => { setError(false); setReload((n) => n + 1); }}>{t.retry}</button>
+          </div>
+        )}
+
+        {loaded && sorted.length === 0 && (
+          <div className="ui-card tl-empty ui-reveal" style={{ marginTop: 34, ["--i" as string]: 4 }}>
+            <div className="tl-empty-icon"><span className="material-symbols-outlined">inventory_2</span></div>
+            <div className="tl-empty-title">{t.emptyTitle}</div>
+            <p className="tl-empty-text">{t.emptyText}</p>
+            <div className="tl-empty-ctas">
+              <Link href="/dashboard" className="btn-primary"><span className="material-symbols-outlined" style={{ fontSize: 17 }}>add_task</span>{t.post}</Link>
+              <Link href="/join" className="btn-accent-ghost">{t.join} →</Link>
             </div>
             {ESCROW_CONTRACT_ID && (
-              <a href={explorerContract(ESCROW_CONTRACT_ID)} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)", textDecoration: "none", background: "var(--bg-surface)", border: "1px solid var(--bg-border-bright)", borderRadius: 999, padding: "7px 14px", letterSpacing: "0.04em" }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 6px var(--green)" }} />
-                {locale === "tr" ? "Canlı Soroban escrow" : "Live Soroban escrow"} · {shortenAddress(ESCROW_CONTRACT_ID, 5)} ↗
+              <a href={explorerContract(ESCROW_CONTRACT_ID)} target="_blank" rel="noopener noreferrer" className="tl-chip">
+                {t.escrowLink} · {shortenAddress(ESCROW_CONTRACT_ID, 5)} ↗
               </a>
             )}
-            <button onClick={() => router.push("/dashboard")} className="btn-primary"
-              style={{ marginTop: 4, justifyContent: "center", padding: "12px 22px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_task</span>
-              {locale === "tr" ? "Görev yayınlamak için panele git" : "Open dashboard to post a task"}
-            </button>
           </div>
-        ) : (
-          <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, overflow: "hidden" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0,1fr) 100px 120px 140px",
-                gap: 12,
-                padding: "12px 18px",
-                borderBottom: "1px solid var(--bg-border)",
-                fontFamily: "var(--font)",
-                fontSize: 9,
-                color: "var(--text-muted)",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              <span>{list.colSummary}</span>
-              <span>{list.colReward}</span>
-              <span>{list.colStatus}</span>
-              <span>{list.colDeadline}</span>
+        )}
+
+        {loaded && sorted.length > 0 && (
+          <>
+            <div className="tl-toolbar ui-reveal" style={{ ["--i" as string]: 6 }}>
+              <div className="tl-filters" role="tablist">
+                {(Object.keys(t.filters) as Filter[]).map((f) => (
+                  <button key={f} type="button" role="tab" aria-selected={filter === f} className={filter === f ? "tl-filter is-active" : "tl-filter"} onClick={() => setFilter(f)}>
+                    {t.filters[f]}<span className="tl-filter-n">{counts[f]}</span>
+                  </button>
+                ))}
+              </div>
+              <label className="tl-search">
+                <span className="material-symbols-outlined">search</span>
+                <input className="ui-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.search} aria-label={t.search} />
+              </label>
             </div>
-            {tasks.map((task) => {
-              const curr = "XLM";
-              const rewardNum = task.rewardUsdc ?? task.reward / 1e7;
-              const summary = task.description.length > 120 ? `${task.description.slice(0, 117)}…` : task.description;
-              const statusKey = task.status;
-              const statusText = statusLabels[statusKey] ?? statusKey;
-              return (
-                <div
-                  key={task.id}
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => router.push(`/task/${task.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      router.push(`/task/${task.id}`);
-                    }
-                  }}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "minmax(0,1fr) 100px 120px 140px",
-                    gap: 12,
-                    padding: "14px 18px",
-                    borderBottom: "1px solid var(--bg-border)",
-                    cursor: "pointer",
-                    alignItems: "center",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--bg-surface-high)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <div>
-                    <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", letterSpacing: "0.06em", marginBottom: 4 }}>
-                      #{task.id} · {shortenAddress(task.poster)}
+
+            {shown.length === 0 ? (
+              <div className="ui-card tl-empty" style={{ padding: "44px 20px" }}>
+                <p className="tl-empty-text">{t.noMatch}</p>
+                <button type="button" className="btn-ghost" onClick={() => { setFilter("all"); setQ(""); }}>{t.clear}</button>
+              </div>
+            ) : (
+              <div className="tl-grid">
+                {shown.map((task, i) => {
+                  const c = STATUS_COLOR[task.status] ?? "var(--text-muted)";
+                  const subs = task.submissions?.length ?? 0;
+                  const remaining = (task.deadline || 0) - now;
+                  const isOpen = task.status === "Open";
+                  return (
+                    <div
+                      key={task.id}
+                      className="ui-card ui-card-hover ui-reveal tl-card"
+                      onMouseMove={spotlight}
+                      style={{ ["--c" as string]: c, ["--i" as string]: 7 + Math.min(i, 10) }}
+                    >
+                      <div className="tl-card-top">
+                        <span className={isOpen ? "tl-pill is-live" : "tl-pill"} style={{ ["--c" as string]: c }}><span className="tl-pill-dot" />{t.status[task.status] ?? task.status}</span>
+                        <span className="tl-id">#{task.id}</span>
+                        {task.postTxHash ? (
+                          <a href={explorerTx(task.postTxHash)} target="_blank" rel="noopener noreferrer" className="tl-chip" title={task.postTxHash}>
+                            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>lock</span>{t.escrowed} ↗
+                          </a>
+                        ) : task.contractTaskId !== undefined ? (
+                          <span className="tl-chip"><span className="material-symbols-outlined" style={{ fontSize: 13 }}>lock</span>{t.escrowed}</span>
+                        ) : (
+                          <span className="tl-chip" style={{ ["--c" as string]: "var(--text-muted)" }}>{t.notEscrowed}</span>
+                        )}
+                      </div>
+
+                      <p className="tl-desc"><Link href={`/task/${task.id}`} className="tl-stretch">{task.description}</Link></p>
+                      {task.criteria && <p className="tl-crit">{task.criteria}</p>}
+
+                      <div className="tl-card-foot">
+                        <div className="tl-reward">{fmtXlm(rewardOf(task))}<span>XLM</span></div>
+                        <div className="tl-meta">
+                          {isOpen && task.deadline ? (
+                            remaining > 0
+                              ? <span className={remaining < 3600 ? "tl-countdown is-soon" : "tl-countdown"}>{left(remaining)} {t.left}</span>
+                              : <span>{t.ended}</span>
+                          ) : task.winner && group(task.status) === "settled" ? (
+                            <span>{t.winner} <b>{shortenAddress(task.winner, 4)}</b></span>
+                          ) : task.deadline ? (
+                            <span>{t.due} {new Date(task.deadline * 1000).toLocaleDateString(dateLoc, { day: "numeric", month: "short" })}</span>
+                          ) : null}
+                          <span><b>{subs}</b> {t.subs(subs)}</span>
+                        </div>
+                      </div>
+                      <span className="material-symbols-outlined tl-arrow" aria-hidden>arrow_forward</span>
                     </div>
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-primary)", lineHeight: 1.45 }}>{summary}</div>
-                  </div>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>{rewardNum.toFixed(4)} {curr}</span>
-                  <span className={badgeClass(task.status)} style={{ justifySelf: "start" }}>
-                    {statusText}
-                  </span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.45)" }}>{formatDeadline(task.deadline, locale)}</span>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

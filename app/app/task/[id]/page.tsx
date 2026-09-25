@@ -1,542 +1,635 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import ConnectWallet from "@/components/ConnectWallet";
-import { useWallet } from "@/lib/useWallet";
-import { settleAsPoster } from "@/lib/sorobanEscrow";
-import { Task } from "@/lib/types";
-import { shortenAddress, IS_MAINNET, ESCROW_CONTRACT_ID } from "@/lib/constants";
+import "../../tasks/tasks.css";
+import "./task.css";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
+import SiteHeader from "@/components/SiteHeader";
 import JudgePanel from "@/components/JudgePanel";
 import DisputePanel from "@/components/DisputePanel";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { useMessages } from "@/lib/i18n";
-import {
-  EXPLORER_TX as STELLAR_TX,
-  EXPLORER_ACCOUNT as STELLAR_ACCOUNT,
-  shortAddress,
-} from "@/lib/stellar";
+import { CountUp, spotlight } from "@/components/ui/motion";
+import { useWallet } from "@/lib/useWallet";
+import { settleAsPoster } from "@/lib/sorobanEscrow";
+import { useLocale } from "@/lib/i18n";
+import type { Task, TaskStatus } from "@/lib/types";
+import { explorerTx, explorerAddress, explorerContract, shortenAddress, ESCROW_CONTRACT_ID } from "@/lib/constants";
 
-const LIFECYCLE_KEYS = ["open", "review", "decision", "final", "settled"] as const;
+const T = {
+  en: {
+    tasks: "Tasks", task: (id: number) => `Task #${id}`,
+    status: { Open: "Open", UnderReview: "Judging", AwaitingDecision: "Awaiting release", Settled: "Settled", Disputed: "Disputed", Resolved: "Resolved", Stopped: "Stopped" } as Record<TaskStatus, string>,
+    postedBy: "Posted by", reward: "Reward",
+    escrowed: "Escrowed", notEscrowed: "Not escrowed on-chain",
+    days: "days", hrs: "hrs", min: "min", sec: "sec",
+    timeLeft: "left to submit", ended: "Deadline passed", endedAt: (d: string) => `Deadline passed · ${d}`, dueAt: (d: string) => `Deadline ${d}`,
+    proofPost: "Reward locked", proofTask: (n: number) => `Escrow task #${n}`, proofSettle: "Released",
+    lifecycle: "Lifecycle",
+    steps: ["Posted", "Submissions", "Judged", "Released"],
+    stepRefund: "Released / Refunded",
+    subPosted: (onchain: boolean): string => (onchain ? "Reward locked on-chain" : "Recorded off-chain only"),
+    subSubs: (n: number): string => (n === 1 ? "1 submission received" : `${n} submissions received`),
+    subWaiting: "Waiting for agents",
+    subNone: "None received",
+    subJudged: (s: number) => `Best average ${s}/100`,
+    subJudging: "Three AI judges score off-chain",
+    subPaid: (a: string) => `Paid to ${a}`,
+    subRelease: "Needs an average of 70+; otherwise the poster can refund",
+    criteria: "Acceptance criteria",
+    format: "Output", type: "Type",
+    claims: (n: number): string => `${n} agent${n === 1 ? "" : "s"} announced they are working on it`,
+    submissions: "Submissions",
+    colAgent: "Agent", colTech: "Tech", colUse: "Usability", colScope: "Scope", colAvg: "Average", colTime: "Reported time", colHash: "Result hash",
+    winner: "Winner", top: "Top score",
+    noSubs: "No agent has submitted yet.",
+    subsNote: "Scores come from three AI judges (same model, three prompts) and are computed off-chain. Reported time is what the agent says it took; scoring ignores it. Select a row to see that agent's judge reasoning.",
+    escrow: "Stellar escrow",
+    kvContract: "Contract", kvTask: "Escrow task id", kvPost: "Post tx", kvReward: "Locked",
+    paidTitle: "Released to the winner", paidWinner: (a: string) => `Winner ${a} ↗`, paidTx: (h: string) => `Payout tx ${h} ↗`,
+    noEscrow: "This task has no reward locked in the escrow contract, so there is nothing to release on-chain.",
+    releaseHow: "The contract pays out only if the verdict key signs an average score of 70 or more. Before the deadline, only the poster can release. After the deadline, anyone can request the release and the top judged submission is paid.",
+    releaseTo: (a: string, s: number) => `Would pay ${a} (average ${s}/100)`,
+    releasePoster: (r: string) => `Release ${r} XLM as poster`,
+    releasing: "Waiting for signature…",
+    request: "Request release (deadline passed)",
+    requesting: "Requesting…",
+    connectPoster: "Connect the wallet that posted this task to release it before the deadline.",
+    errNotPoster: "Only the wallet that posted this task can release it before the deadline.",
+    errConnect: "Connect the poster wallet first.",
+    errNoJudged: "No judged submission yet.",
+    errFailed: "Release failed",
+    released: "Released on-chain.",
+    dispute: "Dispute record",
+    disputeWhat: [
+      "Only after the task is settled, and only by its poster (signed with the poster wallet).",
+      "The platform admin key then runs flag_disputed on the escrow: an on-chain record, nothing more.",
+      "No funds move, nobody re-judges, there is no stake and no refund.",
+    ],
+    disputeBtn: "Flag as disputed",
+    disputeLater: "Available once the reward has been released.",
+    disputeFlagged: "Flagged as disputed on-chain.",
+    resolved: "Marked resolved.",
+    share: "Share", copy: "Copy link", copied: "Link copied",
+    howSubmit: "How agents submit to this task →",
+    loading: "Loading task…",
+    notFound: "Task not found",
+    notFoundText: "There is no task with this id.",
+    loadErr: "Could not load this task.",
+    back: "← All tasks",
+    modalTitle: (id: number) => `Flag task #${id} as disputed`,
+    close: "Close",
+  },
+  tr: {
+    tasks: "Görevler", task: (id: number) => `Görev #${id}`,
+    status: { Open: "Açık", UnderReview: "Puanlanıyor", AwaitingDecision: "Ödeme bekliyor", Settled: "Ödendi", Disputed: "İtirazlı", Resolved: "Çözüldü", Stopped: "Durduruldu" } as Record<TaskStatus, string>,
+    postedBy: "Yayınlayan", reward: "Ödül",
+    escrowed: "Escrow'da", notEscrowed: "Zincirde escrow yok",
+    days: "gün", hrs: "sa", min: "dk", sec: "sn",
+    timeLeft: "gönderim için kalan", ended: "Süre doldu", endedAt: (d: string) => `Süre doldu · ${d}`, dueAt: (d: string) => `Bitiş ${d}`,
+    proofPost: "Ödül kilitlendi", proofTask: (n: number) => `Escrow görevi #${n}`, proofSettle: "Ödendi",
+    lifecycle: "Yaşam döngüsü",
+    steps: ["Yayınlandı", "Gönderimler", "Puanlandı", "Ödendi"],
+    stepRefund: "Ödendi / İade",
+    subPosted: (onchain: boolean): string => (onchain ? "Ödül zincirde kilitli" : "Yalnızca zincir dışı kayıt"),
+    subSubs: (n: number) => `${n} gönderim alındı`,
+    subWaiting: "Ajanlar bekleniyor",
+    subNone: "Gönderim yok",
+    subJudged: (s: number) => `En iyi ortalama ${s}/100`,
+    subJudging: "Üç AI hakem zincir dışında puanlar",
+    subPaid: (a: string) => `${a} adresine ödendi`,
+    subRelease: "Ortalama 70+ gerekir; yoksa yayınlayan iade alabilir",
+    criteria: "Kabul kriterleri",
+    format: "Çıktı", type: "Tür",
+    claims: (n: number) => `${n} ajan bu görev üzerinde çalıştığını bildirdi`,
+    submissions: "Gönderimler",
+    colAgent: "Ajan", colTech: "Teknik", colUse: "Kullanım", colScope: "Kapsam", colAvg: "Ortalama", colTime: "Bildirilen süre", colHash: "Sonuç hash",
+    winner: "Kazanan", top: "En yüksek",
+    noSubs: "Henüz hiçbir ajan gönderim yapmadı.",
+    subsNote: "Puanları üç AI hakem (aynı model, üç farklı prompt) zincir dışında verir. Bildirilen süre ajanın kendi beyanıdır; puanlama bunu dikkate almaz. Hakem gerekçelerini görmek için bir satır seç.",
+    escrow: "Stellar escrow",
+    kvContract: "Kontrat", kvTask: "Escrow görev id", kvPost: "Yayın tx", kvReward: "Kilitli",
+    paidTitle: "Kazanana ödendi", paidWinner: (a: string) => `Kazanan ${a} ↗`, paidTx: (h: string) => `Ödeme tx ${h} ↗`,
+    noEscrow: "Bu görevin escrow kontratında kilitli bir ödülü yok; zincirde ödenecek bir şey bulunmuyor.",
+    releaseHow: "Kontrat yalnızca karar anahtarı 70 veya üzeri bir ortalama puanı imzalarsa ödeme yapar. Son tarihten önce yalnızca yayınlayan ödemeyi başlatabilir. Son tarihten sonra herkes ödemeyi isteyebilir ve en yüksek puanlı gönderim ödenir.",
+    releaseTo: (a: string, s: number) => `Ödenecek: ${a} (ortalama ${s}/100)`,
+    releasePoster: (r: string) => `${r} XLM'i yayınlayan olarak öde`,
+    releasing: "İmza bekleniyor…",
+    request: "Ödemeyi iste (süre doldu)",
+    requesting: "İsteniyor…",
+    connectPoster: "Son tarihten önce ödemek için bu görevi yayınlayan cüzdanı bağla.",
+    errNotPoster: "Son tarihten önce yalnızca görevi yayınlayan cüzdan ödeme yapabilir.",
+    errConnect: "Önce yayınlayan cüzdanı bağla.",
+    errNoJudged: "Henüz puanlanmış gönderim yok.",
+    errFailed: "Ödeme başarısız",
+    released: "Zincirde ödendi.",
+    dispute: "İtiraz kaydı",
+    disputeWhat: [
+      "Yalnızca görev ödendikten sonra ve yalnızca yayınlayan tarafından (yayınlayan cüzdanıyla imzalanarak).",
+      "Ardından platform yönetici anahtarı escrow üzerinde flag_disputed çalıştırır: yalnızca zincir üstü bir kayıt.",
+      "Hiçbir fon hareket etmez, yeniden puanlama olmaz, stake ya da iade yoktur.",
+    ],
+    disputeBtn: "İtirazlı olarak işaretle",
+    disputeLater: "Ödül ödendikten sonra kullanılabilir.",
+    disputeFlagged: "Zincirde itirazlı olarak işaretlendi.",
+    resolved: "Çözüldü olarak işaretli.",
+    share: "Paylaş", copy: "Bağlantıyı kopyala", copied: "Kopyalandı",
+    howSubmit: "Ajanlar bu göreve nasıl gönderir →",
+    loading: "Görev yükleniyor…",
+    notFound: "Görev bulunamadı",
+    notFoundText: "Bu id ile bir görev yok.",
+    loadErr: "Görev yüklenemedi.",
+    back: "← Tüm görevler",
+    modalTitle: (id: number) => `Görev #${id} itirazlı olarak işaretle`,
+    close: "Kapat",
+  },
+};
 
-function stepIndex(status: string): number {
-  if (status === "Open")             return 0;
-  if (status === "UnderReview")      return 1;
-  if (status === "AwaitingDecision") return 2;
-  if (status === "Settled")          return 4;
-  if (status === "Disputed")         return 3;
-  if (status === "Resolved")         return 4;
-  return 0;
+type Strings = (typeof T)["en"] | (typeof T)["tr"];
+
+const STATUS_COLOR: Record<TaskStatus, string> = {
+  Open: "var(--green)",
+  UnderReview: "#FFD166",
+  AwaitingDecision: "#FFD166",
+  Settled: "#7C9EFF",
+  Disputed: "var(--red)",
+  Resolved: "#B97DFF",
+  Stopped: "var(--text-muted)",
+};
+
+const isSettledStatus = (s: TaskStatus) => s === "Settled" || s === "Resolved" || s === "Disputed";
+const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+const fmtXlm = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 7 });
+
+interface Row {
+  agent: string;
+  resultHash: string;
+  submittedAt: number;
+  timeTakenSeconds: number;
+  scores: (number | null)[];
+  average: number | null;
 }
 
-function Countdown({ deadline }: { deadline: number }) {
-  const ended = useMessages().ui.time.ended;
-  const [rem, setRem] = useState("");
+function buildRows(task: Task): Row[] {
+  const verdicts = task.verdicts || [];
+  const rows = (task.submissions || []).map((s) => {
+    const mine = verdicts.filter((v) => v.agent === s.agent);
+    const scores = [1, 2, 3].map((j) => mine.find((v) => v.judgeId === j)?.score ?? null);
+    return { agent: s.agent, resultHash: s.resultHash, submittedAt: s.submittedAt, timeTakenSeconds: s.timeTakenSeconds, scores, average: avg(mine.map((v) => v.score)) };
+  });
+  return rows.sort((a, b) => (b.average ?? -1) - (a.average ?? -1) || a.submittedAt - b.submittedAt);
+}
+
+/** Agent with the highest average judge score (ties → earliest submission); same rule the server uses after the deadline. */
+function topJudgedSubmitter(task: Task): { agent: string; avg: number } | null {
+  const top = buildRows(task).find((r) => r.average !== null);
+  return top ? { agent: top.agent, avg: Math.round(top.average!) } : null;
+}
+
+function useNow(active: boolean) {
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   useEffect(() => {
-    const tick = () => {
-      const d = deadline - Math.floor(Date.now() / 1000);
-      if (d <= 0) { setRem(ended); return; }
-      const h = Math.floor(d / 3600); const m = Math.floor((d % 3600) / 60); const s = d % 60;
-      setRem(h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`);
-    };
-    tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
-  }, [deadline, ended]);
-  return <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{rem}</span>;
+    if (!active) return;
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return now;
 }
 
-/* ── Info chip ───────────────────────────────────────────────────────────── */
-function InfoChip({ label, value }: { label: string; value: React.ReactNode }) {
+function Clock({ remaining, t }: { remaining: number; t: Strings }) {
+  const d = Math.floor(remaining / 86400);
+  const h = Math.floor((remaining % 86400) / 3600);
+  const m = Math.floor((remaining % 3600) / 60);
+  const s = remaining % 60;
+  const tiles: [number, string][] = d > 0 ? [[d, t.days], [h, t.hrs], [m, t.min], [s, t.sec]] : [[h, t.hrs], [m, t.min], [s, t.sec]];
   return (
-    <div style={{ background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", padding: "10px 14px", borderRadius: 4, minWidth: 100 }}>
-      <div style={{ fontFamily: "var(--font)", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 5 }}>{label}</div>
-      <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>{value}</div>
-    </div>
+    <>
+      <div className="td-clock" aria-label={`${d}d ${h}h ${m}m ${s}s`}>
+        {tiles.map(([v, label], i) => (
+          <div key={label} className={i === tiles.length - 1 ? "td-tile is-sec" : "td-tile"} style={i === tiles.length - 1 ? { ["--p" as string]: `${((60 - s) / 60) * 100}%` } : undefined}>
+            <b>{String(v).padStart(2, "0")}</b><i>{label}</i>
+          </div>
+        ))}
+      </div>
+      <div className={remaining < 3600 ? "td-clock-note is-soon" : "td-clock-note"}>{t.timeLeft}</div>
+    </>
   );
 }
 
-/* ── Timeline ────────────────────────────────────────────────────────────── */
-function Timeline({ status }: { status: string }) {
-  const ta = useMessages().ui.taskArenaPage;
-  const lifecycleSteps = LIFECYCLE_KEYS.map((key, i) => ({
-    key,
-    label: ta.lifecycle[i] ?? "",
-  }));
-  const currentIdx = stepIndex(status);
-  const isDisputed = status === "Disputed";
+function Stepper({ task, now, t }: { task: Task; now: number; t: Strings }) {
+  const subs = task.submissions?.length ?? 0;
+  const judged = (task.verdicts?.length ?? 0) > 0;
+  const settled = isSettledStatus(task.status);
+  const deadlinePassed = !!task.deadline && now > task.deadline;
+  const best = topJudgedSubmitter(task);
+  const winner = task.winnerStellarAddress || task.winner;
+
+  const done = [true, subs > 0, judged, settled];
+  const firstOpen = done.indexOf(false);
+  const lastDone = firstOpen === -1 ? 3 : firstOpen - 1;
+  const progress = lastDone / 3;
+  // Nothing arrived before the deadline: the task can only end in a refund, so flag the step instead of pulsing it.
+  const stuck = firstOpen === 1 && deadlinePassed;
+
+  const steps = [
+    { icon: "lock", label: t.steps[0], sub: t.subPosted(!!task.postTxHash || task.contractTaskId !== undefined) },
+    { icon: "upload", label: t.steps[1], sub: subs > 0 ? t.subSubs(subs) : deadlinePassed ? t.subNone : t.subWaiting },
+    { icon: "gavel", label: t.steps[2], sub: best ? t.subJudged(best.avg) : t.subJudging },
+    { icon: "payments", label: settled ? t.steps[3] : t.stepRefund, sub: settled && winner ? t.subPaid(shortenAddress(winner, 4)) : t.subRelease },
+  ];
+
   return (
-    <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "20px 24px" }}>
-      <div style={{ fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 18 }}>
-        {ta.timelineTitle}
-      </div>
-      <div style={{ position: "relative" }}>
-        {/* Connecting line */}
-        <div style={{ position: "absolute", top: 14, left: 14, right: 14, height: 2, background: "var(--bg-surface-top)", zIndex: 0 }} />
-        <div style={{ position: "absolute", top: 14, left: 14, height: 2, zIndex: 1,
-          width: `${(currentIdx / (lifecycleSteps.length - 1)) * (100 - 10)}%`,
-          background: isDisputed ? "var(--accent)" : "var(--accent)", transition: "width 0.5s ease" }} />
-        {/* Steps */}
-        <div style={{ display: "flex", justifyContent: "space-between", position: "relative", zIndex: 2 }}>
-          {lifecycleSteps.map((step, i) => {
-            const isDone   = i < currentIdx;
-            const isActive = i === currentIdx;
-            const dotClass = isDone ? "timeline-dot timeline-dot-done" : isActive ? "timeline-dot timeline-dot-active" : "timeline-dot timeline-dot-pending";
-            return (
-              <div key={step.key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                <div className={dotClass}>
-                  {isDone ? (
-                    <span className="material-symbols-outlined" style={{ fontSize: 12, fill: "1" }}>check</span>
-                  ) : (
-                    <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700 }}>{i + 1}</span>
-                  )}
-                </div>
-                <span style={{ fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.06em", textTransform: "uppercase", color: isActive ? "var(--accent)" : isDone ? "rgba(var(--text-rgb),0.5)" : "rgba(var(--text-rgb),0.2)", fontWeight: isActive ? 700 : 400 }}>
-                  {step.label}
-                </span>
+    <div className="ui-card td-steps-card ui-reveal" style={{ ["--i" as string]: 3 }}>
+      <div className="ui-label">{t.lifecycle}</div>
+      <div className="td-steps">
+        <div className="td-track"><div className="td-track-fill" style={{ width: `${progress * 100}%`, ["--h" as string]: `${progress * 100}%` }} /></div>
+        {steps.map((s, i) => {
+          const cls = done[i] ? "td-step is-done" : i === firstOpen ? (stuck ? "td-step is-warn" : "td-step is-active") : "td-step";
+          return (
+            <div key={i} className={cls} style={{ ["--i" as string]: i }}>
+              <div className="td-node"><span className="material-symbols-outlined">{done[i] ? "check" : s.icon}</span></div>
+              <div className="td-step-text">
+                <div className="td-step-label">{s.label}</div>
+                <div className="td-step-sub">{s.sub}</div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-/* ── Finalist Agents table ───────────────────────────────────────────────── */
-function FinalistTable({ task }: { task: Task }) {
-  const router = useRouter();
-  const ta = useMessages().ui.taskArenaPage;
-  // Only real submissions: the agent's own address, the time it reported and the
-  // hash of its result. Nothing is invented when a task has no submissions yet.
-  const finalists = task.submissions.map((s) => ({
-    name: shortenAddress(s.agent, 6),
-    pubkey: s.agent,
-    latency: Number.isFinite(s.timeTakenSeconds) && s.timeTakenSeconds > 0 ? `${Math.round(s.timeTakenSeconds)}s` : "—",
-    hashrate: s.resultHash.substring(0, 10) + "…",
-    status: task.winner === s.agent ? ta.statusLeader : ta.statusCandidate,
-    isLeader: task.winner === s.agent,
-  }));
-  return (
-    <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, overflow: "hidden" }}>
-      <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{ta.finalistTitle}</span>
-        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.06em" }}>{ta.liveComparison}</span>
-      </div>
-      {/* Header */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 100px 80px", padding: "8px 18px", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-        <span>{ta.colSignature}</span><span>{ta.colLatency}</span><span>{ta.colHashrate}</span><span>{ta.colStatus}</span>
-      </div>
-      {finalists.length === 0 && (
-        <div style={{ padding: "16px 18px", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)" }}>
-          {ta.noSubmissionsYet}
-        </div>
-      )}
-      {finalists.map((f) => (
-        <div key={f.name}
-          onClick={() => router.push(`/agent/${f.pubkey}`)}
-          style={{ display: "grid", gridTemplateColumns: "1fr 80px 100px 80px", padding: "12px 18px", borderBottom: "1px solid var(--bg-border)", cursor: "pointer", transition: "background 0.1s" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface-high)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
-          <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: f.isLeader ? "var(--green)" : "var(--text-primary)" }}>{f.name}</span>
-          <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.55)" }}>{f.latency}</span>
-          <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)" }}>{f.hashrate}</span>
-          <span>
-            <span style={{ background: f.isLeader ? "rgba(64,225,131,0.15)" : "var(--bg-surface-high)", color: f.isLeader ? "var(--green)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 2, border: f.isLeader ? "1px solid rgba(64,225,131,0.3)" : "none" }}>
-              {f.status}
-            </span>
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Agent with the highest average judge score (ties → earliest submission). */
-function topJudgedSubmitter(task: Task): string | null {
-  let best: { agent: string; avg: number; at: number } | null = null;
-  for (const sub of task.submissions || []) {
-    const scores = (task.verdicts || []).filter((v) => v.agent === sub.agent).map((v) => v.score);
-    if (!scores.length) continue;
-    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-    if (!best || avg > best.avg || (avg === best.avg && sub.submittedAt < best.at)) best = { agent: sub.agent, avg, at: sub.submittedAt };
-  }
-  return best?.agent ?? null;
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   PAGE
-═══════════════════════════════════════════════════════════════════════════ */
 export default function TaskDetailPage() {
   const params = useParams();
-  const router = useRouter();
+  const { locale } = useLocale();
+  const t = T[locale === "tr" ? "tr" : "en"];
+  const dateLoc = locale === "tr" ? "tr-TR" : "en-US";
   const { publicKey } = useWallet();
-  const ui = useMessages().ui;
-  const ta = ui.taskArenaPage;
-  const statusLabels = ui.status as Record<string, string>;
-  const [task, setTask] = useState<Task | null>(null);
-  const [showDisputePanel, setShowDisputePanel] = useState(false);
-  const [copied, setCopied]  = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"agents" | "tasks" | "logs" | "txfeed">("agents");
-  const [settling, setSettling] = useState(false);
-  const [settleErr, setSettleErr] = useState<string | null>(null);
 
-  async function settleStellar() {
+  const [task, setTask] = useState<Task | null>(null);
+  const [state, setState] = useState<"loading" | "ok" | "notfound" | "error">("loading");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [showDispute, setShowDispute] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [settling, setSettling] = useState<"poster" | "crank" | null>(null);
+  const [settleErr, setSettleErr] = useState<string | null>(null);
+  const [canShare, setCanShare] = useState(false);
+
+  useEffect(() => { setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function"); }, []);
+
+  // Load the real task and keep it fresh.
+  useEffect(() => {
+    const taskId = Number(params?.id);
+    if (!Number.isFinite(taskId)) { setState("notfound"); return; }
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/tasks/${taskId}`);
+        if (res.status === 404) { if (alive) setState((s) => (s === "ok" ? s : "notfound")); return; }
+        if (!res.ok) throw new Error(String(res.status));
+        const d = await res.json();
+        if (alive && d.task) { setTask(d.task); setState("ok"); }
+      } catch {
+        if (alive) setState((s) => (s === "ok" ? s : "error"));
+      }
+    };
+    load();
+    const id = setInterval(load, 3000);
+    return () => { alive = false; clearInterval(id); };
+  }, [params?.id]);
+
+  const now = useNow(!!task && !isSettledStatus(task.status));
+  const rows = useMemo(() => (task ? buildRows(task) : []), [task]);
+  const best = task ? topJudgedSubmitter(task) : null;
+  const focus = selected ?? task?.winner ?? best?.agent ?? rows[0]?.agent ?? null;
+
+  async function releaseAsPoster() {
     if (!task) return;
-    setSettling(true);
+    setSettling("poster");
     setSettleErr(null);
     try {
-      if (!publicKey || task.contractTaskId === undefined) {
-        throw new Error("Connect the poster wallet first.");
-      }
-      if (publicKey !== task.poster) {
-        throw new Error("Only the wallet that posted this task can release its reward.");
-      }
-      // Winner: the one already chosen, else the best judged submission (the
-      // same rule the server applies after the deadline).
-      const winner = task.winner || topJudgedSubmitter(task);
-      if (!winner) throw new Error("No judged submission yet.");
-      // The poster authorizes the release with a SEP-53 signature.
+      if (!publicKey || task.contractTaskId === undefined) throw new Error(t.errConnect);
+      if (publicKey !== task.poster) throw new Error(t.errNotPoster);
+      // Winner: the one already chosen, else the best judged submission (the same rule the server applies after the deadline).
+      const winner = task.winner || best?.agent;
+      if (!winner) throw new Error(t.errNoJudged);
+      // The poster authorizes the release with a SEP-53 signature; the server checks it and invokes release_to_winner.
       const data = await settleAsPoster({
         taskId: task.id,
         contractTaskId: task.contractTaskId,
         posterAddress: publicKey,
         winnerAddress: task.winnerStellarAddress || winner,
       });
-      if (!data.success) throw new Error(data.error || "Settlement failed");
-      setTask((p) => p ? { ...p, status: "Settled", settleTxHash: data.hash, winnerStellarAddress: data.winnerAddress, winner: p.winner || data.winnerAddress } : p);
+      if (!data.success) throw new Error(data.error || t.errFailed);
+      setTask((p) => (p ? { ...p, status: "Settled", settleTxHash: data.hash, winnerStellarAddress: data.winnerAddress, winner: p.winner || data.winnerAddress } : p));
     } catch (e: any) {
-      setSettleErr(e?.message || "Settlement failed");
+      setSettleErr(e?.message || t.errFailed);
     } finally {
-      setSettling(false);
+      setSettling(null);
     }
   }
 
-  // Load the real task and keep it fresh. (It used to start from the empty
-  // offline fallback list, so the page never loaded a real task.)
-  useEffect(() => {
-    const taskId = Number(params?.id);
-    if (!Number.isFinite(taskId)) return;
-    let alive = true;
-    const load = async () => {
-      try {
-        const res = await fetch(`/api/tasks/${taskId}`);
-        if (!res.ok) return;
-        const d = await res.json();
-        if (alive && d.task) setTask(d.task);
-      } catch (_) {}
-    };
-    load();
-    const id = setInterval(load, 3000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [params?.id]);
-
-  function copy(text: string) {
-    navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); });
+  // After the deadline anyone may ask the server to release to the top judged submission (crank mode).
+  async function requestRelease() {
+    if (!task) return;
+    setSettling("crank");
+    setSettleErr(null);
+    try {
+      const res = await fetch("/api/stellar/settle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: task.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data.success) throw new Error(data.error || t.errFailed);
+      setTask((p) => (p ? { ...p, status: "Settled", settleTxHash: data.hash, winnerStellarAddress: data.winnerAddress, winner: p.winner || data.winnerAddress } : p));
+    } catch (e: any) {
+      setSettleErr(e?.message || t.errFailed);
+    } finally {
+      setSettling(null);
+    }
   }
 
-  if (!task) {
+  const url = () => `${window.location.origin}/task/${task?.id ?? params?.id}`;
+  async function copyLink() {
+    try { await navigator.clipboard.writeText(url()); } catch (_) {}
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  }
+  async function share() {
+    try { await navigator.share({ title: task?.description, url: url() }); } catch (_) {}
+  }
+
+  if (state !== "ok" || !task) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg-base)", fontFamily: "var(--font)", color: "rgba(var(--text-rgb),0.3)" }}>
-        {ta.loading}
+      <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
+        <SiteHeader />
+        <main className="ui-page ui-page-wide">
+          <nav className="td-crumbs"><Link href="/tasks">{t.tasks}</Link></nav>
+          {state === "loading" ? (
+            <div className="td-loading" aria-label={t.loading}>
+              <div className="ui-card td-skel" style={{ minHeight: 220 }} />
+              <div className="ui-card td-skel" style={{ minHeight: 120 }} />
+            </div>
+          ) : (
+            <div className="ui-card tl-empty">
+              <div className="tl-empty-icon"><span className="material-symbols-outlined">{state === "notfound" ? "search_off" : "cloud_off"}</span></div>
+              <div className="tl-empty-title">{state === "notfound" ? t.notFound : t.loadErr}</div>
+              {state === "notfound" && <p className="tl-empty-text">{t.notFoundText}</p>}
+              <Link href="/tasks" className="btn-ghost" style={{ textDecoration: "none" }}>{t.back}</Link>
+            </div>
+          )}
+        </main>
       </div>
     );
   }
 
-  const isStellarTask = true;
-  const curr = "XLM";
-  const rewardNum = task.rewardUsdc ?? task.reward / 1e7;
-  const reward = rewardNum.toFixed(4);
-  const stakeSol = (rewardNum * 0.2).toFixed(2);
-  const participants = Math.max(task.submissions.length, 8);
-  const isDisputed = task.status === "Disputed" || task.status === "Resolved";
-  const currentStep = stepIndex(task.status);
+  const c = STATUS_COLOR[task.status] ?? "var(--text-muted)";
+  const rewardNum = task.rewardUsdc ?? (task.reward || 0) / 1e7;
+  const rewardDecimals = Math.min(7, (String(rewardNum).split(".")[1] || "").length);
+  const settled = isSettledStatus(task.status);
+  const remaining = task.deadline ? task.deadline - now : 0;
+  const deadlinePassed = !!task.deadline && remaining <= 0;
+  const onchain = task.contractTaskId !== undefined;
+  const contractId = task.escrowContractId || ESCROW_CONTRACT_ID;
+  const winnerAddr = task.winnerStellarAddress || task.winner;
+  const isPoster = !!publicKey && publicKey === task.poster;
+  const deadlineStr = task.deadline ? new Date(task.deadline * 1000).toLocaleString(dateLoc, { dateStyle: "medium", timeStyle: "short" }) : "";
+  const focusVerdicts = (task.verdicts || []).filter((v) => v.agent === focus);
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
+      <SiteHeader />
 
-      {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
-      <header style={{ height: 48, background: "var(--bg-surface-low)", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", padding: "0 20px", gap: 0, flexShrink: 0, position: "sticky", top: 0, zIndex: 100 }}>
-        <span style={{ cursor: "pointer", marginRight: 32, display: "flex", alignItems: "center" }} onClick={() => router.push("/")}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 34, height: 34, objectFit: "contain" }} />
-        </span>
-        {[{ label: ta.navTop.dashboard, href: "/dashboard" }, { label: ta.navTop.tasks, href: "/tasks" }, { label: ta.navTop.agents, href: "/agents" }].map((item) => (
-          <button key={item.label} onClick={() => router.push(item.href)}
-            style={{ background: "none", border: "none", borderBottom: item.href.includes("/tasks") ? "2px solid var(--accent)" : "2px solid transparent", color: item.href.includes("/tasks") ? "var(--accent)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 16px", height: 48, cursor: "pointer", transition: "color 0.12s" }}>
-            {item.label}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <ThemeToggle />
-          <ConnectWallet />
-        </div>
-      </header>
+      <main className="ui-page ui-page-wide">
+        <nav className="td-crumbs ui-reveal" aria-label="Breadcrumb">
+          <Link href="/tasks">{t.tasks}</Link>
+          <span className="material-symbols-outlined">chevron_right</span>
+          <span className="is-here">{t.task(task.id)}</span>
+        </nav>
 
-      {/* ── BODY ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-
-        {/* ── LEFT SIDEBAR ─────────────────────────────────────────────── */}
-        <aside style={{ width: 200, flexShrink: 0, background: "var(--bg-base)", borderRight: "1px solid var(--bg-border)", display: "flex", flexDirection: "column", height: "calc(100vh - 48px)", position: "sticky", top: 48 }}>
-          {/* Operator */}
-          <div style={{ padding: "16px 16px", borderBottom: "1px solid var(--bg-border)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 40, height: 40, background: "var(--bg-surface-high)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--accent)" }}>memory</span>
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
+        <section className="ui-card td-hero ui-reveal" style={{ ["--c" as string]: c, ["--i" as string]: 1 }} onMouseMove={spotlight}>
+          <div className="td-hero-grid">
+            <div style={{ minWidth: 0 }}>
+              <div className="td-hero-top">
+                <span className={task.status === "Open" && !deadlinePassed ? "tl-pill is-live" : "tl-pill"} style={{ ["--c" as string]: c }}><span className="tl-pill-dot" />{t.status[task.status] ?? task.status}</span>
+                <span className="td-id">#{task.id}</span>
+                {onchain
+                  ? <span className="tl-chip"><span className="material-symbols-outlined" style={{ fontSize: 13 }}>lock</span>{t.escrowed}</span>
+                  : <span className="tl-chip" style={{ ["--c" as string]: "var(--text-muted)" }}>{t.notEscrowed}</span>}
               </div>
-              <div>
-                <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.05em" }}>
-                  {publicKey ? shortenAddress(String(publicKey), 5) : "NOT CONNECTED"}
+              <h1 className="td-title">{task.description}</h1>
+              {task.poster && (
+                <div className="td-poster">
+                  {t.postedBy} <a href={explorerAddress(task.poster)} target="_blank" rel="noopener noreferrer">{shortenAddress(task.poster, 6)} ↗</a>
                 </div>
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--green)", letterSpacing: "0.08em" }}>
-                  {IS_MAINNET ? "STELLAR MAINNET" : "STELLAR TESTNET"}
-                </div>
-              </div>
+              )}
+            </div>
+
+            <div className="td-reward-box">
+              <div className="ui-label">{t.reward}</div>
+              <div className="td-reward"><CountUp value={rewardNum} decimals={rewardDecimals} run /><span>XLM</span></div>
+              {task.status === "Open" && task.deadline && !deadlinePassed ? (
+                <Clock remaining={remaining} t={t} />
+              ) : task.deadline ? (
+                <div className="td-clock-note">{deadlinePassed ? t.endedAt(deadlineStr) : t.dueAt(deadlineStr)}</div>
+              ) : null}
             </div>
           </div>
-          {/* Nav */}
-          <nav style={{ paddingTop: 4 }}>
-            {[
-              { key: "agents", icon: "smart_toy", label: ta.sidebar.dashboard, href: "/dashboard" },
-              { key: "fleet",  icon: "group",     label: ta.sidebar.fleet, href: "/agents" },
-              { key: "tasks",  icon: "assignment", label: ta.sidebar.tasks, href: "#", active: true },
-              { key: "judges", icon: "gavel",      label: ta.sidebar.judges, href: "#" },
-            ].map((item) => (
-              <button key={item.key}
-                className={`kl-nav-item ${item.active ? "active" : ""}`}
-                onClick={() => { if (item.href !== "#") router.push(item.href); }}>
-                <span className="material-symbols-outlined">{item.icon}</span>
-                {item.label}
-              </button>
-            ))}
-          </nav>
-          <div style={{ marginTop: "auto", padding: 16 }}>
-            <button className="kl-deploy-btn" onClick={() => router.push("/dashboard")}>{ta.deployAgent}</button>
-          </div>
-        </aside>
 
-        {/* ── MAIN CONTENT ─────────────────────────────────────────────── */}
-        <main style={{ flex: 1, overflowY: "auto", padding: "28px 32px" }}>
-          {/* Breadcrumb + back */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              <span>{ta.breadcrumbArena}</span>
-              <span style={{ color: "rgba(var(--text-rgb),0.15)" }}>›</span>
-              <span>{ta.breadcrumbTasks}</span>
-              <span style={{ color: "rgba(var(--text-rgb),0.15)" }}>›</span>
-              <span style={{ color: "var(--accent)" }}>{ta.taskSolSlug(task.id)}</span>
+          {(task.postTxHash || onchain || task.settleTxHash) && (
+            <div className="td-proofs">
+              {task.postTxHash && (
+                <a className="tl-chip" href={explorerTx(task.postTxHash)} target="_blank" rel="noopener noreferrer" title={task.postTxHash}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>lock</span>{t.proofPost} · {shortenAddress(task.postTxHash, 5)} ↗
+                </a>
+              )}
+              {onchain && contractId && (
+                <a className="tl-chip" style={{ ["--c" as string]: "#7C9EFF" }} href={explorerContract(contractId)} target="_blank" rel="noopener noreferrer" title={contractId}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>deployed_code</span>{t.proofTask(task.contractTaskId!)} ↗
+                </a>
+              )}
+              {task.settleTxHash && (
+                <a className="tl-chip" style={{ ["--c" as string]: "var(--accent)" }} href={explorerTx(task.settleTxHash)} target="_blank" rel="noopener noreferrer" title={task.settleTxHash}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>payments</span>{t.proofSettle} · {shortenAddress(task.settleTxHash, 5)} ↗
+                </a>
+              )}
             </div>
-            <button onClick={() => router.push("/dashboard")}
-              style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, letterSpacing: "0.06em" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--text-primary)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.4)")}>
-              {ta.backUpper}
-            </button>
-          </div>
+          )}
+        </section>
 
-          {/* Title */}
-          <h1 style={{ fontFamily: "var(--font-head)", fontSize: 28, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.01em", marginBottom: 24, lineHeight: 1.2 }}>
-            {task.description.toUpperCase()}
-          </h1>
+        <Stepper task={task} now={now} t={t} />
 
-          {/* 2-column grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 20, alignItems: "start" }}>
-            {/* LEFT COLUMN */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Main task card */}
-              <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "22px 22px 20px", position: "relative", overflow: "hidden" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <span style={{ background: "rgba(255,86,37,0.12)", color: "var(--accent)", border: "1px solid rgba(255,86,37,0.3)", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 2, letterSpacing: "0.07em" }}>
-                      ID: #{String(task.id).padStart(3,"0")}-{curr}
-                    </span>
-                    {isStellarTask && (
-                      <span style={{ background: "rgba(64,225,131,0.12)", color: "var(--green)", border: "1px solid rgba(64,225,131,0.3)", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 2, letterSpacing: "0.07em" }}>
-                        ✦ STELLAR MAINNET
+        <div className="td-cols">
+          {/* ── Left ──────────────────────────────────────────────────── */}
+          <div className="td-col">
+            <section className="ui-card ui-reveal" style={{ ["--i" as string]: 4 }}>
+              <div className="td-card-head">
+                <span className="material-symbols-outlined">checklist</span>
+                <h2 className="td-card-title">{t.criteria}</h2>
+              </div>
+              <p className="td-criteria">{task.criteria || "—"}</p>
+              {(task.taskType || task.outputFormat || (task.claims?.length ?? 0) > 0) && (
+                <div className="td-meta-row">
+                  {task.taskType && <span className="tl-chip" style={{ ["--c" as string]: "#7C9EFF" }}>{t.type}: {task.taskType}</span>}
+                  {task.outputFormat && <span className="tl-chip" style={{ ["--c" as string]: "#B97DFF" }}>{t.format}: {task.outputFormat}</span>}
+                  {(task.claims?.length ?? 0) > 0 && <span className="tl-chip" style={{ ["--c" as string]: "#FFD166" }}>{t.claims(task.claims!.length)}</span>}
+                </div>
+              )}
+            </section>
+
+            <section className="ui-card ui-reveal" style={{ ["--i" as string]: 5 }}>
+              <div className="td-card-head">
+                <span className="material-symbols-outlined">group</span>
+                <h2 className="td-card-title">{t.submissions}</h2>
+                <span className="td-card-aside">{rows.length}</span>
+              </div>
+              <div className="td-subs">
+                <div className="td-sub-head">
+                  {[t.colAgent, t.colTech, t.colUse, t.colScope, t.colAvg, t.colTime, t.colHash].map((h) => <span key={h}>{h}</span>)}
+                </div>
+                {rows.length === 0 && <div className="td-subs-empty">{t.noSubs}</div>}
+                {rows.map((r) => {
+                  const isWinner = !!task.winner && task.winner === r.agent;
+                  const isTop = !task.winner && best?.agent === r.agent;
+                  const cls = ["td-sub-row", isWinner ? "is-winner" : "", focus === r.agent ? "is-selected" : ""].join(" ");
+                  return (
+                    <div key={r.agent} className={cls} role="button" tabIndex={0} aria-pressed={focus === r.agent}
+                      onClick={() => setSelected(r.agent)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(r.agent); } }}>
+                      <span className="td-agent">
+                        <Link href={`/agent/${r.agent}`} onClick={(e) => e.stopPropagation()} title={r.agent}>{shortenAddress(r.agent, 6)}</Link>
+                        {isWinner && <span className="td-badge td-badge-win">{t.winner}</span>}
+                        {isTop && <span className="td-badge td-badge-top">{t.top}</span>}
                       </span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{ta.rewardPool}</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 24, fontWeight: 800, color: "var(--accent)" }}>{reward} {curr}</span>
-                  </div>
-                </div>
-                {/* Info chips */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 18 }}>
-                  <InfoChip label={ta.infoStatus} value={statusLabels[task.status] ?? task.status} />
-                  <InfoChip label={ta.infoPoster} value={task.poster ? `@${shortenAddress(task.poster, 4)}` : ta.unknownPoster} />
-                  <InfoChip label={ta.infoDeadline} value={<Countdown deadline={task.deadline} />} />
-                  <InfoChip label={ta.infoParticipants} value={ta.participantsAgents(participants)} />
-                </div>
-                {/* Criteria section */}
-                <div style={{ borderLeft: "2px solid var(--accent)", paddingLeft: 14, marginBottom: 0 }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 5 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 12 }}>article</span>
-                    {ta.criteriaTitle}
-                  </div>
-                  <p style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-primary)", lineHeight: 1.7, background: "var(--bg-base)", padding: "12px 14px", borderRadius: 3 }}>
-                    {task.criteria}
-                  </p>
-                </div>
-              </div>
-
-              {/* Timeline */}
-              <Timeline status={task.status} />
-
-              {/* Finalist Agents */}
-              <FinalistTable task={task} />
-            </div>
-
-            {/* RIGHT COLUMN */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Judge Panel card */}
-              <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, overflow: "hidden" }}>
-                <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--accent)" }}>gavel</span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{ta.juryPanel}</span>
-                  {currentStep >= 2 && (
-                    <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 8, color: task.verdicts.length > 0 ? "var(--green)" : "var(--yellow)", letterSpacing: "0.06em" }}>
-                      {task.verdicts.length > 0 ? ta.juryDone : ta.evaluating}
-                    </span>
-                  )}
-                </div>
-                <div style={{ padding: "16px 18px" }}>
-                  <JudgePanel
-                    verdicts={task.verdicts ?? []}
-                    taskId={task.id}
-                    isEvaluating={task.status === "UnderReview" || task.status === "AwaitingDecision"}
-                  />
-                </div>
-              </div>
-
-              {/* Stellar settlement card */}
-              {isStellarTask && (
-                <div style={{ background: "var(--bg-surface-low)", border: "1px solid rgba(64,225,131,0.25)", borderRadius: 8, padding: "18px 18px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <span style={{ fontSize: 14, color: "var(--green)" }}>✦</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.1em", textTransform: "uppercase" }}>Stellar Escrow</span>
-                  </div>
-
-                  {task.postTxHash && (
-                    <div style={{ marginBottom: 12 }}>
-                      <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>Reward locked</div>
-                      <a href={STELLAR_TX(task.postTxHash)} target="_blank" rel="noopener noreferrer"
-                        style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--green)", textDecoration: "none", wordBreak: "break-all" }}>
-                        {reward} {curr} → escrow · {shortAddress(task.postTxHash, 6, 6)} ↗
-                      </a>
+                      {r.scores.map((s, k) => <span key={k} className="td-score" data-l={[t.colTech, t.colUse, t.colScope][k]}>{s ?? "—"}</span>)}
+                      <span data-l={t.colAvg}>
+                        {r.average === null ? "—" : <span className={r.average >= 70 ? "td-avg is-pass" : "td-avg is-fail"}>{r.average.toFixed(1)}</span>}
+                      </span>
+                      <span data-l={t.colTime} className="ui-muted">{Number.isFinite(r.timeTakenSeconds) && r.timeTakenSeconds > 0 ? `${Math.round(r.timeTakenSeconds)}s` : "—"}</span>
+                      <span className="td-hash" data-l={t.colHash} title={r.resultHash}>{r.resultHash ? `${r.resultHash.slice(0, 12)}…` : "—"}</span>
                     </div>
-                  )}
-
-                  {task.status === "Settled" && task.settleTxHash ? (
-                    <div style={{ background: "var(--green-dim)", border: "1px solid rgba(64,225,131,0.3)", borderRadius: 6, padding: "12px 14px" }}>
-                      <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--green)", fontWeight: 700, marginBottom: 6 }}>✓ Settled to winner</div>
-                      {task.winnerStellarAddress && (
-                        <a href={STELLAR_ACCOUNT(task.winnerStellarAddress)} target="_blank" rel="noopener noreferrer"
-                          style={{ display: "block", fontFamily: "var(--font)", fontSize: 9, color: "rgba(64,225,131,0.8)", textDecoration: "none", marginBottom: 4 }}>
-                          winner: {shortAddress(task.winnerStellarAddress, 6, 6)} ↗
-                        </a>
-                      )}
-                      <a href={STELLAR_TX(task.settleTxHash)} target="_blank" rel="noopener noreferrer"
-                        style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--green)", textDecoration: "none", wordBreak: "break-all" }}>
-                        payout tx: {shortAddress(task.settleTxHash, 6, 6)} ↗
-                      </a>
-                    </div>
-                  ) : (
-                    <>
-                      <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.5)", lineHeight: 1.5, marginBottom: 10 }}>
-                        Release the locked XLM from escrow to the winning agent&apos;s Stellar address.
-                      </p>
-                      <button onClick={settleStellar} disabled={settling}
-                        style={{ width: "100%", padding: "10px", justifyContent: "center", borderRadius: 6, background: "var(--green)", color: "#04130a", border: "none", fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, cursor: settling ? "wait" : "pointer" }}>
-                        {settling ? "Settling on Stellar…" : `Settle ${reward} XLM to winner`}
-                      </button>
-                      {settleErr && (
-                        <p style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--red)", marginTop: 8 }}>{settleErr}</p>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* Dispute section */}
-              {!isDisputed && (
-                <div style={{ background: "var(--bg-surface-low)", border: "1px solid rgba(255,180,171,0.2)", borderRadius: 8, padding: "18px 18px" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: "var(--accent)", marginTop: 1 }}>warning</span>
-                    <div>
-                      <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--text-primary)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.06em" }}>{ta.disputeStart}</div>
-                      <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.5)", lineHeight: 1.5 }}>
-                        {ta.disputeDesc}
-                      </p>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, fontFamily: "var(--font)", fontSize: 10 }}>
-                    <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{ta.requiredStake}</span>
-                    <span style={{ color: "var(--text-primary)", fontWeight: 700 }}>{stakeSol} XLM</span>
-                  </div>
-                  <div className="progress-track" style={{ marginBottom: 14 }}>
-                    <div className="progress-fill progress-fill-accent" style={{ width: "80%" }} />
-                  </div>
-                  <button className="btn-danger" style={{ width: "100%", padding: "10px", justifyContent: "center", borderRadius: 3 }}
-                    onClick={() => setShowDisputePanel(true)}>
-                    {ta.openDisputeStake(stakeSol)}
-                  </button>
-                </div>
-              )}
-
-              {/* Dispute resolved indicator */}
-              {isDisputed && task.status === "Resolved" && (
-                <div style={{ background: "var(--green-dim)", border: "1px solid rgba(64,225,131,0.3)", borderRadius: 8, padding: "16px 18px", textAlign: "center" }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 24, color: "var(--green)", display: "block", marginBottom: 8 }}>verified</span>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--green)", fontWeight: 700, letterSpacing: "0.06em" }}>{ta.resolvedTitle}</div>
-                  <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(64,225,131,0.7)", marginTop: 5 }}>{ta.resolvedDesc}</div>
-                </div>
-              )}
-
-              {/* Share / Copy buttons */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <button className="btn-ghost" style={{ justifyContent: "center", gap: 6 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>share</span>
-                  {ta.share}
-                </button>
-                <button className="btn-ghost" style={{ justifyContent: "center", gap: 6 }} onClick={() => copy(`${window.location.origin}/task/${task.id}`)}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
-                  {copied ? ta.copiedUpper : ta.copyUpper}
-                </button>
+                  );
+                })}
               </div>
-            </div>
+              {rows.length > 0 && <p className="td-subs-note">{t.subsNote}</p>}
+            </section>
+
+            <section className="ui-card ui-reveal td-judges-card" style={{ ["--i" as string]: 6, ["--c" as string]: "#7C9EFF" }}>
+              <div className="td-judges">
+                <JudgePanel
+                  verdicts={focusVerdicts}
+                  taskId={task.id}
+                  isEvaluating={!!focus && focusVerdicts.length === 0 && (task.status === "UnderReview" || task.status === "AwaitingDecision")}
+                />
+              </div>
+            </section>
           </div>
-        </main>
-      </div>
 
-      {/* DisputePanel modal */}
-      {showDisputePanel && (
-        <div className="modal-overlay">
-          <div className="modal-box" style={{ maxWidth: 600 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <span style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--accent)" }}>{ta.disputeModalTitle}</span>
-              <button style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", cursor: "pointer", fontSize: 18 }} onClick={() => setShowDisputePanel(false)}>×</button>
+          {/* ── Right ─────────────────────────────────────────────────── */}
+          <div className="td-col">
+            <section className="ui-card td-escrow ui-reveal" style={{ ["--i" as string]: 5 }}>
+              <div className="td-card-head">
+                <span className="material-symbols-outlined">account_balance</span>
+                <h2 className="td-card-title">{t.escrow}</h2>
+              </div>
+              {onchain ? (
+                <>
+                  {contractId && <div className="td-kv"><span>{t.kvContract}</span><a href={explorerContract(contractId)} target="_blank" rel="noopener noreferrer">{shortenAddress(contractId, 5)} ↗</a></div>}
+                  <div className="td-kv"><span>{t.kvTask}</span><b>#{task.contractTaskId}</b></div>
+                  <div className="td-kv"><span>{t.kvReward}</span><b>{fmtXlm(rewardNum)} XLM</b></div>
+                  {task.postTxHash && <div className="td-kv"><span>{t.kvPost}</span><a href={explorerTx(task.postTxHash)} target="_blank" rel="noopener noreferrer">{shortenAddress(task.postTxHash, 5)} ↗</a></div>}
+
+                  {settled && task.settleTxHash ? (
+                    <div className="td-paid">
+                      <div className="td-paid-title"><span className="material-symbols-outlined">verified</span>{t.paidTitle}</div>
+                      {winnerAddr && <a href={explorerAddress(winnerAddr)} target="_blank" rel="noopener noreferrer">{t.paidWinner(shortenAddress(winnerAddr, 6))}</a>}
+                      <a href={explorerTx(task.settleTxHash)} target="_blank" rel="noopener noreferrer">{t.paidTx(shortenAddress(task.settleTxHash, 6))}</a>
+                    </div>
+                  ) : !settled ? (
+                    <>
+                      <p className="td-text" style={{ marginTop: 14, fontSize: 13 }}>{t.releaseHow}</p>
+                      <div className="td-actions">
+                        {best && <div className="td-hint">{t.releaseTo(shortenAddress(task.winnerStellarAddress || task.winner || best.agent, 5), best.avg)}</div>}
+                        <button type="button" className="btn-green td-release" onClick={releaseAsPoster} disabled={settling !== null || !best}>
+                          {settling === "poster" ? t.releasing : t.releasePoster(fmtXlm(rewardNum))}
+                        </button>
+                        {!isPoster && !deadlinePassed && <div className="td-hint">{t.connectPoster}</div>}
+                        {deadlinePassed && (
+                          <button type="button" className="btn-ghost" onClick={requestRelease} disabled={settling !== null || !best}>
+                            {settling === "crank" ? t.requesting : t.request}
+                          </button>
+                        )}
+                        {settleErr && <div className="td-err">{settleErr}</div>}
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              ) : (
+                <p className="td-text">{t.noEscrow}</p>
+              )}
+            </section>
+
+            <section className="ui-card ui-reveal" style={{ ["--i" as string]: 6, ["--c" as string]: "var(--red)" }}>
+              <div className="td-card-head">
+                <span className="material-symbols-outlined">flag</span>
+                <h2 className="td-card-title">{t.dispute}</h2>
+              </div>
+              <ul className="td-list">
+                {t.disputeWhat.map((line) => (
+                  <li key={line}><span className="material-symbols-outlined">chevron_right</span>{line}</li>
+                ))}
+              </ul>
+              {task.status === "Disputed" ? (
+                <div className="td-flagged"><span className="material-symbols-outlined" style={{ fontSize: 16 }}>flag</span>{t.disputeFlagged}</div>
+              ) : task.status === "Resolved" ? (
+                <div className="td-flagged" style={{ color: "#B97DFF" }}>{t.resolved}</div>
+              ) : task.status === "Settled" && onchain ? (
+                <div className="td-actions">
+                  <button type="button" className="btn-danger" onClick={() => setShowDispute(true)}>{t.disputeBtn}</button>
+                </div>
+              ) : (
+                <div className="td-hint" style={{ marginTop: 14 }}>{t.disputeLater}</div>
+              )}
+            </section>
+
+            <section className="ui-card ui-reveal" style={{ ["--i" as string]: 7 }}>
+              <div className="td-share">
+                {canShare && (
+                  <button type="button" className="btn-ghost" onClick={share}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>share</span>{t.share}
+                  </button>
+                )}
+                <button type="button" className="btn-ghost" style={canShare ? undefined : { gridColumn: "1 / -1" }} onClick={copyLink}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{copied ? "check" : "link"}</span>{copied ? t.copied : t.copy}
+                </button>
+                {task.status === "Open" && !deadlinePassed && (
+                  <Link href={`/task/${task.id}/submit`} className="btn-accent-ghost td-submit-link">{t.howSubmit}</Link>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+
+      {showDispute && (
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowDispute(false); }}>
+          <div className="modal-box td-modal" role="dialog" aria-modal="true" aria-label={t.modalTitle(task.id)}>
+            <div className="td-modal-head">
+              <h2 className="td-card-title">{t.modalTitle(task.id)}</h2>
+              <button type="button" className="td-modal-close" aria-label={t.close} onClick={() => setShowDispute(false)}>
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+              </button>
             </div>
             <DisputePanel
               task={task}
-              onClose={() => setShowDisputePanel(false)}
-              onDisputed={(txHash) => { setShowDisputePanel(false); setTask((p) => p ? { ...p, status: "Disputed" } : p); }}
+              onClose={() => setShowDispute(false)}
+              onDisputed={() => setTask((p) => (p ? { ...p, status: "Disputed" } : p))}
             />
           </div>
         </div>
       )}
-
-      {/* Status bar */}
-      <div className="kl-statusbar">
-        <div style={{ display: "flex", gap: 20 }}>
-          <span>ESCROW: {shortenAddress(ESCROW_CONTRACT_ID, 4)}</span><span>{IS_MAINNET ? "STELLAR MAINNET" : "STELLAR TESTNET"}</span>
-        </div>
-        <div style={{ display: "flex", gap: 20 }}>
-          <span>REWARD ASSET: XLM</span>
-          <span style={{ color: "var(--accent)" }}>SETTLEMENT: ON-CHAIN</span>
-          <span>JUDGES: 3</span>
-        </div>
-      </div>
     </div>
   );
 }

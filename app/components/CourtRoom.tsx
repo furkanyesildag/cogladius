@@ -2,25 +2,14 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Task } from "@/lib/types";
-import { useMessages } from "@/lib/i18n";
+import { useLocale } from "@/lib/i18n";
 
-const S = {
-  bg: "var(--bg-base)",
-  surface: "var(--bg-surface)",
-  border: "var(--bg-border)",
-  borderB: "var(--bg-border-bright)",
-  accent: "var(--accent)",
-  accentD: "var(--accent-dim)",
-  green: "var(--green)",
-  greenD: "var(--green-dim)",
-  yellow: "var(--yellow)",
-  red: "var(--red)",
-  blue: "var(--blue)",
-  blueD: "var(--blue-dim)",
-  tp: "var(--text-primary)",
-  ts: "var(--text-secondary)",
-  tm: "var(--text-muted)",
-};
+/**
+ * Agent Court: an off-chain LLM roleplay (poster's counsel, agent's counsel,
+ * magistrate) produced by /api/court. It has no stake, moves no funds and
+ * writes nothing on-chain; its "ruling" is a simulated opinion only. The UI
+ * says so up front and on the verdict.
+ */
 
 interface Statement {
   speaker: "poster_lawyer" | "openclaw_lawyer" | "judge";
@@ -44,348 +33,179 @@ interface CourtRoomProps {
   prefillDisputeReason?: string;
 }
 
+const T = {
+  en: {
+    kicker: "Agent Court",
+    title: (id: number) => `Simulated trial · task #${id}`,
+    sim: "AI-generated simulation",
+    simLong: "An LLM plays both counsels and a magistrate. There is no stake, nothing is refunded or paid, and nothing is written on-chain. Use it to stress-test a disagreement, not to settle one.",
+    close: "Close",
+    task: "Task",
+    fieldAgent: "Agent output (reference)",
+    phAgent: "Paste the agent's result or the relevant part…",
+    fieldDispute: "What is wrong with it? *",
+    phDispute: "Which criteria were missed, or why the work is insufficient…",
+    start: "Run simulated trial",
+    loading: "Generating the transcript…",
+    error: "Could not start the simulation. Check your connection and try again.",
+    errorValidation: "Add a few words describing the disagreement.",
+    retry: "Try again",
+    transcript: "Transcript",
+    speakers: { poster_lawyer: "Poster's counsel", openclaw_lawyer: "Agent's counsel", judge: "Magistrate" },
+    verdict: "Simulated ruling",
+    rulingPoster: "Leans towards the poster",
+    rulingAgent: "Leans towards the agent",
+    suggested: "Suggested remedy (not executed)",
+    notExecuted: "This opinion has no effect. Payment still follows the escrow rules: the poster releases a passing submission, or anyone can request release after the deadline.",
+    again: "Run again",
+  },
+  tr: {
+    kicker: "Ajan Mahkemesi",
+    title: (id: number) => `Simüle duruşma · görev #${id}`,
+    sim: "Yapay zekâ simülasyonu",
+    simLong: "Bir LLM iki avukatı ve hâkimi canlandırır. Teminat yoktur, iade ya da ödeme yapılmaz ve zincire hiçbir şey yazılmaz. Bir anlaşmazlığı çözmek için değil, sınamak için kullan.",
+    close: "Kapat",
+    task: "Görev",
+    fieldAgent: "Ajan çıktısı (referans)",
+    phAgent: "Ajanın sonucunu ya da ilgili kısmı yapıştır…",
+    fieldDispute: "Sorun ne? *",
+    phDispute: "Hangi kriterler karşılanmadı ya da iş neden yetersiz…",
+    start: "Simüle duruşmayı başlat",
+    loading: "Tutanak üretiliyor…",
+    error: "Simülasyon başlatılamadı. Bağlantını kontrol edip tekrar dene.",
+    errorValidation: "Anlaşmazlığı birkaç kelimeyle anlat.",
+    retry: "Tekrar dene",
+    transcript: "Tutanak",
+    speakers: { poster_lawyer: "Görev sahibinin avukatı", openclaw_lawyer: "Ajanın avukatı", judge: "Hâkim" },
+    verdict: "Simüle karar",
+    rulingPoster: "Görev sahibine yakın",
+    rulingAgent: "Ajana yakın",
+    suggested: "Önerilen çözüm (uygulanmaz)",
+    notExecuted: "Bu görüşün hiçbir etkisi yoktur. Ödeme yine escrow kurallarına uyar: görev sahibi geçen bir teslimi öder ya da son tarihten sonra herkes ödemeyi talep edebilir.",
+    again: "Yeniden çalıştır",
+  },
+};
+
 export default function CourtRoom({ task, onClose, onVerdict, prefillAgentResult, prefillDisputeReason }: CourtRoomProps) {
-  const c = useMessages().ui.court;
+  const { locale } = useLocale();
+  const t = T[locale === "tr" ? "tr" : "en"];
   const [phase, setPhase] = useState<"idle" | "loading" | "error" | "running" | "verdict">("idle");
   const [trial, setTrial] = useState<TrialData | null>(null);
-  const [shownStatements, setShownStatements] = useState<Statement[]>([]);
-  const [progress, setProgress] = useState({ poster: 0, openclaw: 0, judge: 0 });
+  const [shown, setShown] = useState<Statement[]>([]);
   const [disputeReason, setDisputeReason] = useState(prefillDisputeReason ?? "");
   const [agentResult, setAgentResult] = useState(prefillAgentResult ?? "");
   const [formError, setFormError] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const verdictReported = useRef(false);
-  const autoStartKey = useRef<string | null>(null);
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const reported = useRef(false);
 
-  const clearTimers = () => {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-  };
-
+  const clearTimers = () => { timers.current.forEach(clearTimeout); timers.current = []; };
   useEffect(() => () => clearTimers(), []);
 
   useEffect(() => {
-    if (prefillAgentResult && prefillAgentResult !== agentResult) {
-      setAgentResult(prefillAgentResult);
+    if (prefillAgentResult && !agentResult) setAgentResult(prefillAgentResult);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillAgentResult]);
+
+  const play = useCallback((data: TrialData) => {
+    clearTimers();
+    let i = 0;
+    const next = () => {
+      if (i >= data.statements.length) {
+        timers.current.push(setTimeout(() => {
+          setPhase("verdict");
+          if (onVerdict && !reported.current) { reported.current = true; onVerdict(data.verdict.ruling); }
+        }, 500));
+        return;
+      }
+      const s = data.statements[i++];
+      setShown((p) => [...p, s]);
+      // Pacing for readability only.
+      timers.current.push(setTimeout(next, Math.min(2600, 500 + s.text.length * 8)));
+    };
+    timers.current.push(setTimeout(next, 300));
+  }, [onVerdict]);
+
+  async function start() {
+    if (!disputeReason.trim()) { setFormError(t.errorValidation); return; }
+    setFormError(null);
+    setShown([]);
+    setPhase("loading");
+    try {
+      const res = await fetch("/api/court", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskDescription: task.description, criteria: task.criteria, agentResult, disputeReason }),
+      });
+      if (!res.ok) throw new Error("bad response");
+      const data: TrialData = await res.json();
+      if (!data?.statements?.length || !data?.verdict) throw new Error("invalid");
+      setTrial(data);
+      reported.current = false;
+      setPhase("running");
+      play(data);
+    } catch {
+      setPhase("error");
     }
-  }, [prefillAgentResult, agentResult]);
+  }
 
-  const runStatements = useCallback(
-    (data: TrialData) => {
-      clearTimers();
-      const stmts = data.statements;
-      let idx = 0;
-
-      const showNext = () => {
-        if (idx >= stmts.length) {
-          const t = setTimeout(() => {
-            setPhase("verdict");
-            if (onVerdict && !verdictReported.current) {
-              verdictReported.current = true;
-              onVerdict(data.verdict.ruling);
-            }
-          }, 800);
-          timersRef.current.push(t);
-          return;
-        }
-
-        const stmt = stmts[idx];
-        setShownStatements((prev) => [...prev, stmt]);
-
-        setProgress((prev) => {
-          const next = { ...prev };
-          if (stmt.speaker === "poster_lawyer") next.poster = Math.min(100, next.poster + 40);
-          if (stmt.speaker === "openclaw_lawyer") next.openclaw = Math.min(100, next.openclaw + 40);
-          if (stmt.speaker === "judge") next.judge = Math.min(100, next.judge + 60);
-          return next;
-        });
-
-        idx++;
-        const delay = 600 + stmt.text.length * 18;
-        const t = setTimeout(showNext, delay);
-        timersRef.current.push(t);
-      };
-
-      const t0 = setTimeout(showNext, 400);
-      timersRef.current.push(t0);
-    },
-    [onVerdict]
-  );
-
-  const startTrial = useCallback(
-    async (fromAuto = false) => {
-      const dReason = fromAuto && prefillDisputeReason ? prefillDisputeReason : disputeReason;
-      const aResult = fromAuto && prefillAgentResult != null ? prefillAgentResult : agentResult;
-      if (!fromAuto && !dReason.trim()) {
-        setFormError(c.errorValidation);
-        return;
-      }
-      if (fromAuto && !dReason.trim()) {
-        setPhase("error");
-        setLoadError(c.errorGeneric);
-        return;
-      }
-      setFormError(null);
-      setLoadError(null);
-      setShownStatements([]);
-      setProgress({ poster: 0, openclaw: 0, judge: 0 });
-      setPhase("loading");
-      try {
-        const res = await fetch("/api/court", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            taskDescription: task.description,
-            criteria: task.criteria,
-            agentResult: aResult,
-            disputeReason: dReason,
-          }),
-        });
-        if (!res.ok) throw new Error("bad response");
-        const data: TrialData = await res.json();
-        if (!data?.statements?.length || !data?.verdict) throw new Error("invalid");
-        setTrial(data);
-        setPhase("running");
-        verdictReported.current = false;
-        runStatements(data);
-      } catch {
-        setPhase("error");
-        setLoadError(c.errorGeneric);
-      }
-    },
-    [
-      c.errorGeneric,
-      c.errorValidation,
-      agentResult,
-      disputeReason,
-      prefillAgentResult,
-      prefillDisputeReason,
-      task.criteria,
-      task.description,
-      runStatements,
-    ]
-  );
-
-  useEffect(() => {
-    if (!prefillDisputeReason?.trim() || !prefillAgentResult?.trim()) return;
-    const k = `court-auto-${task.id}`;
-    if (autoStartKey.current === k) return;
-    autoStartKey.current = k;
-    void startTrial(true);
-  }, [prefillDisputeReason, prefillAgentResult, task.id, startTrial]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [shownStatements, phase]);
-
-  const stackPct = (p: number) => (p === 0 ? 0.28 : 1);
-  const ProgressBar = ({ pct, color }: { pct: number; color: string }) => (
-    <div className="kl-court-progress-track">
-      <div
-        className="kl-court-progress-fill"
-        style={{
-          width: `${pct}%`,
-          background: color,
-          opacity: stackPct(pct),
-        }}
-      />
-    </div>
-  );
-
-  const stake = ((task.rewardUsdc ?? 0) * 0.2).toFixed(4);
-  const shortDesc = task.description.length > 120 ? `${task.description.slice(0, 120)}…` : task.description;
-  const speakerLabel = (s: Statement["speaker"]) => c.speaker[s];
+  const color = (s: Statement["speaker"]) => (s === "judge" ? "#FFD166" : s === "poster_lawyer" ? "var(--accent)" : "#7C9EFF");
 
   return (
-    <div className="kl-court">
-      <header className="kl-court__header">
-        <div className="kl-court__header-left">
-          <div className="kl-court__header-icon" aria-hidden>
-            <span className="material-symbols-outlined">gavel</span>
-          </div>
+    <section className="db-court">
+      <div className="db-court-head">
+        <div>
+          <span className="db-court-kicker">{t.kicker}</span>
+          <h3>{t.title(task.id)}</h3>
+        </div>
+        <span className="db-sim-badge">{t.sim}</span>
+        <button type="button" className="db-icon-btn" aria-label={t.close} title={t.close} onClick={onClose}>✕</button>
+      </div>
+      <p className="db-court-note">{t.simLong}</p>
+
+      {(phase === "idle" || phase === "error") && (
+        <div className="db-court-form">
+          {phase === "error" && <div className="db-alert db-alert-red" role="alert">{t.error}</div>}
+          {formError && <div className="db-alert db-alert-red" role="alert">{formError}</div>}
+          <label className="ui-label" htmlFor="court-agent-out">{t.fieldAgent}</label>
+          <textarea id="court-agent-out" className="ui-input" rows={3} value={agentResult} onChange={(e) => setAgentResult(e.target.value)} placeholder={t.phAgent} />
+          <label className="ui-label" htmlFor="court-dispute">{t.fieldDispute}</label>
+          <textarea id="court-dispute" className="ui-input" rows={3} value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} placeholder={t.phDispute} />
           <div>
-            <div className="kl-court__header-kicker">{c.headerKicker}</div>
-            <h2 className="kl-court__header-title">{c.headerTitle(task.id)}</h2>
+            <button type="button" className="btn-ghost" onClick={() => void start()}>{phase === "error" ? t.retry : t.start}</button>
           </div>
-        </div>
-        <div className="kl-court__header-badges">
-          <span className="kl-court__pill">
-            <span className="material-symbols-outlined" style={{ fontSize: 12, opacity: 0.7 }}>fiber_manual_record</span>
-            {c.liveSession}
-          </span>
-          <button type="button" className="kl-icon-btn-ghost" title={c.close} aria-label={c.close} onClick={onClose}>
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>close</span>
-          </button>
-        </div>
-      </header>
-
-      <div className="kl-court__taskline">
-        <span className="kl-court__taskline-label">{c.taskLabel}</span>
-        <p className="kl-court__taskline-text">{shortDesc}</p>
-      </div>
-
-      <div className="kl-court__bench">
-        {[
-          { key: "poster" as const, label: c.partPoster, color: S.accent, pct: progress.poster },
-          { key: "judge" as const, label: c.partJudge, color: S.yellow, pct: progress.judge },
-          { key: "openclaw" as const, label: c.partOpenclaw, color: S.blue, pct: progress.openclaw },
-        ].map(({ key, label, color, pct }) => {
-          const status =
-            pct === 0 ? c.progress.idle : pct === 100 ? c.progress.done : c.progress.active;
-          return (
-            <div key={key} className="kl-court__participant">
-              <div className="kl-court__participant-head">
-                <span className="kl-court__participant-dot" style={{ background: color, boxShadow: `0 0 10px ${color}55` }} />
-                <span className="kl-court__participant-name" style={{ color: S.ts }}>
-                  {label}
-                </span>
-              </div>
-              <ProgressBar pct={pct} color={color} />
-              <div className="kl-court__participant-stat" style={{ color: pct > 0 ? color : S.tm }}>
-                {status}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {phase === "idle" && (
-        <div className="kl-court__form">
-          {formError && <div className="kl-court__alert" role="alert">{formError}</div>}
-          <div className="kl-court__preface">
-            <div className="kl-court__preface-title">{c.prefaceTitle}</div>
-            <p className="kl-court__preface-text">{c.preface}</p>
-          </div>
-
-          <label className="kl-court__label" htmlFor="court-agent-out">{c.fieldAgent}</label>
-          <textarea
-            id="court-agent-out"
-            className="kl-court__textarea"
-            value={agentResult}
-            onChange={(e) => setAgentResult(e.target.value)}
-            placeholder={c.phAgent}
-            rows={3}
-            spellCheck
-          />
-
-          <label className="kl-court__label" htmlFor="court-dispute">{c.fieldDispute}</label>
-          <textarea
-            id="court-dispute"
-            className="kl-court__textarea"
-            value={disputeReason}
-            onChange={(e) => setDisputeReason(e.target.value)}
-            placeholder={c.phDispute}
-            rows={3}
-            spellCheck
-            required
-          />
-
-          <div className="kl-court__stake">
-            <div className="kl-court__stake-row">
-              <span>{c.stakeLine(stake)}</span>
-            </div>
-            <div className="kl-court__stake-row kl-court__stake-row--pos">
-              <span>{c.stakeWin}</span>
-              <span className="kl-court__stake-em">{c.stakeWinDetail}</span>
-            </div>
-          </div>
-
-          <button type="button" className="kl-court__cta" onClick={() => void startTrial(false)}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16, marginRight: 6 }}>chat</span>
-            {c.startTrial}
-          </button>
         </div>
       )}
 
       {phase === "loading" && (
-        <div className="kl-court__loading" aria-live="polite" aria-busy>
-          <div className="kl-court__spinner" />
-          <div className="kl-court__loading-title">{c.loadingTitle}</div>
-          <div className="kl-court__loading-sub">{c.loadingSub}</div>
-        </div>
-      )}
-
-      {phase === "error" && (
-        <div className="kl-court__error" role="alert">
-          <span className="material-symbols-outlined kl-court__error-icon">error_outline</span>
-          <p>{loadError || c.errorGeneric}</p>
-          <button
-            type="button"
-            className="kl-court__retry"
-            onClick={() => {
-              setPhase("idle");
-              setLoadError(null);
-            }}
-          >
-            {c.retry}
-          </button>
-        </div>
+        <div className="db-court-loading" aria-live="polite"><span className="db-spinner" />{t.loading}</div>
       )}
 
       {(phase === "running" || phase === "verdict") && (
-        <div className="kl-court__transcriptwrap">
-          <div className="kl-court__transcript-hdr">
-            <span className="material-symbols-outlined" style={{ fontSize: 14, color: S.tm }}>description</span>
-            {c.transcript}
-          </div>
-          <div className="kl-court__transcript">
-            {shownStatements.map((s, i) => {
-              const isJudge = s.speaker === "judge";
-              const isPoster = s.speaker === "poster_lawyer";
-              return (
-                <div
-                  key={i}
-                  className={
-                    isJudge
-                      ? "kl-court__bubble-wrap kl-court__bubble-wrap--judge"
-                      : isPoster
-                        ? "kl-court__bubble-wrap kl-court__bubble-wrap--left"
-                        : "kl-court__bubble-wrap kl-court__bubble-wrap--right"
-                  }
-                >
-                  <div className="kl-court__bubble-meta" style={{ color: isJudge ? S.yellow : isPoster ? S.accent : S.blue }}>
-                    {speakerLabel(s.speaker)}
-                  </div>
-                  <div
-                    className={
-                      isJudge
-                        ? "kl-court__bubble kl-court__bubble--judge"
-                        : isPoster
-                          ? "kl-court__bubble kl-court__bubble--poster"
-                          : "kl-court__bubble kl-court__bubble--defense"
-                    }
-                  >
-                    {s.text}
-                  </div>
-                </div>
-              );
-            })}
-
-            {phase === "verdict" && trial && (
-              <div className="kl-court__verdict">
-                <div className="kl-court__verdict-stamp" aria-hidden>
-                  <span className="material-symbols-outlined">contract</span>
-                </div>
-                <div className="kl-court__verdict-hdr">{c.verdict}</div>
-                <div
-                  className={
-                    trial.verdict.ruling === "poster_wins"
-                      ? "kl-court__verdict-ruling kl-court__verdict-ruling--poster"
-                      : "kl-court__verdict-ruling kl-court__verdict-ruling--openclaw"
-                  }
-                >
-                  {trial.verdict.ruling === "poster_wins" ? c.rulingPoster : c.rulingOpenclaw}
-                </div>
-                <p className="kl-court__verdict-reason">{trial.verdict.reasoning}</p>
-                <p className="kl-court__verdict-action">{trial.verdict.action}</p>
+        <div className="db-court-transcript">
+          <div className="ui-label" style={{ marginBottom: 10 }}>{t.transcript}</div>
+          {shown.map((s, i) => (
+            <div key={i} className={`db-bubble db-bubble-${s.speaker}`}>
+              <div className="db-bubble-who" style={{ color: color(s.speaker) }}>{t.speakers[s.speaker]}</div>
+              <div className="db-bubble-text">{s.text}</div>
+            </div>
+          ))}
+          {phase === "verdict" && trial && (
+            <div className="db-verdict">
+              <div className="db-verdict-top">
+                <span className="ui-label">{t.verdict}</span>
+                <span className="db-sim-badge">{t.sim}</span>
               </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
+              <div className="db-verdict-ruling">{trial.verdict.ruling === "poster_wins" ? t.rulingPoster : t.rulingAgent}</div>
+              <p>{trial.verdict.reasoning}</p>
+              {trial.verdict.action && (
+                <p className="db-verdict-action"><span className="ui-label">{t.suggested}</span><br />{trial.verdict.action}</p>
+              )}
+              <p className="db-verdict-foot">{t.notExecuted}</p>
+              <button type="button" className="btn-ghost" onClick={() => { clearTimers(); setPhase("idle"); setShown([]); setTrial(null); }}>{t.again}</button>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </section>
   );
 }
