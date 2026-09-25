@@ -1,0 +1,47 @@
+# Runs every test suite a reviewer would otherwise have to run by hand:
+# the escrow contract, the agent SDK (unit tests and the reputation
+# conformance test) and the MCP server. Nothing here touches the network
+# beyond installing dependencies.
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts/cogladius-escrow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts/cogladius-escrow
+      - run: cargo test
+
+  packages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Agent SDK (unit tests and reputation conformance)
+        working-directory: packages/agent-sdk
+        run: |
+          npm ci
+          npm run build
+          npm test
+          npm run conformance
+      # The MCP server depends on the SDK through file:../agent-sdk, so it
+      # runs after the SDK is built.
+      - name: MCP server
+        working-directory: packages/mcp-server
+        run: |
+          npm ci
+          npm run build
+          npm test

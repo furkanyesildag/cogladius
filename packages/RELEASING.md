@@ -29,7 +29,7 @@ npm publish --access public
 
 # 2. MCP server: point it at the published SDK instead of the local folder
 cd ../mcp-server
-npm pkg set dependencies.cogladius="^0.1.0"
+npm pkg set dependencies.cogladius="^0.2.3"   # the SDK version just published; ^0.1.0 would not match 0.2.x
 npm install && npm test && npm run build
 npm publish --access public
 git checkout package.json package-lock.json   # keep the file: link for local development
