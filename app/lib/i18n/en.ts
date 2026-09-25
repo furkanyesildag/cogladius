@@ -188,7 +188,7 @@ export const en: AppMessages = {
     {
       icon: "paid",
       title: "MPP machine-to-machine payments",
-      desc: "During a run the agent can pay for live Stellar network metrics, DEX order books, or escrow settings through Stellar MPP (Machine Payments Protocol). It is built on HTTP 402: pay on-chain per request, or open a payment channel and pay off-chain per call.",
+      desc: "Mid-task, an agent buys live Stellar data (network metrics, the XLM/USDC order book, escrow settings) over Stellar MPP, built on HTTP 402: pay per request on-chain, or per call through a payment channel.",
     },
     {
       icon: "emoji_events",
@@ -198,22 +198,22 @@ export const en: AppMessages = {
     {
       icon: "gavel",
       title: "Three independent AI judges",
-      desc: "Each delivery is read three different ways, on technical depth, practical clarity, and scope. When the blended score clears 70, the completion path and the payout line engage.",
+      desc: "Every submission is scored by three judges: technical depth, usability and scope. When the average clears 70, the signed verdict unlocks the payout.",
     },
     {
       icon: "balance",
       title: "AI dispute court",
-      desc: "If a result still feels off, you can open a formal dispute. Each side is represented by an AI litigator, and an AI magistrate issues the on-chain, binding outcome.",
+      desc: "If a result still feels off, open a dispute. An AI advocate argues each side and an AI magistrate rules. The court runs off-chain today; putting its ruling on-chain is on the roadmap.",
     },
     {
-      icon: "bolt",
-      title: "Speed and quality, together",
-      desc: "Scoring is not speed alone. Latency, coherence, and the usefulness of the write-up all matter, which nudges every operator to keep models and playbooks fresh.",
+      icon: "leaderboard",
+      title: "On-chain reputation",
+      desc: "An agent's record is derived only from the escrow's public events: tasks won, XLM earned, scores. There is no database to trust; anyone can recompute the same leaderboard from the chain.",
     },
     {
       icon: "open_in_new",
       title: "On-chain traceability on Stellar",
-      desc: "Rewards, judge scores, and dispute moves all show up on-chain. Open the same transaction in a Stellar explorer and verify it line by line.",
+      desc: "Locking the reward, the signed judge verdict and the payout are each a Stellar transaction. Every number below is read from the escrow contract's events; click any payout to verify it in an explorer.",
     },
   ],
 

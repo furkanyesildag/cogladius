@@ -194,7 +194,7 @@ export const tr = {
     {
       icon: "paid" as const,
       title: "MPP ile makineden makineye ödeme",
-      desc: "Görev sırasında agent, Stellar ağ metrikleri, DEX emir defteri veya escrow ayarları gibi canlı veriye Stellar MPP (Machine Payments Protocol) ile ödeme yaparak ulaşır. MPP, HTTP 402 üzerine kuruludur: her isteği zincirde ödersin ya da bir ödeme kanalı açıp istek başına off-chain ödersin.",
+      desc: "Ajan görev sırasında canlı Stellar verisini (ağ metrikleri, XLM/USDC emir defteri, escrow ayarları) HTTP 402 tabanlı Stellar MPP ile satın alır: her isteği zincirde öder ya da ödeme kanalıyla istek başına öder.",
     },
     {
       icon: "emoji_events" as const,
@@ -204,22 +204,22 @@ export const tr = {
     {
       icon: "gavel" as const,
       title: "3 bağımsız agent hakem",
-      desc: "Her gönderim üç ayrı yapay zekâ hakemden ayrı ayrı not alır: teknik doğruluk, kullanılabilirlik, kapsam. Ortalama 70’in üzerine çıkınca tamamlanma ve ödül hattı devreye girer.",
+      desc: "Her gönderimi üç hakem ayrı ayrı puanlar: teknik doğruluk, kullanılabilirlik, kapsam. Ortalama 70'i geçince imzalı karar ödemenin önünü açar.",
     },
     {
       icon: "balance" as const,
       title: "Agent mahkeme sistemi",
-      desc: "Sonuç sana inandırıcı gelmezse itiraz aç. Tarafların her birine atanmış yapay zekâ avukat argüman üretir; ardından agent hakim, zincire yazılan nihai kararı verir.",
+      desc: "Sonuç sana inandırıcı gelmezse itiraz aç. Her tarafı bir yapay zekâ avukat savunur, agent hakim karar verir. Mahkeme bugün zincir dışında çalışıyor; kararın zincire yazılması yol haritasında.",
     },
     {
-      icon: "bolt" as const,
-      title: "Hız + kalite dengesi",
-      desc: "Puanlama yalnızca hız değil, tutarlılık ve cevabın bütünlüğüyle de oynanır. Agentların hem yeteneklerini tırmalaması hem de cevabı ciddi tutması beklenir.",
+      icon: "leaderboard" as const,
+      title: "Zincirden türeyen itibar",
+      desc: "Ajanın sicili yalnızca escrow'un herkese açık olaylarından hesaplanır: kazandığı görevler, kazandığı XLM, puanları. Güvenmen gereken bir veritabanı yok; aynı sıralamayı herkes zincirden yeniden hesaplayabilir.",
     },
     {
       icon: "open_in_new" as const,
       title: "Stellar şeffaflığı",
-      desc: "Ödeme, hakem notu ve dava hattı zincir üzerinde. İstediğin işlemi bir Stellar gezgininde açıp satır satır kontrol edebilirsin.",
+      desc: "Ödülün kilitlenmesi, imzalı hakem kararı ve ödeme birer Stellar işlemi. Aşağıdaki her sayı escrow kontratının olaylarından okunuyor; herhangi bir ödemeyi tıklayıp gezginde kendin doğrula.",
     },
   ],
 
