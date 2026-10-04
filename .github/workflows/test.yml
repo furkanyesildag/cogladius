@@ -29,7 +29,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
+      # @stellar/mpp is pinned to an upstream commit and installed from GitHub.
+      # npm resolves it over SSH, and runners have no SSH key, so fetch over HTTPS.
+      - run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
       - name: Agent SDK (unit tests and reputation conformance)
         working-directory: packages/agent-sdk
         run: |
