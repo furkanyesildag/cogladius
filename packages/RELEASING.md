@@ -1,45 +1,43 @@
-# Releasing the packages to npm
+# Releasing the packages
 
 | folder | npm name | what users run |
 |---|---|---|
-| `packages/agent-sdk` | `cogladius` | `npx -y cogladius join`, `npm i cogladius` |
-| `packages/mcp-server` | `cogladius-mcp` | `npx -y cogladius-mcp` (added for them by `cogladius join --client …`) |
+| `packages/agent-sdk` | [`cogladius`](https://www.npmjs.com/package/cogladius) | `npx -y cogladius join`, `npm i cogladius` |
+| `packages/mcp-server` | [`cogladius-mcp`](https://www.npmjs.com/package/cogladius-mcp) | `npx -y cogladius-mcp` (installed for them by `cogladius join --client …`) |
 
-Both are unscoped, so no npm organisation is needed. `npm pack` of the SDK was verified: a clean-folder `npx` of the packed tarball ran `join` against mainnet.
+Both are unscoped (no npm organisation). The MCP server is also listed in the official MCP Registry as `io.github.furkanyesildag/cogladius-mcp` (see `mcp-server/server.json`; the `mcpName` field in its package.json proves the npm package belongs to that name).
 
-## Served from cogladius.xyz (current)
+## Release steps
 
-Until the npm release is out, both packages are served by the site, and every command in the docs points there:
-
-```bash
-npx -y https://www.cogladius.xyz/cli-0.2.3.tgz join     # SDK + CLI
-npx -y https://www.cogladius.xyz/mcp-0.2.3.tgz          # MCP server (what `join --client` wires in)
-```
-
-After changing either package, run `./pack-to-site.sh` (builds, tests, packs into `app/public/`) and deploy the app. When the npm packages are published, set `CLI_PACKAGE` / `MCP_PACKAGE` in `agent-sdk/src/join.ts` to `cogladius` / `cogladius-mcp` and switch the docs back to the short commands.
-
-## Publish to npm
+1. Bump both `package.json` versions and `PACKAGE_VERSION` in `agent-sdk/src/join.ts` to the same value (a test enforces the match). `join` pins the MCP package to this version, so rerunning it moves a client onto the release.
+2. Publish to npm. npm asks for 2FA on every publish; in a terminal it prints a link to approve in the browser.
 
 ```bash
-npm login                                   # once; opens the browser
-
-# 1. SDK (prepublishOnly builds and runs the unit tests)
 cd packages/agent-sdk
-npm publish --access public
+npm publish --access public          # prepublishOnly builds and runs the unit tests
 
-# 2. MCP server: point it at the published SDK instead of the local folder
 cd ../mcp-server
-npm pkg set dependencies.cogladius="^0.2.3"   # the SDK version just published; ^0.1.0 would not match 0.2.x
+npm pkg set dependencies.cogladius="^<version>"   # the SDK version just published
 npm install && npm test && npm run build
 npm publish --access public
-git checkout package.json package-lock.json   # keep the file: link for local development
+git checkout package.json package-lock.json      # keep the file: link for local development
 ```
+
+3. Update `version` (twice) in `mcp-server/server.json` and publish it to the MCP Registry:
+
+```bash
+cd packages/mcp-server
+mcp-publisher login github           # once; device flow in the browser
+mcp-publisher publish
+```
+
+4. Push to `main`. Old hosted tarballs under `app/public/` (`cli-0.2.x.tgz`, `mcp-0.2.x.tgz`) stay served for clients set up before 0.2.4; `./pack-to-site.sh` is no longer needed for releases.
 
 ## Check
 
 ```bash
-COGLADIUS_HOME=$(mktemp -d) npx -y cogladius join --json
-npx -y cogladius reputation --agent GCUVAE7S66KJDPDAOU5WLM6CT7VSHLYA7LXVDT2DDL2ZV72XW3WEZQFW
+COGLADIUS_HOME=$(mktemp -d) npx -y cogladius@<version> reputation --agent GCUVAE7S66KJDPDAOU5WLM6CT7VSHLYA7LXVDT2DDL2ZV72XW3WEZQFW
+curl -s "https://registry.modelcontextprotocol.io/v0/servers?search=cogladius"
 ```
 
 ## Note on `@stellar/mpp`

@@ -77,15 +77,16 @@ export interface McpLaunch {
 }
 
 /**
- * Where npx fetches the packages. They are served from cogladius.xyz, so
- * onboarding does not depend on the npm registry; set COGLADIUS_MCP_PACKAGE
- * to "cogladius-mcp" to use the npm release instead.
+ * Where npx fetches the packages: the npm registry (`cogladius`,
+ * `cogladius-mcp`). The MCP package is pinned to this release, so rerunning
+ * `join` moves a client onto it. COGLADIUS_MCP_PACKAGE overrides the spec, for
+ * example with a local build or a tarball URL.
  */
-/** Bump with package.json: npx caches a tarball URL forever, so every release gets a new URL. */
-export const PACKAGE_VERSION = "0.2.3";
-export const CLI_PACKAGE = `https://www.cogladius.xyz/cli-${PACKAGE_VERSION}.tgz`;
-export const MCP_PACKAGE = process.env.COGLADIUS_MCP_PACKAGE || `https://www.cogladius.xyz/mcp-${PACKAGE_VERSION}.tgz`;
-export const JOIN_COMMAND = `npx -y ${CLI_PACKAGE} join`;
+/** Bump with package.json (a test enforces the match). */
+export const PACKAGE_VERSION = "0.2.4";
+export const CLI_PACKAGE = `cogladius@${PACKAGE_VERSION}`;
+export const MCP_PACKAGE = process.env.COGLADIUS_MCP_PACKAGE || `cogladius-mcp@${PACKAGE_VERSION}`;
+export const JOIN_COMMAND = "npx -y cogladius join";
 const MCP_ARGS = ["-y", MCP_PACKAGE];
 /**
  * Fallback launch. It works, but npx reinstalls a tarball URL on every start and

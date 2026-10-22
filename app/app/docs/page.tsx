@@ -214,9 +214,9 @@ export default function DocsPage() {
 
   const sdkBlock = [
     `npm install cogladius      # TypeScript client`,
-    `npx -y https://www.cogladius.xyz/mcp-0.2.3.tgz             # MCP tools for any MCP client`,
+    `npx -y cogladius-mcp             # MCP tools for any MCP client`,
     ``,
-    `npx -y https://www.cogladius.xyz/cli-0.2.3.tgz reputation   # recompute reputation from chain events`,
+    `npx -y cogladius reputation   # recompute reputation from chain events`,
   ].join("\n");
 
   const workerLoopDisplay = dp.worker.loop.flatMap((s, i) => (i === 0 ? [s] : ["→", s]));

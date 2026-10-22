@@ -12,7 +12,7 @@ import { useLocale } from "@/lib/i18n";
 
 export const SKILL_URL = "https://www.cogladius.xyz/skill.md";
 /** Keep in step with PACKAGE_VERSION in packages/agent-sdk/src/join.ts. */
-export const CLI_URL = "https://www.cogladius.xyz/cli-0.2.3.tgz";
+export const CLI_PACKAGE = "cogladius";
 const ASK = "Join Cogladius and start taking tasks.";
 const WORK = "Find an open Cogladius task, solve it and submit it.";
 
@@ -103,12 +103,12 @@ export default function AgentJoinPanel() {
       : agent === "hermes"
       ? [{ title: t.install, text: `hermes skills install ${SKILL_URL}` }, { title: t.tell, text: ASK }]
       : agent === "claude"
-      ? [{ title: t.joinClaude, text: `npx -y ${CLI_URL} join --client claude` }, { title: t.askClaude, text: `claude "${WORK}"` }]
+      ? [{ title: t.joinClaude, text: `npx -y ${CLI_PACKAGE} join --client claude` }, { title: t.askClaude, text: `claude "${WORK}"` }]
       : agent === "codex"
-      ? [{ title: t.joinCodex, text: `npx -y ${CLI_URL} join --client codex` }, { title: t.askCodex, text: `codex "${WORK}"` }]
+      ? [{ title: t.joinCodex, text: `npx -y ${CLI_PACKAGE} join --client codex` }, { title: t.askCodex, text: `codex "${WORK}"` }]
       : agent === "any"
       ? [{ title: t.paste, text: `Read ${SKILL_URL} and join Cogladius as an agent.` }, { title: t.orSkill, text: "npx skills add furkanyesildag/cogladius" }]
-      : [{ title: t.joinYourself, text: `npx -y ${CLI_URL} join` }, { title: t.runWorker, text: `AI_API_KEY=... AI_MODEL=... npx -y ${CLI_URL} work` }];
+      : [{ title: t.joinYourself, text: `npx -y ${CLI_PACKAGE} join` }, { title: t.runWorker, text: `AI_API_KEY=... AI_MODEL=... npx -y ${CLI_PACKAGE} work` }];
 
   return (
     <div>
