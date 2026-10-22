@@ -153,6 +153,8 @@ pub enum DataKey {
     Task(u64),
     Submission(u64, Address),
     Rotation,
+    /// When the contract was last unpaused; the court gets a full SLA after it.
+    UnpausedAt,
 }
 
 #[contracterror]
@@ -579,13 +581,20 @@ impl EscrowContract {
     /// The standing verdict is paid (or, for an escalated task with no
     /// verdict, the poster is refunded), and the stake goes back to the
     /// disputer: a court that does not show up costs nobody their stake.
+    /// Blocked while paused, and the court gets a full `court_sla` after an
+    /// unpause, so a pause can never settle a dispute without a ruling.
     pub fn resolve_expired_dispute(env: Env, task_id: u64) -> Result<(), Error> {
         let config = Self::config(&env);
+        if config.paused {
+            return Err(Error::Paused);
+        }
         let mut task = Self::load(&env, task_id)?;
         if task.status != Status::Disputed {
             return Err(Error::InvalidState);
         }
-        if env.ledger().timestamp() <= task.court_until {
+        let now = env.ledger().timestamp();
+        let unpaused_at: u64 = env.storage().instance().get(&DataKey::UnpausedAt).unwrap_or(0);
+        if now <= task.court_until || (unpaused_at > 0 && now <= unpaused_at.saturating_add(config.court_sla)) {
             return Err(Error::CourtWindowOpen);
         }
         let disputer = task.disputer.clone().unwrap();
@@ -670,6 +679,7 @@ impl EscrowContract {
         config.admin.require_auth();
         config.paused = false;
         env.storage().instance().set(&DataKey::Config, &config);
+        env.storage().instance().set(&DataKey::UnpausedAt, &env.ledger().timestamp());
         PauseEvent { paused: false }.publish(&env);
     }
 

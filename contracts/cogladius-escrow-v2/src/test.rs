@@ -592,3 +592,28 @@ fn zero_fee_deployment_pays_the_full_reward() {
     assert_eq!(token.balance(&agent), REWARD);
     assert_eq!(token.balance(&fee_to), 0);
 }
+
+#[test]
+fn pause_never_settles_a_dispute_without_a_ruling() {
+    let h = disputed();
+    h.c.pause();
+    // The court window expires during the pause: nothing can be paid out.
+    h.at(START + 10 * DAY);
+    assert_eq!(h.c.try_resolve_expired_dispute(&1), Err(Ok(Error::Paused)));
+    h.c.unpause();
+    // After the unpause the court gets a full SLA again.
+    assert_eq!(h.c.try_resolve_expired_dispute(&1), Err(Ok(Error::CourtWindowOpen)));
+    h.c.rule(&1, &Ruling::Award(h.a2.clone(), 90), &h32(&h.env, 77));
+    assert_eq!(h.c.get_task(&1).unwrap().winner, Some(h.a2.clone()));
+}
+
+#[test]
+fn expired_court_after_unpause_waits_one_more_sla() {
+    let h = disputed();
+    h.c.pause();
+    h.at(START + 10 * DAY);
+    h.c.unpause();
+    h.at(START + 13 * DAY + 1);
+    h.c.resolve_expired_dispute(&1);
+    assert_eq!(h.c.get_task(&1).unwrap().status, Status::Completed);
+}
