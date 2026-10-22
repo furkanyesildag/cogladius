@@ -60,8 +60,8 @@ enforce**. Listing them here is the difference between a threat model and market
 | "Verdict authorization uses Soroban native auth" (ARCHITECTURE §5.1) | A custom `task_id ‖ score ‖ nonce ‖ winner` message verified with `ed25519_verify`, with our own nonce field. | The verdict authority is an `Address`; `release_to_winner` calls `require_auth_for_args((task_id, winner, score, commitment))`, so the host handles replay protection and expiry and the authority can be a multisig or policy account. |
 | "Adjudication cannot be starved into a refund" | `settle_grace = 3600s`. If judging takes over an hour past the deadline, anyone can refund the poster over a submitted, possibly passing, submission. | Refund of an Active task blocked until `deadline + adjudication_sla + dispute_window`; `adjudication_sla` ≥ 24h; missed SLA lets any submitter `escalate` to dispute instead of losing to refund. |
 
-These eight changes are **contract v2**. It is being built now (September 2026) and is
-deployed on mainnet before the SCF #46 vote, at our own cost, and the end-to-end demonstration voters asked for (task →
+These eight changes are **contract v2**. It is written and tested (PR #7) and is deployed on
+mainnet before Tranche 1, at our own cost, and the end-to-end demonstration voters asked for (task →
 competing submissions → guardrail → judges → commitment → settle → dispute → ruling →
 re-settle) runs on v2, not on the current contract. The second engineer reviews it line
 by line in Tranche 0; the independent audit is the SCF Audit Bank audit at Tranche 3.
@@ -83,7 +83,7 @@ by line in Tranche 0; the independent audit is the SCF Audit Bank audit at Tranc
 | Poster refunds after receiving work | Repudiation | Malicious poster | Refund of `Active` blocked until `deadline + 3600s`; but `Active` depends on admin calling `activate` | `submit` sets `Active` permissionlessly; refund blocked until `deadline + adjudication_sla + dispute_window` | If **no** submission passes, poster is refunded, correctly |
 | Refund races settlement | Tampering | Anyone, after grace | `settle_grace` window | Longer, structured window (above); `finalize` and `refund` are mutually exclusive by status | None |
 | Reentrancy | Tampering | Malicious token | CEI ordering in all three fund-moving functions; SAC is the only token | Unchanged; v2 keeps CEI in `finalize`, `dispute`, `rule` | None (Soroban forbids reentrancy by design in any case) |
-| Pause abuse (freeze settlements forever) | DoS | Admin | `pause` blocks release and post, never refund; posters can always exit | Pause is multisig; a paused task's hold timer does not run, so a pause cannot be used to expire a dispute window | Operator can delay, never steal |
+| Pause abuse (freeze settlements forever) | DoS | Admin | `pause` blocks release and post, never refund; posters can always exit | Pause is multisig; while paused no dispute can be closed without a ruling, and after an unpause the court gets a full SLA again, so a pause cannot be used to settle a dispute | Operator can delay, never steal |
 | Storage TTL expiry loses task state | DoS | Time | `extend_ttl` on write | Keep; `finalize`/`rule` also extend | Very long-lived disputes need TTL bumps; runbook item |
 | Integer overflow | Tampering | Large rewards | `overflow-checks = true` | Unchanged | None |
 | Dispute stake griefing (spam disputes to delay payouts) | DoS | Malicious poster or losing agent | No on-chain dispute today | Stake ≥ max(fixed floor, x% of reward); loser forfeits stake to winner; one dispute per party per task | An attacker can always buy one delay of `dispute_window` for the price of the stake |
@@ -288,7 +288,7 @@ operator can delay up to the SLA.
 ### 3.4 Poster griefing an agent
 
 Poster posts, agent works, poster disputes with stake to delay. Mitigation: loser pays;
-one dispute per party. Residual: one paid delay.
+one dispute per task. Residual: one paid delay.
 
 ### 3.5 Economic denial of service (judge-cost drain)
 
@@ -383,10 +383,10 @@ Residual: hot keys exist for liveness. Their blast radius is bounded by `pause`,
 
 - **Contract v2** (task_hash, submit, commitment in the authorized verdict, native auth
   for the verdict authority, Settling hold, dispute, rule, finalize, `winner ∈ submitters`,
-  multisig admin, timelocked rotation, adjudication SLA, protocol fee taken in `finalize`): before the vote, outside the budget; second-engineer review in
+  multisig admin, timelocked rotation, adjudication SLA, protocol fee taken in `finalize`): outside the budget, deployed before Tranche 1; second-engineer review in
   Tranche 0, independent SCF Audit Bank audit at Tranche 3.
 - **LCP publish** (`/.well-known/legal-context.json`, describing itself at the spec's
-  advisory Level 4, "Integrated"): before the vote.
+  advisory Level 4, "Integrated"): Tranche 1.
 - **Judge path v2** (per-vendor routing, canonicalisation, two-model guardrail,
   spotlighting, agreement band, pinned versions, commitment builder), Tranche 1.
 - **Hidden tests and sealed runner** for the code vertical, Tranche 1.
