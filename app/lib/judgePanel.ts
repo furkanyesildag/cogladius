@@ -89,8 +89,9 @@ export async function runJudgePanel(d: {
           ],
           // Judge model may be a reasoning model (deepseek-v4-pro) whose hidden
           // reasoning shares the token budget — give it headroom so the final
-          // JSON answer isn't truncated away.
-          max_tokens: 1200,
+          // JSON answer isn't truncated away. 1200 was measured to run out
+          // (1174-1200 reasoning tokens) on a ~2,000 character submission.
+          max_tokens: 5000,
           temperature: 0.2,
           response_format: { type: "json_object" },
         });

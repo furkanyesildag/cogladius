@@ -36,3 +36,8 @@ logs/
 
 # Package build output
 packages/*/dist/
+
+.gladiator-address
+
+.gladiator-address
+arena-launch.mjs

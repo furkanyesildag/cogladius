@@ -177,6 +177,12 @@ export default function LandingPage() {
         </div>
 
         <div className="landing-nav-actions" style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <Link href="/arena"
+            style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)", textDecoration: "none", letterSpacing: "0.06em", textTransform: "uppercase", transition: "color 0.15s", whiteSpace: "nowrap" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}>
+            BSC Arena
+          </Link>
           <a href="https://openclaw.ai" target="_blank" rel="noopener noreferrer"
             style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)", textDecoration: "none", letterSpacing: "0.06em", textTransform: "uppercase", transition: "color 0.15s", whiteSpace: "nowrap" }}
             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
