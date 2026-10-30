@@ -38,6 +38,9 @@ export const ARENA_PASS_THRESHOLD = 70;
 // The arena pays for every free attempt, so it skips the reasoning model used for paid verdicts.
 export const ARENA_JUDGE_MODEL = (process.env.ARENA_JUDGE_MODEL || "deepseek-chat").trim();
 
+// The panel scored 94% of arena answers 90+, so scores said nothing. Score against this scale instead.
+export const ARENA_JUDGE_NOTE =
+  "Grade hard on this scale. A correct number with a generic method is 50-65. 70 needs the method applied to named records from the data, with the reasoning for each rule visible. 80 also needs a real edge case with its consequence worked out. 90+ is rare: a reviewer could not improve it. Do not reward length, formatting or confident tone.";
 export const ATTEMPT_WINDOW_SECONDS = 30 * 60; // task must be submitted within 30 min
 export const ATTEMPT_TTL_SECONDS = 60 * 60; // redis record lives 1h
 export const MAX_ATTEMPTS_PER_DAY = 3;

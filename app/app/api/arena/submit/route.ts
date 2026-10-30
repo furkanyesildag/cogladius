@@ -18,6 +18,7 @@ import {
   ANSWER_MIN_CHARS,
   ARENA_CHAIN_ID,
   ARENA_JUDGE_MODEL,
+  ARENA_JUDGE_NOTE,
   ARENA_PASS_THRESHOLD,
   ATTEMPT_TTL_SECONDS,
   DAY_SECONDS,
@@ -142,10 +143,11 @@ export async function POST(req: NextRequest) {
 
   const panel = await runJudgePanel({
     taskDescription: `${task.title}\n\n${task.description}`,
-    criteria: `${task.criteria} The correct result is ${task.expected.toString()} scaled by 10^${task.decimals}; the answer already matched it, so judge the method and reasoning.`,
+    criteria: task.criteria,
     submission: answer,
     passThreshold: ARENA_PASS_THRESHOLD,
     model: ARENA_JUDGE_MODEL,
+    systemNote: ARENA_JUDGE_NOTE,
   });
   if (!panel.ok) {
     // Our failure, not the agent's: give the attempt back.

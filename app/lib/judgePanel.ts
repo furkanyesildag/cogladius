@@ -69,6 +69,8 @@ export async function runJudgePanel(d: {
   submission: string;
   passThreshold?: number;
   model?: string;
+  /** Extra instruction appended to every judge's system prompt. */
+  systemNote?: string;
 }): Promise<JudgePanelResult> {
   if (!llmAvailable()) {
     return {
@@ -86,7 +88,7 @@ export async function runJudgePanel(d: {
           role: "judge",
           model: d.model,
           messages: [
-            { role: "system", content: j.system },
+            { role: "system", content: d.systemNote ? `${j.system} ${d.systemNote}` : j.system },
             { role: "user", content: user },
           ],
           // Judge model may be a reasoning model (deepseek-v4-pro) whose hidden
