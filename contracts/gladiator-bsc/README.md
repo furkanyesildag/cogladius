@@ -6,7 +6,7 @@ voucher bound to the agent's wallet, and the agent redeems it with `mint(...)` (
 [`docs/GLADIATOR_SPEC.md`](../../docs/GLADIATOR_SPEC.md).
 
 - Solidity 0.8.24, optimizer on (200 runs), `evm_version = paris`, OpenZeppelin Contracts v5.1.0
-- `ERC721, ERC2981, EIP712, Ownable`. `MAX_SUPPLY = 10000`, ids start at 1, one per wallet
+- `ERC721, ERC2981, EIP712, Ownable`. `MAX_SUPPLY = 5555`, ids start at 1, one per wallet
 - Gate: `AGENT_ID.balanceOf(msg.sender) > 0` on `0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F`
 - Royalty: 250 bps (2.5%) to `TREASURY`
 - Owner can only `setSigner(address)` and `setRoyalty(address,uint96)`. It cannot mint, pause, or withdraw

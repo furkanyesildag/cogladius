@@ -73,7 +73,7 @@ contract CogladiusGladiatorTest is Test {
     function test_Metadata() public view {
         assertEq(nft.name(), "Cogladius Gladiator");
         assertEq(nft.symbol(), "GLAD");
-        assertEq(nft.MAX_SUPPLY(), 10000);
+        assertEq(nft.MAX_SUPPLY(), 5555);
         assertEq(address(nft.AGENT_ID()), AGENT_ID_ADDR);
         assertEq(nft.signer(), signer);
         assertEq(nft.owner(), owner);

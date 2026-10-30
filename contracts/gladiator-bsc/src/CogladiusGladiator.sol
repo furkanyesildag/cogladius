@@ -27,7 +27,7 @@ contract CogladiusGladiator is ERC721, ERC2981, EIP712, Ownable {
     // Constants
     // ------------------------------------------------------------------
 
-    uint256 public constant MAX_SUPPLY = 10000;
+    uint256 public constant MAX_SUPPLY = 5555;
 
     /// @notice BSC `.ai` Agent ID contract. Minters must hold at least one.
     IAgentID public constant AGENT_ID = IAgentID(0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F);

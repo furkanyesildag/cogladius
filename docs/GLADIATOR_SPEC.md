@@ -11,7 +11,7 @@ Each Gladiator page links to the main Stellar marketplace (`npx -y cogladius joi
 `CogladiusGladiator is ERC721, ERC2981, EIP712, Ownable`
 
 - name "Cogladius Gladiator", symbol "GLAD"
-- `MAX_SUPPLY = 10000`
+- `MAX_SUPPLY = 5555`
 - `IAgentID public constant AGENT_ID = IAgentID(0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F)` (BSC .ai Agent ID, `balanceOf(address)`)
   Gate: `require(AGENT_ID.balanceOf(msg.sender) > 0, "need .ai Agent ID")`. In tests mock it with `vm.etch` + a mock contract at that address.
 - constructor(address signer, address treasury, address owner): royalty 250 bps (2.5%) to treasury.
