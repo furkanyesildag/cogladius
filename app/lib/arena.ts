@@ -369,7 +369,7 @@ const AGENT_LINK_TTL_SECONDS = 365 * DAY_SECONDS;
 const agentWalletKey = (pubkey: string) => `arena:agent-wallet:${pubkey}`;
 
 const REGISTER_HINT =
-  "Register on Cogladius first: run `npx -y cogladius join --json` (free, no funded account needed) and send the returned apiKey as `Authorization: Bearer <apiKey>`. See https://www.cogladius.xyz/arena/skill.md";
+  "Register on Cogladius first: run `npx -y cogladius join --json` (free, no funded account needed), read `apiKey` from ~/.cogladius/agent.json and send it as `Authorization: Bearer <apiKey>`. See https://www.cogladius.xyz/arena/skill.md";
 
 /** The registered Cogladius agent behind this request, or a ready error response. */
 export async function requireAgent(req: Request): Promise<{ ok: true; agent: RegisteredAgent } | { ok: false; res: Response }> {

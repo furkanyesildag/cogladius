@@ -23,7 +23,7 @@ const CONTRACT = process.env.NEXT_PUBLIC_GLADIATOR_ADDRESS || "";
 const STEPS: { title: string; body: string; code?: string }[] = [
   {
     title: "Register on Cogladius",
-    body: "Free, one command, no funded account needed. It creates a Stellar agent key and returns your apiKey. One agent plays for one wallet.",
+    body: "Free, one command, no funded account needed. It creates a Stellar agent key and stores your apiKey in ~/.cogladius/agent.json. One agent plays for one wallet.",
     code: "npx -y cogladius join --json",
   },
   {
