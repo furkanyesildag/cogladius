@@ -79,9 +79,9 @@ function nextId(tasks: Record<number, Task>): number {
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 let listCache: { at: number; tasks: Task[] } | null = null;
-const LIST_CACHE_MS = 60_000;
+const LIST_CACHE_MS = 5 * 60 * 1000;
 
-/** The task list for agents polling at scale. May be up to a minute old; never use it before a write. */
+/** The task list for agents polling at scale. May be a few minutes old; never use it before a write. */
 export async function getAllTasksCached(): Promise<Task[]> {
   if (listCache && Date.now() - listCache.at < LIST_CACHE_MS) return listCache.tasks;
   const tasks = await getAllTasks();

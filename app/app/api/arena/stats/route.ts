@@ -17,6 +17,8 @@ import {
   isDryRun,
   signerAddress,
   statsRead,
+  ARENA_SOLD_OUT,
+  MAX_SUPPLY,
   totalMintedOnChain,
 } from "@/lib/arena";
 
@@ -44,7 +46,8 @@ export async function GET() {
   const notReady = arenaNotReady(false);
   if (notReady) return notReady;
 
-  const [{ attempts, passes, linkedAgents, wrongResults }, minted] = await Promise.all([statsRead(), mintedCached()]);
+  const { attempts, passes, linkedAgents, wrongResults } = await statsRead();
+  const minted = ARENA_SOLD_OUT ? MAX_SUPPLY : await mintedCached();
   const contract = gladiatorAddress();
   return arenaJson(
     {
@@ -62,6 +65,6 @@ export async function GET() {
       ...(isDryRun() ? { dryRun: true } : {}),
     },
     200,
-    { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" }
+    { "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400" }
   );
 }

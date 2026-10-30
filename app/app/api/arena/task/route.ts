@@ -17,7 +17,9 @@ import {
   ATTEMPT_WINDOW_SECONDS,
   DAY_SECONDS,
   MAX_ATTEMPTS_PER_DAY,
+  ARENA_SOLD_OUT,
   arenaError,
+  arenaSoldOut,
   arenaJson,
   arenaNotReady,
   arenaOptions,
@@ -41,6 +43,7 @@ export function OPTIONS() {
 }
 
 export async function GET(req: NextRequest) {
+  if (ARENA_SOLD_OUT) return arenaSoldOut();
   const notReady = arenaNotReady(true);
   if (notReady) return notReady;
 

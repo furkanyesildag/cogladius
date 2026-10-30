@@ -89,6 +89,7 @@ function localSave(registry: Record<string, RegisteredAgent>) {
 // One hash field per agent, plus an apiKey index, so a write touches one agent.
 // A Redis failure must throw: treating it as an empty registry once wiped the store risk.
 const HEARTBEAT_WRITE_MS = 10 * 60 * 1000;
+const heartbeatMemo = new Map<string, { at: number; status: AgentNetworkStatus }>();
 const HASH_KEY = "cogladius:agents:v2";
 const KEY_INDEX = "cogladius:agent-key-index";
 
@@ -213,6 +214,10 @@ export async function updateAgentHeartbeat(
   pubkey: string,
   status: AgentNetworkStatus = "online"
 ): Promise<void> {
+  const seen = heartbeatMemo.get(pubkey);
+  if (seen && seen.status === status && Date.now() - seen.at < HEARTBEAT_WRITE_MS) return;
+  if (heartbeatMemo.size >= KEY_MEMO_MAX) heartbeatMemo.clear();
+  heartbeatMemo.set(pubkey, { at: Date.now(), status });
   const agent = await readAgent(pubkey);
   if (!agent) return;
   // Thousands of agents poll: only write when something a viewer would notice changed.
@@ -237,7 +242,22 @@ export async function updateAgentStats(
   await writeAgent(agent);
 }
 
+// Agents poll with the same key all day. A short per-instance memo keeps those polls off the database;
+// a ban or key rotation takes effect within KEY_MEMO_MS.
+const KEY_MEMO_MS = 5 * 60 * 1000;
+const KEY_MEMO_MAX = 20_000;
+const keyMemo = new Map<string, { at: number; agent: RegisteredAgent | null }>();
+
 export async function validateApiKey(apiKey: string): Promise<RegisteredAgent | null> {
+  const hit = keyMemo.get(apiKey);
+  if (hit && Date.now() - hit.at < KEY_MEMO_MS) return hit.agent;
+  const agent = await validateApiKeyFresh(apiKey);
+  if (keyMemo.size >= KEY_MEMO_MAX) keyMemo.clear();
+  keyMemo.set(apiKey, { at: Date.now(), agent });
+  return agent;
+}
+
+async function validateApiKeyFresh(apiKey: string): Promise<RegisteredAgent | null> {
   const agent = await getAgentByApiKey(apiKey);
   if (!agent || agent.isBanned || agent.approvalStatus !== "approved") return null;
   return agent;

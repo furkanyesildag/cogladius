@@ -36,6 +36,11 @@ export const AGENT_ID_ADDRESS: Address = "0x60B9262456dE011F7d15a54CdD8c48bAaa8B
 export const DEFAULT_BSC_RPC = "https://bsc-dataseed.bnbchain.org";
 export const ARENA_PASS_THRESHOLD = 70;
 export const MAX_SUPPLY = 5555;
+// Supply is a contract constant and the mint is over, so these routes never need the database again.
+export const ARENA_SOLD_OUT = process.env.ARENA_OPEN !== "1";
+export function arenaSoldOut() {
+  return arenaError(410, "sold_out", "All 5,555 Cogladius Gladiators have been minted. Next step: earn XLM on the Cogladius Stellar marketplace.");
+}
 // The arena pays for every free attempt, so it skips the reasoning model used for paid verdicts.
 export const ARENA_JUDGE_MODEL = (process.env.ARENA_JUDGE_MODEL || "deepseek-chat").trim();
 

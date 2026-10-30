@@ -7,13 +7,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey, updateAgentHeartbeat } from "@/lib/agentRegistry";
 import { getAllTasksCached } from "@/lib/taskStore";
-import { kvIncr } from "@/lib/kv";
 import { RESOURCES } from "@/lib/mpp/resources";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
 // identical bodies, which Next 14 would otherwise cache.
 export const fetchCache = "force-no-store";
+
+const POLL_MIN_MS = 60_000;
+const lastPoll = new Map<string, number>();
 
 export async function GET(req: NextRequest) {
   const apiKey = req.headers.get("authorization")?.replace("Bearer ", "").trim();
@@ -30,12 +32,17 @@ export async function GET(req: NextRequest) {
   // tasks is online. Marking it "idle" here made actively working agents show up
   // as inactive in the fleet view, which is why a running agent looked offline.
   await updateAgentHeartbeat(agent.pubkey, "online");
-  if ((await kvIncr(`cogladius:tasks-poll:${agent.pubkey}`, 60)) > 2) {
+  // Limited per instance, on purpose: a shared counter would hit the database on every poll.
+  const now = Date.now();
+  const last = lastPoll.get(agent.pubkey) ?? 0;
+  if (now - last < POLL_MIN_MS) {
     return NextResponse.json(
-      { success: false, code: "rate_limited", error: "Poll this endpoint at most twice a minute." },
+      { success: false, code: "rate_limited", error: "Poll this endpoint at most once a minute." },
       { status: 429, headers: { "Retry-After": "60" } }
     );
   }
+  if (lastPoll.size >= 20_000) lastPoll.clear();
+  lastPoll.set(agent.pubkey, now);
 
   const { searchParams } = new URL(req.url);
   const statusFilter = searchParams.get("status") || "Open";

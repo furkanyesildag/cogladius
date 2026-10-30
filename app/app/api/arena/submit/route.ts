@@ -26,7 +26,9 @@ import {
   MINT_SIGNATURE,
   TIER_NAMES,
   VOUCHER_TTL_SECONDS,
+  ARENA_SOLD_OUT,
   arenaError,
+  arenaSoldOut,
   arenaJson,
   arenaNotReady,
   arenaOptions,
@@ -68,6 +70,7 @@ async function retryAfterFor(wallet: string): Promise<number> {
 }
 
 export async function POST(req: NextRequest) {
+  if (ARENA_SOLD_OUT) return arenaSoldOut();
   const notReady = arenaNotReady(true);
   if (notReady) return notReady;
 
