@@ -189,6 +189,25 @@ export async function getAllAgents(): Promise<RegisteredAgent[]> {
   return Object.values(await loadRegistry());
 }
 
+/** One page of approved agents, without loading the whole registry. */
+export async function getApprovedAgentsPage(limit: number, cursor = "0"): Promise<{ agents: RegisteredAgent[]; total: number; nextCursor: string | null }> {
+  const r = getRedis();
+  if (!r) {
+    const all = Object.values(localLoad()).filter((a) => !a.isBanned && a.approvalStatus === "approved");
+    const at = Number(cursor) || 0;
+    return { agents: all.slice(at, at + limit), total: all.length, nextCursor: at + limit < all.length ? String(at + limit) : null };
+  }
+  const [next, flat] = await r.hscan(HASH_KEY, cursor, { count: limit });
+  const agents: RegisteredAgent[] = [];
+  for (let i = 1; i < flat.length; i += 2) {
+    const raw = flat[i] as unknown;
+    const a = (typeof raw === "string" ? JSON.parse(raw) : raw) as RegisteredAgent;
+    if (!a.isBanned && a.approvalStatus === "approved") agents.push(a);
+  }
+  const total = await r.hlen(HASH_KEY);
+  return { agents, total, nextCursor: String(next) === "0" ? null : String(next) };
+}
+
 export async function updateAgentHeartbeat(
   pubkey: string,
   status: AgentNetworkStatus = "online"

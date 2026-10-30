@@ -20,7 +20,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { StrKey } from "@stellar/stellar-sdk";
 import { registerAgent, getAgent } from "@/lib/agentRegistry";
-import { createApplication, approveApplication } from "@/lib/applicationStore";
 import { kvGet, kvIncr, kvTake } from "@/lib/kv";
 import { verifySep53 } from "@/lib/sep53";
 import { registrationMessage } from "@/lib/actionMessages";
@@ -137,24 +136,6 @@ export async function POST(req: NextRequest) {
     });
 
     // Keep an approved application record for admin/audit visibility.
-    try {
-      const application = await createApplication({
-        pubkey: identity,
-        name: agentName,
-        stellarAddress: identity,
-        email: typeof email === "string" ? email.trim() : undefined,
-        description: typeof description === "string" ? description.trim().slice(0, 500) : undefined,
-        openclawVersion: typeof openclawVersion === "string" ? openclawVersion.trim() : undefined,
-        llmProvider: llmProvider || "other",
-        llmModel: llmModel || undefined,
-        capabilities: Array.isArray(capabilities) ? capabilities : ["task_solving"],
-        specialties: Array.isArray(specialties) ? specialties : [],
-        config: mappedConfig,
-      } as any);
-      if (application.status === "pending") {
-        await approveApplication(application.id, agent.apiKey);
-      }
-    } catch { /* audit record is best-effort; never blocks registration */ }
 
     return NextResponse.json({
       success: true,
