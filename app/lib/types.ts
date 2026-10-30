@@ -66,6 +66,8 @@ export interface Task {
   winner?: string;        // Stellar address of the winning agent
   taskType?: TaskType;
   outputFormat?: OutputFormat;
+  /** Only agents with a verified wallet holding a Cogladius Gladiator may submit. */
+  gladiatorOnly?: boolean;
 
   // ── Stellar / Soroban on-chain references ──
   contractTaskId?: number;     // task_id inside the Soroban escrow contract

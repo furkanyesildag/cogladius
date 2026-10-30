@@ -19,13 +19,14 @@ import {
   http,
   isAddress,
   keccak256,
+  verifyTypedData,
   type Address,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { bsc } from "viem/chains";
 import { getRedis } from "./redis";
-import { kvGet, kvSet } from "./kv";
+import { kvCommit, kvGet, kvSet } from "./kv";
 import { validateApiKey, type RegisteredAgent } from "./agentRegistry";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -85,6 +86,13 @@ export const GLADIATOR_ABI = [
     name: "totalMinted",
     stateMutability: "view",
     inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "owner", type: "address" }],
     outputs: [{ name: "", type: "uint256" }],
   },
 ] as const;
@@ -389,4 +397,203 @@ export async function linkAgentWallet(pubkey: string, wallet: string): Promise<b
   await kvSet(agentWalletKey(pubkey), wallet, AGENT_LINK_TTL_SECONDS);
   await statsIncr("linkedAgents");
   return true;
+}
+
+// ── Verified wallet link + Gladiator holder gate ─────────────────────────────
+//
+// `arena:agent-wallet:*` above is unsigned: anyone can name any wallet. It stays
+// as it is for arena attempts, where a voucher is only useful to its own wallet,
+// and must never be used to grant access. The gate below trusts only the
+// `arena:verified-*` pair, written after an EIP-712 proof from the wallet.
+
+export const LINK_NONCE_TTL_SECONDS = 10 * 60;
+
+export const LINK_EIP712_DOMAIN = { name: "CogladiusArena", version: "1", chainId: ARENA_CHAIN_ID } as const;
+
+export const LINK_EIP712_TYPES = {
+  LinkAgent: [
+    { name: "wallet", type: "address" },
+    { name: "agent", type: "string" },
+    { name: "nonce", type: "string" },
+    { name: "statement", type: "string" },
+  ],
+} as const;
+
+/** Keep this free of single quotes: it is pasted into a single-quoted shell argument. */
+function linkStatement(wallet: Address, agent: string): string {
+  return `This signature costs nothing, moves no funds and approves nothing. It links this wallet ${wallet} to the Cogladius Stellar agent ${agent}, replacing any agent linked to this wallet before.`;
+}
+
+/** Nonces are keyed to the agent and wallet they were issued for, so they fit no other pair. */
+export const linkNonceKey = (agent: string, wallet: string, nonce: string) => `arena:link-nonce:${agent}:${wallet}:${nonce}`;
+const verifiedWalletKey = (agent: string) => `arena:verified-wallet:${agent}`;
+const verifiedAgentKey = (wallet: string) => `arena:verified-agent:${wallet}`;
+
+/** The exact message the wallet signs. Rebuilt on verify, so the client controls no field of it. */
+function linkMessage(wallet: Address, agent: string, nonce: string) {
+  const checksummed = getAddress(wallet);
+  return { wallet: checksummed, agent, nonce, statement: linkStatement(checksummed, agent) };
+}
+
+/** Everything an agent needs to sign the link challenge with `baw`. */
+export function linkChallengePayload(wallet: Address, agent: string, nonce: string) {
+  const message = linkMessage(wallet, agent, nonce);
+  const typedData = {
+    domain: LINK_EIP712_DOMAIN,
+    types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+      ],
+      ...LINK_EIP712_TYPES,
+    },
+    primaryType: "LinkAgent",
+    message,
+  };
+  const signRequest = { method: "eth_signTypedData_v4", params: [message.wallet, JSON.stringify(typedData)] };
+  const shellArg = JSON.stringify(signRequest).replace(/'/g, `'\\''`);
+  return {
+    typedData,
+    signRequest,
+    baw: {
+      preview: `baw sign-message preview --binanceChainId ${ARENA_CHAIN_ID} --signType EIP712 --message '${shellArg}' --json`,
+      execute: "baw sign-message execute --requestId <requestId> --json",
+    },
+  };
+}
+
+/**
+ * Normalize a signature to 65 bytes (r||s||v, v = 27/28). Accepts a 65-byte
+ * signature, or the r||s hex plus signatureRecovery "00"/"01" that `baw` returns.
+ * Null when malformed.
+ */
+export function normalizeLinkSignature(signature: unknown, recovery?: unknown): Hex | null {
+  if (typeof signature !== "string") return null;
+  const hex = signature.trim().replace(/^0x/i, "").toLowerCase();
+  if (!/^[0-9a-f]+$/.test(hex)) return null;
+
+  let parity: number | null = null;
+  if (recovery !== undefined && recovery !== null) {
+    if (typeof recovery !== "string" || !/^(0x)?0[01]$/i.test(recovery.trim())) return null;
+    parity = Number(recovery.trim().slice(-1));
+  }
+
+  if (hex.length === 130) {
+    const v = parseInt(hex.slice(128), 16);
+    if (![0, 1, 27, 28].includes(v)) return null;
+    const signedParity = v >= 27 ? v - 27 : v;
+    if (parity !== null && parity !== signedParity) return null;
+    return `0x${hex.slice(0, 128)}${(27 + signedParity).toString(16)}`;
+  }
+  if (hex.length === 128 && parity !== null) {
+    return `0x${hex}${(27 + parity).toString(16)}`;
+  }
+  return null;
+}
+
+/** True only if `wallet`'s own key signed the link message for this agent and nonce. */
+export async function verifyLinkSignature(wallet: Address, agent: string, nonce: string, signature: Hex): Promise<boolean> {
+  try {
+    return await verifyTypedData({
+      address: getAddress(wallet),
+      domain: LINK_EIP712_DOMAIN,
+      types: LINK_EIP712_TYPES,
+      primaryType: "LinkAgent",
+      message: linkMessage(wallet, agent, nonce),
+      signature,
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Store a proven agent <-> wallet pair, one to one in both directions. Whatever
+ * either side pointed at before is unlinked in the same atomic write. Two proofs
+ * racing can leave one stale forward key; requireGladiatorHolder reads both
+ * directions, so the loser fails closed and simply links again.
+ */
+export async function setVerifiedWallet(agent: string, wallet: string): Promise<{ replacedAgent: boolean }> {
+  const [prevWallet, prevAgent] = await Promise.all([kvGet(verifiedWalletKey(agent)), kvGet(verifiedAgentKey(wallet))]);
+  const del: string[] = [];
+  if (prevWallet && prevWallet !== wallet && (await kvGet(verifiedAgentKey(prevWallet))) === agent) {
+    del.push(verifiedAgentKey(prevWallet));
+  }
+  const replacedAgent = !!prevAgent && prevAgent !== agent;
+  if (replacedAgent && (await kvGet(verifiedWalletKey(prevAgent!))) === wallet) {
+    del.push(verifiedWalletKey(prevAgent!));
+  }
+  await kvCommit({ del, set: { [verifiedWalletKey(agent)]: wallet, [verifiedAgentKey(wallet)]: agent } });
+  return { replacedAgent };
+}
+
+export async function gladiatorBalance(wallet: Address): Promise<bigint> {
+  const c = gladiatorAddress();
+  if (!c) throw new Error("Gladiator contract address is not configured");
+  return bscClient().readContract({
+    address: c,
+    abi: GLADIATOR_ABI,
+    functionName: "balanceOf",
+    args: [getAddress(wallet)],
+  });
+}
+
+export const GLADIATOR_LINK_HINT =
+  "Prove your wallet: GET /api/arena/link/challenge?wallet=0xYOUR_WALLET with your Bearer key, sign the returned EIP-712 message (free, moves no funds), then POST /api/arena/link with {wallet, nonce, signature, signatureRecovery}. The wallet must hold a Cogladius Gladiator at submit time. Steps: https://www.cogladius.xyz/arena/skill.md";
+
+export type GladiatorGateResult =
+  | { ok: true; wallet: string }
+  | { ok: false; status: 403; code: "gladiator_required"; reason: "no_verified_wallet" | "no_gladiator"; error: string; hint: string }
+  | { ok: false; status: 503; code: "gate_unavailable"; error: string; retryable: true; retryAfter: number };
+
+/**
+ * Ok only if the agent has a signature-proven wallet AND that wallet holds a
+ * Gladiator right now, read live from chain so a sold NFT loses access at once.
+ * Fails closed: a store or RPC failure is a retryable 503, never a pass, and
+ * ARENA_DRY_RUN does not bypass it.
+ */
+export async function requireGladiatorHolder(agent: string): Promise<GladiatorGateResult> {
+  const unavailable = (what: string): GladiatorGateResult => ({
+    ok: false,
+    status: 503,
+    code: "gate_unavailable",
+    error: `Could not check Gladiator ownership right now (${what}). Nothing was submitted. Retry in a minute.`,
+    retryable: true,
+    retryAfter: 60,
+  });
+
+  let wallet: string | null;
+  try {
+    wallet = await kvGet(verifiedWalletKey(agent));
+    if (wallet && (await kvGet(verifiedAgentKey(wallet))) !== agent) wallet = null;
+  } catch {
+    return unavailable("link store unavailable");
+  }
+  if (!wallet) {
+    return {
+      ok: false,
+      status: 403,
+      code: "gladiator_required",
+      reason: "no_verified_wallet",
+      error: "This task is for Cogladius Gladiator holders, and this agent has no signature-verified wallet.",
+      hint: GLADIATOR_LINK_HINT,
+    };
+  }
+
+  let balance: bigint;
+  try {
+    balance = await gladiatorBalance(wallet as Address);
+  } catch {
+    return unavailable("BNB Chain read failed");
+  }
+  if (balance > 0n) return { ok: true, wallet };
+  return {
+    ok: false,
+    status: 403,
+    code: "gladiator_required",
+    reason: "no_gladiator",
+    error: `This task is for Cogladius Gladiator holders, and the verified wallet ${wallet} holds none.`,
+    hint: GLADIATOR_LINK_HINT,
+  };
 }

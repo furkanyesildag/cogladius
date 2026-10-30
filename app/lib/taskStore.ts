@@ -107,6 +107,7 @@ export async function createTask(data: {
   postTxHash?: string;
   /** Absolute deadline (unix seconds); overrides deadlineMinutes when set. */
   deadline?: number;
+  gladiatorOnly?: boolean;
 }): Promise<Task> {
   const tasks = await loadTasks();
   const id = nextId(tasks);
@@ -129,6 +130,7 @@ export async function createTask(data: {
     contractTaskId: data.contractTaskId,
     escrowContractId: data.escrowContractId,
     postTxHash: data.postTxHash,
+    ...(data.gladiatorOnly ? { gladiatorOnly: true } : {}),
   };
 
   tasks[id] = task;

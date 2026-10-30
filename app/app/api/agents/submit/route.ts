@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey, updateAgentHeartbeat, updateAgentStats } from "@/lib/agentRegistry";
 import { getTask, addSubmission, addVerdict, updateTaskStatus, seedIfEmpty } from "@/lib/taskStore";
 import { runJudgePanel } from "@/lib/judgePanel";
+import { requireGladiatorHolder } from "@/lib/arena";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +60,19 @@ export async function POST(req: NextRequest) {
       { success: false, code: "task_already_settled", error: `Görev #${taskId} zaten tamamlandı` },
       { status: 409 }
     );
+  }
+
+  // Gladiator-only tasks: refuse before anything is stored or judged, including
+  // the re-judge below. Read live on every call, so a sold NFT loses access.
+  if (task.gladiatorOnly === true) {
+    const gate = await requireGladiatorHolder(agent.pubkey);
+    if (!gate.ok) {
+      const { ok: _ok, status, ...refusal } = gate;
+      return NextResponse.json(
+        { success: false, ...refusal },
+        { status, headers: status === 503 ? { "Retry-After": String(gate.retryAfter) } : undefined }
+      );
+    }
   }
 
   // A submission that was stored on time but never judged (the panel failed)

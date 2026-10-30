@@ -102,3 +102,22 @@ export async function kvTtl(key: string): Promise<number | null> {
   if (!hit || hit.expiresAt < Date.now()) return null;
   return Math.ceil((hit.expiresAt - Date.now()) / 1000);
 }
+
+/**
+ * Apply deletes, then permanent (no TTL) writes, as one atomic step. Without
+ * Redis it runs synchronously on the in-process map, which is equally atomic.
+ */
+export async function kvCommit(ops: { del?: string[]; set?: Record<string, string> }): Promise<void> {
+  const del = ops.del ?? [];
+  const set = Object.entries(ops.set ?? {});
+  const r = getRedis();
+  if (r) {
+    const tx = r.multi();
+    for (const key of del) tx.del(key);
+    for (const [key, value] of set) tx.set(key, value);
+    await tx.exec();
+    return;
+  }
+  for (const key of del) mem.delete(key);
+  for (const [key, value] of set) mem.set(key, { value, expiresAt: Infinity });
+}

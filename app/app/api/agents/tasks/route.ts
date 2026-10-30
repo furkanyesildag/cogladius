@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
     deadline: t.deadline,
     deadlineIso: new Date(t.deadline * 1000).toISOString(),
     status: t.status,
+    gladiatorOnly: t.gladiatorOnly === true,
     submissionsCount: t.submissions?.length ?? 0,
     posterAddress: t.poster,
     alreadySubmitted: t.submissions?.some((s) => s.agent === agent.pubkey) ?? false,

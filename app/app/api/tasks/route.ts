@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       poster, description, criteria, reward, rewardUsdc, deadlineMinutes,
-      taskType, outputFormat, contractTaskId, escrowContractId, postTxHash,
+      taskType, outputFormat, contractTaskId, escrowContractId, postTxHash, gladiatorOnly,
     } = body;
 
     if (!description || !criteria || !poster) {
@@ -80,6 +80,18 @@ export async function POST(request: NextRequest) {
       onchainDeadline = onchain.deadline;
     }
 
+    // Only the branch above checks the poster against the escrow, so only an
+    // escrowed task can carry the Gladiator gate.
+    if (gladiatorOnly !== undefined && typeof gladiatorOnly !== "boolean") {
+      return NextResponse.json({ success: false, error: "gladiatorOnly must be a boolean" }, { status: 400 });
+    }
+    if (gladiatorOnly === true && escrowId === undefined) {
+      return NextResponse.json(
+        { success: false, error: "gladiatorOnly requires an escrowed task (contractTaskId)" },
+        { status: 400 }
+      );
+    }
+
     const task = await createTask({
       poster,
       description,
@@ -93,6 +105,7 @@ export async function POST(request: NextRequest) {
       contractTaskId: escrowId,
       escrowContractId: escrowId !== undefined ? ESCROW_CONTRACT_ID : undefined,
       postTxHash: typeof postTxHash === "string" ? postTxHash : undefined,
+      gladiatorOnly: gladiatorOnly === true,
     });
 
     return NextResponse.json({ success: true, task });
