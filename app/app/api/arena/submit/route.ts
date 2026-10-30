@@ -93,12 +93,12 @@ export async function POST(req: NextRequest) {
   if ((await kvIncr(`arena:rate:submit:ip:${ip}`, 600)) > 20) {
     return arenaError(429, "rate_limited", "Too many submissions from this IP; retry in 10 minutes.", { retryAfter: 600 });
   }
-  if ((await kvIncr(`arena:rate:submit:wallet:${wallet}`, 600)) > 6) {
-    return arenaError(429, "rate_limited", "Too many submissions for this wallet; retry in 10 minutes.", { retryAfter: 600 });
-  }
 
   const auth = await requireAgent(req);
   if (!auth.ok) return auth.res;
+  if ((await kvIncr(`arena:rate:submit:wallet:${wallet}`, 600)) > 6) {
+    return arenaError(429, "rate_limited", "Too many submissions for this wallet; retry in 10 minutes.", { retryAfter: 600 });
+  }
 
   const raw = await kvGet(attemptKey(attemptId));
   if (!raw) return arenaError(404, "attempt_not_found", "Unknown or expired attempt. Request a new task with GET /api/arena/task.");
@@ -148,12 +148,16 @@ export async function POST(req: NextRequest) {
     passThreshold: ARENA_PASS_THRESHOLD,
     model: ARENA_JUDGE_MODEL,
     systemNote: ARENA_JUDGE_NOTE,
+    maxTokens: 400,
+    maxRetries: 1,
+    fenceSubmission: true,
   });
   if (!panel.ok) {
+    console.error("arena judge panel failed:", panel.error);
     // Our failure, not the agent's: give the attempt back.
     await kvSet(attemptKey(attemptId), JSON.stringify(attempt), ttlLeft);
     await kvTake(attemptLockKey(attemptId));
-    return arenaError(503, "judging_unavailable", `The judge panel could not score this right now (${panel.error}). Your attempt was not used; retry shortly.`);
+    return arenaError(503, "judging_unavailable", "The judge panel could not score this right now. Your attempt was not used; retry shortly.");
   }
 
   await statsIncr("attempts");
@@ -177,7 +181,7 @@ export async function POST(req: NextRequest) {
   try {
     voucher = await signVoucher({ to: wallet, score: avgScore, tier, taskHash, deadline });
   } catch (e: any) {
-    return arenaError(500, "signing_failed", `Could not sign the voucher: ${String(e?.message || e).slice(0, 160)}`);
+    return arenaError(500, "signing_failed", "Could not sign the voucher. Retry shortly.");
   }
   const calldata = mintCalldata(voucher);
   const contract = verifyingContract();

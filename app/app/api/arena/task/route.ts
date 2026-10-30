@@ -54,12 +54,12 @@ export async function GET(req: NextRequest) {
   if ((await kvIncr(`arena:rate:task:ip:${ip}`, 600)) > 30) {
     return arenaError(429, "rate_limited", "Too many task requests from this IP; retry in 10 minutes.", { retryAfter: 600 });
   }
-  if ((await kvIncr(`arena:rate:task:wallet:${wallet}`, 600)) > 10) {
-    return arenaError(429, "rate_limited", "Too many task requests for this wallet; retry in 10 minutes.", { retryAfter: 600 });
-  }
 
   const auth = await requireAgent(req);
   if (!auth.ok) return auth.res;
+  if ((await kvIncr(`arena:rate:task:wallet:${wallet}`, 600)) > 10) {
+    return arenaError(429, "rate_limited", "Too many task requests for this wallet; retry in 10 minutes.", { retryAfter: 600 });
+  }
 
   const eligible = await checkEligibility(wallet);
   if (!eligible.ok) return arenaError(eligible.status, eligible.code, eligible.error);

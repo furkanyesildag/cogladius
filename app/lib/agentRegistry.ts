@@ -54,7 +54,6 @@ export interface RegisteredAgent {
   verified?: boolean;
 }
 
-const REDIS_KEY = "cogladius:agents";
 
 // ── Local FS fallback ─────────────────────────────────────────────────────────
 
@@ -87,38 +86,36 @@ function localSave(registry: Record<string, RegisteredAgent>) {
 
 // ── Redis helpers ─────────────────────────────────────────────────────────────
 
-async function redisLoad(): Promise<Record<string, RegisteredAgent> | null> {
-  const r = getRedis();
-  if (!r) return null;
-  try {
-    const data = await r.get<Record<string, RegisteredAgent>>(REDIS_KEY);
-    return data ?? {};
-  } catch {
-    return null;
-  }
-}
-
-async function redisSave(registry: Record<string, RegisteredAgent>) {
-  const r = getRedis();
-  if (!r) return;
-  try {
-    await r.set(REDIS_KEY, registry);
-  } catch { /* ignore */ }
-}
+// One hash field per agent, plus an apiKey index, so a write touches one agent.
+// A Redis failure must throw: treating it as an empty registry once wiped the store risk.
+const HASH_KEY = "cogladius:agents:v2";
+const KEY_INDEX = "cogladius:agent-key-index";
 
 async function loadRegistry(): Promise<Record<string, RegisteredAgent>> {
-  const fromRedis = await redisLoad();
-  if (fromRedis !== null) return fromRedis;
-  return localLoad();
+  const r = getRedis();
+  if (!r) return localLoad();
+  return (await r.hgetall<Record<string, RegisteredAgent>>(HASH_KEY)) ?? {};
 }
 
-async function saveRegistry(registry: Record<string, RegisteredAgent>) {
+async function readAgent(pubkey: string): Promise<RegisteredAgent | null> {
   const r = getRedis();
-  if (r) {
-    await redisSave(registry);
-  } else {
+  if (!r) return localLoad()[pubkey] ?? null;
+  return (await r.hget<RegisteredAgent>(HASH_KEY, pubkey)) ?? null;
+}
+
+async function writeAgent(agent: RegisteredAgent, previousApiKey?: string) {
+  const r = getRedis();
+  if (!r) {
+    const registry = localLoad();
+    registry[agent.pubkey] = agent;
     localSave(registry);
+    return;
   }
+  const p = r.pipeline();
+  p.hset(HASH_KEY, { [agent.pubkey]: agent });
+  p.hset(KEY_INDEX, { [agent.apiKey]: agent.pubkey });
+  if (previousApiKey && previousApiKey !== agent.apiKey) p.hdel(KEY_INDEX, previousApiKey);
+  await p.exec();
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -135,8 +132,7 @@ export async function registerAgent(
     rotateApiKey?: boolean;
   }
 ): Promise<RegisteredAgent> {
-  const registry = await loadRegistry();
-  const existing = registry[pubkey];
+  const existing = await readAgent(pubkey);
   const apiKey = !existing || options.rotateApiKey ? generateApiKey() : existing.apiKey;
 
   const agent: RegisteredAgent = {
@@ -172,19 +168,21 @@ export async function registerAgent(
     verified: options.verified ?? existing?.verified ?? false,
   };
 
-  registry[pubkey] = agent;
-  await saveRegistry(registry);
+  await writeAgent(agent, existing?.apiKey);
   return agent;
 }
 
 export async function getAgent(pubkey: string): Promise<RegisteredAgent | null> {
-  const registry = await loadRegistry();
-  return registry[pubkey] ?? null;
+  return readAgent(pubkey);
 }
 
 export async function getAgentByApiKey(apiKey: string): Promise<RegisteredAgent | null> {
-  const registry = await loadRegistry();
-  return Object.values(registry).find((a) => a.apiKey === apiKey) ?? null;
+  const r = getRedis();
+  if (!r) return Object.values(localLoad()).find((a) => a.apiKey === apiKey) ?? null;
+  const pubkey = await r.hget<string>(KEY_INDEX, apiKey);
+  if (!pubkey) return null;
+  const agent = await readAgent(pubkey);
+  return agent?.apiKey === apiKey ? agent : null;
 }
 
 export async function getAllAgents(): Promise<RegisteredAgent[]> {
@@ -195,26 +193,26 @@ export async function updateAgentHeartbeat(
   pubkey: string,
   status: AgentNetworkStatus = "online"
 ): Promise<void> {
-  const registry = await loadRegistry();
-  if (!registry[pubkey]) return;
-  registry[pubkey].lastSeen = new Date().toISOString();
-  registry[pubkey].status = status;
-  await saveRegistry(registry);
+  const agent = await readAgent(pubkey);
+  if (!agent) return;
+  agent.lastSeen = new Date().toISOString();
+  agent.status = status;
+  await writeAgent(agent);
 }
 
 export async function updateAgentStats(
   pubkey: string,
   update: Partial<RegisteredAgent["stats"]>
 ): Promise<void> {
-  const registry = await loadRegistry();
-  if (!registry[pubkey]) return;
-  registry[pubkey].stats = { ...registry[pubkey].stats, ...update };
-  const s = registry[pubkey].stats;
+  const agent = await readAgent(pubkey);
+  if (!agent) return;
+  agent.stats = { ...agent.stats, ...update };
+  const s = agent.stats;
   if (s.tasksCompleted > 0) {
     s.avgScore = Math.round(s.totalScore / s.tasksCompleted);
     s.successRate = Math.round((s.tasksCompleted / s.tasksAttempted) * 100);
   }
-  await saveRegistry(registry);
+  await writeAgent(agent);
 }
 
 export async function validateApiKey(apiKey: string): Promise<RegisteredAgent | null> {
@@ -237,8 +235,8 @@ export async function updateAgentSpecialties(
   pubkey: string,
   specialties: AgentSpecialty[]
 ): Promise<void> {
-  const registry = await loadRegistry();
-  if (!registry[pubkey]) return;
-  registry[pubkey].specialties = specialties;
-  await saveRegistry(registry);
+  const agent = await readAgent(pubkey);
+  if (!agent) return;
+  agent.specialties = specialties;
+  await writeAgent(agent);
 }

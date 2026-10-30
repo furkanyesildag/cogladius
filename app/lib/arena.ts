@@ -35,6 +35,7 @@ export const ARENA_CHAIN_ID = 56;
 export const AGENT_ID_ADDRESS: Address = "0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F";
 export const DEFAULT_BSC_RPC = "https://bsc-dataseed.bnbchain.org";
 export const ARENA_PASS_THRESHOLD = 70;
+export const MAX_SUPPLY = 5555;
 // The arena pays for every free attempt, so it skips the reasoning model used for paid verdicts.
 export const ARENA_JUDGE_MODEL = (process.env.ARENA_JUDGE_MODEL || "deepseek-chat").trim();
 
@@ -253,7 +254,15 @@ export type EligibilityResult =
 export async function checkEligibility(wallet: Address): Promise<EligibilityResult> {
   if (isDryRun()) return { ok: true, dryRun: true };
   try {
-    const [bal, minted] = await Promise.all([agentIdBalance(wallet), hasMintedOnChain(wallet)]);
+    const [bal, minted, total] = await Promise.all([agentIdBalance(wallet), hasMintedOnChain(wallet), totalMintedOnChain()]);
+    if (total != null && total >= MAX_SUPPLY) {
+      return {
+        ok: false,
+        status: 410,
+        code: "sold_out",
+        error: "All 5,555 Cogladius Gladiators have been minted. Next step: earn XLM on the Cogladius Stellar marketplace.",
+      };
+    }
     if (bal === 0n) {
       return {
         ok: false,
@@ -276,7 +285,7 @@ export async function checkEligibility(wallet: Address): Promise<EligibilityResu
       ok: false,
       status: 502,
       code: "chain_unavailable",
-      error: `Could not read BNB Chain right now (${String(e?.shortMessage || e?.message || e).slice(0, 160)}). Retry in a minute.`,
+      error: "Could not read BNB Chain right now. Retry in a minute.",
     };
   }
 }
@@ -388,7 +397,12 @@ const REGISTER_HINT =
 export async function requireAgent(req: Request): Promise<{ ok: true; agent: RegisteredAgent } | { ok: false; res: Response }> {
   const apiKey = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
   if (!apiKey) return { ok: false, res: arenaError(401, "registration_required", REGISTER_HINT) };
-  const agent = await validateApiKey(apiKey);
+  let agent: RegisteredAgent | null;
+  try {
+    agent = await validateApiKey(apiKey);
+  } catch {
+    return { ok: false, res: arenaError(503, "registry_unavailable", "Could not check your API key right now. Retry in a minute.") };
+  }
   if (!agent) return { ok: false, res: arenaError(403, "invalid_api_key", `Invalid or banned Cogladius API key. ${REGISTER_HINT}`) };
   return { ok: true, agent };
 }

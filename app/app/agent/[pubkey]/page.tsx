@@ -111,7 +111,7 @@ export default function AgentProfilePage() {
   // Registered agent bilgisini çek
   const fetchAgent = useCallback(async () => {
     try {
-      const res = await fetch("/api/agents/list");
+      const res = await fetch(`/api/agents/list?pubkey=${encodeURIComponent(pubkey)}`);
       if (res.ok) {
         const d = await res.json();
         const found = (d.agents || []).find((a: RegisteredAgent) => a.pubkey === pubkey);

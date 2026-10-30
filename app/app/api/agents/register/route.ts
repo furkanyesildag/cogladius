@@ -21,9 +21,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { StrKey } from "@stellar/stellar-sdk";
 import { registerAgent, getAgent } from "@/lib/agentRegistry";
 import { createApplication, approveApplication } from "@/lib/applicationStore";
-import { kvTake } from "@/lib/kv";
+import { kvGet, kvIncr, kvTake } from "@/lib/kv";
 import { verifySep53 } from "@/lib/sep53";
 import { registrationMessage } from "@/lib/actionMessages";
+
+const MAX_BODY_CHARS = 8000;
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
@@ -47,7 +49,15 @@ const isValidStellarAddress = (addr: string) => {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if ((await kvIncr(`cogladius:register-rate:${ip}`, 600)) > 60) {
+      return NextResponse.json({ success: false, code: "rate_limited", error: "Too many registrations from this IP; retry in 10 minutes." }, { status: 429 });
+    }
+    const rawBody = await req.text();
+    if (rawBody.length > MAX_BODY_CHARS) {
+      return NextResponse.json({ success: false, code: "body_too_large", error: `Request body must be under ${MAX_BODY_CHARS} characters.` }, { status: 413 });
+    }
+    const body = JSON.parse(rawBody);
     const {
       pubkey, stellarAddress, name, email, description,
       openclawVersion, llmProvider, llmModel,
@@ -70,7 +80,7 @@ export async function POST(req: NextRequest) {
     // Proof of key ownership (see the header comment).
     const signed = typeof body.nonce === "string" && typeof body.signature === "string";
     if (signed) {
-      const expected = await kvTake(`cogladius:challenge:${identity}`);
+      const expected = await kvGet(`cogladius:challenge:${identity}`);
       if (!expected || expected !== body.nonce) {
         return NextResponse.json(
           { success: false, code: "challenge_invalid", error: "Challenge missing, expired or already used. Request a new one from /api/agents/challenge." },
@@ -82,6 +92,10 @@ export async function POST(req: NextRequest) {
           { success: false, code: "signature_invalid", error: "Signature does not verify against pubkey (SEP-53 over the challenge message)." },
           { status: 401 }
         );
+      }
+      // Single use, consumed only after the signature checks out: an unsigned caller cannot burn it.
+      if ((await kvTake(`cogladius:challenge:${identity}`)) !== body.nonce) {
+        return NextResponse.json({ success: false, code: "challenge_invalid", error: "Challenge already used. Request a new one from /api/agents/challenge." }, { status: 401 });
       }
     } else if (process.env.ALLOW_UNSIGNED_REGISTRATION !== "true") {
       return NextResponse.json(
@@ -111,11 +125,11 @@ export async function POST(req: NextRequest) {
 
     // Auto-approve: register (or refresh) the agent and mint/reuse the API key.
     const agent = await registerAgent(identity, agentName, {
-      openclawVersion: typeof openclawVersion === "string" ? openclawVersion.trim() : undefined,
-      llmProvider: llmProvider || undefined,
-      llmModel: llmModel || undefined,
-      capabilities: Array.isArray(capabilities) ? capabilities : undefined,
-      specialties: Array.isArray(specialties) ? specialties : undefined,
+      openclawVersion: typeof openclawVersion === "string" ? openclawVersion.trim().slice(0, 100) : undefined,
+      llmProvider: ["openai", "anthropic", "ollama", "openrouter", "other"].includes(llmProvider) ? llmProvider : undefined,
+      llmModel: typeof llmModel === "string" ? llmModel.slice(0, 100) || undefined : undefined,
+      capabilities: Array.isArray(capabilities) ? capabilities.slice(0, 20) : undefined,
+      specialties: Array.isArray(specialties) ? specialties.slice(0, 20) : undefined,
       stellarAddress: identity,
       config: mappedConfig as any,
       verified: signed,
@@ -164,7 +178,7 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("[/api/agents/register]", err);
     return NextResponse.json(
-      { success: false, error: "Sunucu hatası: " + (err?.message || "bilinmeyen") },
+      { success: false, error: "Registration failed. Retry shortly." },
       { status: 500 }
     );
   }
