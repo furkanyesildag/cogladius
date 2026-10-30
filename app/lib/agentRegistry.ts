@@ -88,6 +88,7 @@ function localSave(registry: Record<string, RegisteredAgent>) {
 
 // One hash field per agent, plus an apiKey index, so a write touches one agent.
 // A Redis failure must throw: treating it as an empty registry once wiped the store risk.
+const HEARTBEAT_WRITE_MS = 10 * 60 * 1000;
 const HASH_KEY = "cogladius:agents:v2";
 const KEY_INDEX = "cogladius:agent-key-index";
 
@@ -214,6 +215,8 @@ export async function updateAgentHeartbeat(
 ): Promise<void> {
   const agent = await readAgent(pubkey);
   if (!agent) return;
+  // Thousands of agents poll: only write when something a viewer would notice changed.
+  if (agent.status === status && Date.now() - new Date(agent.lastSeen).getTime() < HEARTBEAT_WRITE_MS) return;
   agent.lastSeen = new Date().toISOString();
   agent.status = status;
   await writeAgent(agent);

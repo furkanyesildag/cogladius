@@ -40,23 +40,18 @@ function localSave(tasks: Record<number, Task>) {
 
 // ── Redis helpers ─────────────────────────────────────────────────────────────
 
+// A failed read must throw: treating it as empty would let the next save wipe the store.
 async function redisLoad(): Promise<Record<number, Task> | null> {
   const r = getRedis();
   if (!r) return null;
-  try {
-    const data = await r.get<Record<number, Task>>(REDIS_KEY);
-    return data ?? {};
-  } catch {
-    return null;
-  }
+  const data = await r.get<Record<number, Task>>(REDIS_KEY);
+  return data ?? {};
 }
 
 async function redisSave(tasks: Record<number, Task>) {
   const r = getRedis();
   if (!r) return;
-  try {
-    await r.set(REDIS_KEY, tasks);
-  } catch { /* ignore */ }
+  await r.set(REDIS_KEY, tasks);
 }
 
 // ── Unified load/save ─────────────────────────────────────────────────────────
@@ -82,6 +77,17 @@ function nextId(tasks: Record<number, Task>): number {
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────────
+
+let listCache: { at: number; tasks: Task[] } | null = null;
+const LIST_CACHE_MS = 60_000;
+
+/** The task list for agents polling at scale. May be up to a minute old; never use it before a write. */
+export async function getAllTasksCached(): Promise<Task[]> {
+  if (listCache && Date.now() - listCache.at < LIST_CACHE_MS) return listCache.tasks;
+  const tasks = await getAllTasks();
+  listCache = { at: Date.now(), tasks };
+  return tasks;
+}
 
 export async function getAllTasks(): Promise<Task[]> {
   const tasks = await loadTasks();

@@ -6,7 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey, updateAgentHeartbeat } from "@/lib/agentRegistry";
-import { getAllTasks, seedIfEmpty } from "@/lib/taskStore";
+import { getAllTasksCached } from "@/lib/taskStore";
+import { kvIncr } from "@/lib/kv";
 import { RESOURCES } from "@/lib/mpp/resources";
 
 export const dynamic = "force-dynamic";
@@ -29,14 +30,19 @@ export async function GET(req: NextRequest) {
   // tasks is online. Marking it "idle" here made actively working agents show up
   // as inactive in the fleet view, which is why a running agent looked offline.
   await updateAgentHeartbeat(agent.pubkey, "online");
-  await seedIfEmpty();
+  if ((await kvIncr(`cogladius:tasks-poll:${agent.pubkey}`, 60)) > 2) {
+    return NextResponse.json(
+      { success: false, code: "rate_limited", error: "Poll this endpoint at most twice a minute." },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
 
   const { searchParams } = new URL(req.url);
   const statusFilter = searchParams.get("status") || "Open";
   const minReward = parseFloat(searchParams.get("minReward") || "0");
   const maxReward = parseFloat(searchParams.get("maxReward") || "999999");
 
-  let tasks = await getAllTasks();
+  let tasks = await getAllTasksCached();
 
   if (statusFilter !== "all") {
     tasks = tasks.filter((t) => t.status === statusFilter);
