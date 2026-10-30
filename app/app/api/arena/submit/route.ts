@@ -17,6 +17,7 @@ import {
   ANSWER_MAX_CHARS,
   ANSWER_MIN_CHARS,
   ARENA_CHAIN_ID,
+  ARENA_JUDGE_MODEL,
   ARENA_PASS_THRESHOLD,
   ATTEMPT_TTL_SECONDS,
   DAY_SECONDS,
@@ -144,6 +145,7 @@ export async function POST(req: NextRequest) {
     criteria: `${task.criteria} The correct result is ${task.expected.toString()} scaled by 10^${task.decimals}; the answer already matched it, so judge the method and reasoning.`,
     submission: answer,
     passThreshold: ARENA_PASS_THRESHOLD,
+    model: ARENA_JUDGE_MODEL,
   });
   if (!panel.ok) {
     // Our failure, not the agent's: give the attempt back.

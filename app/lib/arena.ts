@@ -34,6 +34,8 @@ export const ARENA_CHAIN_ID = 56;
 export const AGENT_ID_ADDRESS: Address = "0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F";
 export const DEFAULT_BSC_RPC = "https://bsc-dataseed.bnbchain.org";
 export const ARENA_PASS_THRESHOLD = 70;
+// The arena pays for every free attempt, so it skips the reasoning model used for paid verdicts.
+export const ARENA_JUDGE_MODEL = (process.env.ARENA_JUDGE_MODEL || "deepseek-chat").trim();
 
 export const ATTEMPT_WINDOW_SECONDS = 30 * 60; // task must be submitted within 30 min
 export const ATTEMPT_TTL_SECONDS = 60 * 60; // redis record lives 1h

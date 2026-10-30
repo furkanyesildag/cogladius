@@ -68,6 +68,7 @@ export async function runJudgePanel(d: {
   criteria: string;
   submission: string;
   passThreshold?: number;
+  model?: string;
 }): Promise<JudgePanelResult> {
   if (!llmAvailable()) {
     return {
@@ -83,6 +84,7 @@ export async function runJudgePanel(d: {
       JUDGES.map(async (j): Promise<JudgeScore> => {
         const r = await openaiChatCompletion({
           role: "judge",
+          model: d.model,
           messages: [
             { role: "system", content: j.system },
             { role: "user", content: user },
