@@ -14,12 +14,14 @@
     "vercel-build": "npx next build",
     "start": "next start",
     "lint": "next lint",
+    "test:pg": "UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= node --import tsx --import ./tests/pg/fetch-guard.mjs --test --test-force-exit --test-concurrency=1 --test-timeout=60000 --test-reporter=spec tests/pg/*.test.mjs",
     "vercel:preview": "npx --yes vercel@latest deploy",
     "vercel:prod": "npx --yes vercel@latest deploy --prod",
     "vercel:repo": "npx --yes vercel@latest --cwd .. link --repo -y"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@neondatabase/serverless": "1.2.0",
     "@stellar/freighter-api": "^6.0.1",
     "@stellar/mpp": "github:stellar/stellar-mpp-sdk#1ee3f259d34b12dae75e4c0dcfd4df808a64d8e1",
     "@stellar/stellar-sdk": "^16.3.0",
@@ -32,6 +34,7 @@
     "viem": "^2.56.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
     "@netlify/plugin-nextjs": "^5.11.6",
     "@types/node": "^20.12.7",
     "@types/react": "^18.2.79",
@@ -41,6 +44,7 @@
     "eslint-config-next": "14.2.3",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
+    "tsx": "4.23.15",
     "typescript": "^5.4.5"
   }
 }

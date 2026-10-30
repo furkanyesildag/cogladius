@@ -28,7 +28,10 @@ export async function GET(request: NextRequest) {
       : { ...t, submissions: (t.submissions || []).map((s) => ({ ...s, resultUrl: "" })) }
   );
 
-  return NextResponse.json({ tasks: redacted });
+  return NextResponse.json(
+    { tasks: redacted },
+    { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" } }
+  );
 }
 
 export async function POST(request: NextRequest) {
