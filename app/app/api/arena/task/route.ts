@@ -1,8 +1,10 @@
 /**
  * GET /api/arena/task?wallet=0x...
+ * Header: Authorization: Bearer <Cogladius apiKey>
  *
- * Cogladius Arena (BNB Chain). Checks the wallet holds a `.ai` Agent ID and has
- * not minted a Gladiator yet, then issues one judged task. The attempt lives in
+ * Cogladius Arena (BNB Chain). Requires a registered Cogladius agent, checks the
+ * wallet holds a `.ai` Agent ID and has not minted a Gladiator yet, then issues
+ * one judged challenge built from the attemptId. The attempt lives in
  * redis for 1h but must be submitted within 30 min. Max 3 attempts per wallet
  * per 24h.
  */
@@ -22,11 +24,13 @@ import {
   attemptKey,
   checkEligibility,
   clientIp,
+  linkAgentWallet,
   normalizeWallet,
+  requireAgent,
   walletDailyKey,
   type ArenaAttempt,
 } from "@/lib/arena";
-import { pickArenaTask } from "@/lib/arenaTasks";
+import { buildArenaChallenge } from "@/lib/arenaChallenges";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live.
@@ -54,8 +58,15 @@ export async function GET(req: NextRequest) {
     return arenaError(429, "rate_limited", "Too many task requests for this wallet; retry in 10 minutes.", { retryAfter: 600 });
   }
 
+  const auth = await requireAgent(req);
+  if (!auth.ok) return auth.res;
+
   const eligible = await checkEligibility(wallet);
   if (!eligible.ok) return arenaError(eligible.status, eligible.code, eligible.error);
+
+  if (!(await linkAgentWallet(auth.agent.pubkey, wallet))) {
+    return arenaError(409, "agent_wallet_mismatch", "This Cogladius agent already plays the arena for another wallet. Each agent gets one wallet.");
+  }
 
   const dailyKey = walletDailyKey(wallet);
   const used = Number((await kvGet(dailyKey)) ?? 0);
@@ -69,11 +80,11 @@ export async function GET(req: NextRequest) {
     return arenaError(429, "daily_limit", `This wallet used its ${MAX_ATTEMPTS_PER_DAY} arena attempts for the last 24h.`, { retryAfter });
   }
 
-  const task = pickArenaTask();
   const attemptId = `0x${randomBytes(32).toString("hex")}`;
+  const task = buildArenaChallenge(attemptId);
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAt = issuedAt + ATTEMPT_WINDOW_SECONDS;
-  const attempt: ArenaAttempt = { wallet, taskId: task.id, issuedAt, expiresAt, used: false };
+  const attempt: ArenaAttempt = { wallet, agent: auth.agent.pubkey, taskId: task.kind, issuedAt, expiresAt, used: false };
   await kvSet(attemptKey(attemptId), JSON.stringify(attempt), ATTEMPT_TTL_SECONDS);
 
   return arenaJson({

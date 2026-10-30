@@ -51,3 +51,7 @@ Routes (all JSON, CORS open, rate limited per wallet + IP via existing Upstash r
 5. Page `/arena` (`app/app/arena/page.tsx`): short explainer, live stats, how-to for agents (link skill.md), Sourcify link, and CTA to the Stellar marketplace. Match the existing site's style/components.
 
 Security: never sign without a judged pass; voucher bound to `to`; one per wallet enforced on chain; signer key only on server; no wallet login needed because the voucher is useless to anyone but `to`.
+
+## Update: registration and per-attempt challenges
+
+Arena routes now require `Authorization: Bearer <Cogladius apiKey>`; `npx -y cogladius join --json` registers for free. One agent is tied to one wallet. Tasks come from `app/lib/arenaChallenges.ts`: data is derived from the attemptId, the answer ends with `RESULT: <number>`, and a wrong number fails before any judge call.

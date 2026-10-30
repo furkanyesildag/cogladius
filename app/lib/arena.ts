@@ -25,6 +25,8 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { bsc } from "viem/chains";
 import { getRedis } from "./redis";
+import { kvGet, kvSet } from "./kv";
+import { validateApiKey, type RegisteredAgent } from "./agentRegistry";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -328,6 +330,7 @@ export function mintCalldata(v: Voucher): Hex {
 
 export type ArenaAttempt = {
   wallet: string; // lowercase
+  agent: string; // Cogladius agent public key (G...)
   taskId: string;
   issuedAt: number; // unix seconds
   expiresAt: number; // unix seconds
@@ -344,7 +347,7 @@ export const MINTED_CACHE_KEY = "arena:minted-cache";
 const g = globalThis as unknown as { __arenaStats?: Record<string, number> };
 const memStats = (g.__arenaStats ??= {});
 
-export async function statsIncr(field: "attempts" | "passes"): Promise<void> {
+export async function statsIncr(field: "attempts" | "passes" | "linkedAgents" | "wrongResults"): Promise<void> {
   const r = getRedis();
   if (r) {
     await r.hincrby(STATS_KEY, field, 1);
@@ -353,11 +356,35 @@ export async function statsIncr(field: "attempts" | "passes"): Promise<void> {
   memStats[field] = (memStats[field] || 0) + 1;
 }
 
-export async function statsRead(): Promise<{ attempts: number; passes: number }> {
+export async function statsRead(): Promise<{ attempts: number; passes: number; linkedAgents: number; wrongResults: number }> {
   const r = getRedis();
   if (r) {
     const h = (await r.hgetall<Record<string, unknown>>(STATS_KEY)) || {};
-    return { attempts: Number(h.attempts || 0), passes: Number(h.passes || 0) };
+    return { attempts: Number(h.attempts || 0), passes: Number(h.passes || 0), linkedAgents: Number(h.linkedAgents || 0), wrongResults: Number(h.wrongResults || 0) };
   }
-  return { attempts: memStats.attempts || 0, passes: memStats.passes || 0 };
+  return { attempts: memStats.attempts || 0, passes: memStats.passes || 0, linkedAgents: memStats.linkedAgents || 0, wrongResults: memStats.wrongResults || 0 };
+}
+
+const AGENT_LINK_TTL_SECONDS = 365 * DAY_SECONDS;
+const agentWalletKey = (pubkey: string) => `arena:agent-wallet:${pubkey}`;
+
+const REGISTER_HINT =
+  "Register on Cogladius first: run `npx -y cogladius join --json` (free, no funded account needed) and send the returned apiKey as `Authorization: Bearer <apiKey>`. See https://www.cogladius.xyz/arena/skill.md";
+
+/** The registered Cogladius agent behind this request, or a ready error response. */
+export async function requireAgent(req: Request): Promise<{ ok: true; agent: RegisteredAgent } | { ok: false; res: Response }> {
+  const apiKey = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();
+  if (!apiKey) return { ok: false, res: arenaError(401, "registration_required", REGISTER_HINT) };
+  const agent = await validateApiKey(apiKey);
+  if (!agent) return { ok: false, res: arenaError(403, "invalid_api_key", `Invalid or banned Cogladius API key. ${REGISTER_HINT}`) };
+  return { ok: true, agent };
+}
+
+/** One Cogladius agent plays the arena for one wallet. Returns false if it is tied to another. */
+export async function linkAgentWallet(pubkey: string, wallet: string): Promise<boolean> {
+  const existing = await kvGet(agentWalletKey(pubkey));
+  if (existing) return existing === wallet;
+  await kvSet(agentWalletKey(pubkey), wallet, AGENT_LINK_TTL_SECONDS);
+  await statsIncr("linkedAgents");
+  return true;
 }

@@ -1,7 +1,9 @@
 /**
  * POST /api/arena/submit  { attemptId, wallet, answer }
+ * Header: Authorization: Bearer <Cogladius apiKey>
  *
- * Judges an arena answer with the three-judge panel. A pass (avg >= 70) returns
+ * A wrong RESULT line fails without calling the judges. Otherwise the answer
+ * goes to the three-judge panel. A pass (avg >= 70) returns
  * an EIP-712 Mint voucher bound to `wallet` plus ready-to-send calldata for
  * CogladiusGladiator.mint (value 0). The attempt is marked used before judging,
  * so each attempt is judged at most once.
@@ -10,7 +12,7 @@
 import { NextRequest } from "next/server";
 import { kvGet, kvIncr, kvSet, kvTake, kvTtl } from "@/lib/kv";
 import { runJudgePanel } from "@/lib/judgePanel";
-import { getArenaTask } from "@/lib/arenaTasks";
+import { arenaResultCorrect, buildArenaChallenge } from "@/lib/arenaChallenges";
 import {
   ANSWER_MAX_CHARS,
   ANSWER_MIN_CHARS,
@@ -33,6 +35,7 @@ import {
   isDryRun,
   mintCalldata,
   normalizeWallet,
+  requireAgent,
   resultKey,
   signVoucher,
   statsIncr,
@@ -92,6 +95,9 @@ export async function POST(req: NextRequest) {
     return arenaError(429, "rate_limited", "Too many submissions for this wallet; retry in 10 minutes.", { retryAfter: 600 });
   }
 
+  const auth = await requireAgent(req);
+  if (!auth.ok) return auth.res;
+
   const raw = await kvGet(attemptKey(attemptId));
   if (!raw) return arenaError(404, "attempt_not_found", "Unknown or expired attempt. Request a new task with GET /api/arena/task.");
   let attempt: ArenaAttempt;
@@ -103,13 +109,15 @@ export async function POST(req: NextRequest) {
   if (attempt.wallet !== wallet) {
     return arenaError(403, "wallet_mismatch", "This attempt was issued to a different wallet.");
   }
+  if (attempt.agent !== auth.agent.pubkey) {
+    return arenaError(403, "agent_mismatch", "This attempt was issued to a different Cogladius agent. Request a new task.");
+  }
   if (attempt.used) return arenaError(409, "attempt_used", "This attempt was already submitted. Request a new task.");
   const now = Math.floor(Date.now() / 1000);
   if (now > attempt.expiresAt) {
     return arenaError(410, "attempt_expired", "The 30-minute window for this attempt has passed. Request a new task.");
   }
-  const task = getArenaTask(attempt.taskId);
-  if (!task) return arenaError(404, "task_not_found", "The task for this attempt no longer exists. Request a new task.");
+  const task = buildArenaChallenge(attemptId);
 
   // Re-check the chain gates before spending judge calls (and before burning the attempt).
   const eligible = await checkEligibility(wallet);
@@ -123,9 +131,17 @@ export async function POST(req: NextRequest) {
   const ttlLeft = (await kvTtl(attemptKey(attemptId))) ?? ATTEMPT_TTL_SECONDS;
   await kvSet(attemptKey(attemptId), JSON.stringify({ ...attempt, used: true }), ttlLeft);
 
+  // Wrong number: fail here, no judge calls. The right value is never revealed.
+  if (!arenaResultCorrect(answer, task)) {
+    await statsIncr("attempts");
+    await statsIncr("wrongResults");
+    const retryAfter = await retryAfterFor(wallet);
+    return arenaJson({ success: true, pass: false, code: "wrong_result", avgScore: 0, scores: [], retryAfter, error: "The RESULT line is missing or wrong. This attempt is used; request a new task, which comes with new data." });
+  }
+
   const panel = await runJudgePanel({
     taskDescription: `${task.title}\n\n${task.description}`,
-    criteria: task.criteria,
+    criteria: `${task.criteria} The correct result is ${task.expected.toString()} scaled by 10^${task.decimals}; the answer already matched it, so judge the method and reasoning.`,
     submission: answer,
     passThreshold: ARENA_PASS_THRESHOLD,
   });
@@ -145,7 +161,7 @@ export async function POST(req: NextRequest) {
     const retryAfter = await retryAfterFor(wallet);
     await kvSet(
       resultKey(wallet),
-      JSON.stringify({ pass: false, avgScore, scores, attemptId, taskId: task.id, judgedAt: now }),
+      JSON.stringify({ pass: false, avgScore, scores, attemptId, taskId: task.kind, judgedAt: now }),
       RESULT_TTL_SECONDS
     );
     return arenaJson({ success: true, pass: false, avgScore, scores, retryAfter });
@@ -164,7 +180,7 @@ export async function POST(req: NextRequest) {
 
   await kvSet(
     resultKey(wallet),
-    JSON.stringify({ pass: true, avgScore, scores, attemptId, taskId: task.id, judgedAt: now, voucher, calldata }),
+    JSON.stringify({ pass: true, avgScore, scores, attemptId, taskId: task.kind, judgedAt: now, voucher, calldata }),
     RESULT_TTL_SECONDS
   );
   await statsIncr("passes");

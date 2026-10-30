@@ -44,13 +44,15 @@ export async function GET() {
   const notReady = arenaNotReady(false);
   if (notReady) return notReady;
 
-  const [{ attempts, passes }, minted] = await Promise.all([statsRead(), mintedCached()]);
+  const [{ attempts, passes, linkedAgents, wrongResults }, minted] = await Promise.all([statsRead(), mintedCached()]);
   const contract = gladiatorAddress();
   return arenaJson(
     {
       success: true,
       attempts,
       passes,
+      wrongResults,
+      linkedAgents,
       minted,
       contract,
       chainId: 56,
