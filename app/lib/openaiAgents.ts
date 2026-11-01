@@ -1,3 +1,4 @@
+```typescript
 /**
  * Server-side LLM provider — DeepSeek primary, OpenAI fallback.
  *
@@ -12,6 +13,17 @@
 
 export type LlmProvider = "deepseek" | "openai";
 export type LlmRole = "default" | "agent" | "judge" | "nexus" | "court";
+export type SettlementLeg = "soroban" | "nano:mainnet";
+
+/**
+ * Configuration structure for dual-leg reward settlement (Soroban escrow + feeless Nano).
+ */
+export interface SettlementConfig {
+  leg: SettlementLeg;
+  recipientAddress: string;
+  amount: string; // Amount in XLM/USDC for Soroban, or raw/decimal XNO for Nano
+  memo?: string;
+}
 
 const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
 
@@ -109,59 +121,236 @@ export async function openaiChatCompletion(payload: {
   let lastWasEmpty = false;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    if (attempt > 0) await new Promise((r) => setTimeout(r, 1000 * attempt));
-    if (lastWasEmpty) {
-      maxTokens = Math.min(maxTokens * 2, 4000);
-      if (attempt === maxRetries && payload.model === undefined) useModel = getOpenAiChatModel("default");
-    }
-    lastWasEmpty = false;
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
     try {
-      const body: Record<string, unknown> = {
-        model: useModel,
-        messages: payload.messages,
-        max_tokens: maxTokens,
-        temperature: payload.temperature ?? 0.75,
-      };
-      if (payload.response_format) body.response_format = payload.response_format;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
       const res = await fetch(url, {
         method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: useModel,
+          messages: payload.messages,
+          max_tokens: maxTokens,
+          temperature: payload.temperature ?? 0.3,
+          ...(payload.response_format ? { response_format: payload.response_format } : {}),
+        }),
         signal: controller.signal,
       });
-      clearTimeout(timer);
 
-      const data = (await res.json().catch(() => ({}))) as {
-        choices?: Array<{ message?: { content?: string } }>;
-        error?: { message?: string };
-      };
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
-        lastError = data?.error?.message ?? `${provider} HTTP ${res.status}`;
-        if (RETRY_STATUS_CODES.has(res.status)) continue;
+        const bodyText = await res.text().catch(() => "");
+        lastError = `API error status ${res.status}: ${bodyText.slice(0, 200)}`;
+        if (RETRY_STATUS_CODES.has(res.status) && attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
         return { ok: false, error: lastError };
       }
 
-      const text = data.choices?.[0]?.message?.content?.trim() ?? "";
-      if (!text) {
-        lastError = `${provider} returned an empty response.`;
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content ?? "";
+      
+      if (!text.trim() && attempt < maxRetries) {
         lastWasEmpty = true;
+        maxTokens *= 2;
+        if (attempt === maxRetries - 1) {
+          useModel = getOpenAiChatModel(payload.role ?? "default");
+        }
         continue;
       }
+
       return { ok: true, text, provider };
-    } catch (e) {
-      clearTimeout(timer);
-      lastError =
-        e instanceof Error && e.name === "AbortError"
-          ? `${provider} request timed out (${REQUEST_TIMEOUT_MS / 1000}s)`
-          : e instanceof Error
-            ? e.message
-            : "Unknown connection error";
+    } catch (err: any) {
+      lastError = err?.message || String(err);
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+    }
+  }
+
+  return { ok: false, error: lastError };
+}
+```
+/**
+ * Server-side LLM provider — DeepSeek primary, OpenAI fallback.
+ *
+ * DeepSeek is OpenAI-compatible (`/chat/completions`, Bearer auth, json_object
+ * response_format), so a single client powers every role: worker agents, the
+ * three-judge panel, and the Agent Court. Keys are server-only.
+ *
+ * Back-compat: the historical `openaiChatCompletion` / `getOpenAiChatModel` /
+ * `resolveOpenAiApiKey` exports are kept so existing routes keep working — they
+ * now transparently use DeepSeek when `DEEPSEEK_API_KEY` is set.
+ */
+
+export type LlmProvider = "deepseek" | "openai";
+export type LlmRole = "default" | "agent" | "judge" | "nexus" | "court";
+export type SettlementLeg = "soroban" | "nano:mainnet";
+
+/**
+ * Configuration structure for dual-leg reward settlement (Soroban escrow + feeless Nano).
+ */
+export interface SettlementConfig {
+  leg: SettlementLeg;
+  recipientAddress: string;
+  amount: string; // Amount in XLM/USDC for Soroban, or raw/decimal XNO for Nano
+  memo?: string;
+}
+
+const DEEPSEEK_BASE_URL = (process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com").replace(/\/$/, "");
+
+export function resolveDeepseekApiKey(): string | null {
+  const k = process.env.DEEPSEEK_API_KEY?.trim();
+  return k && k.startsWith("sk-") ? k : null;
+}
+
+export function resolveOpenAiApiKey(): string | null {
+  const k = process.env.OPENAI_API_KEY?.trim();
+  return k && k.startsWith("sk-") ? k : null;
+}
+
+/** The provider that will actually be used (DeepSeek wins when both are set). */
+export function activeProvider(): LlmProvider | null {
+  if (resolveDeepseekApiKey()) return "deepseek";
+  if (resolveOpenAiApiKey()) return "openai";
+  return null;
+}
+
+/** True when any LLM backend is configured. */
+export function llmAvailable(): boolean {
+  return activeProvider() !== null;
+}
+
+function deepseekModel(role: LlmRole): string {
+  switch (role) {
+    case "judge":
+      // Verdicts gate real USDC — default to the stronger model.
+      return (process.env.DEEPSEEK_MODEL_JUDGE || "deepseek-v4-pro").trim();
+    case "agent":
+      return (process.env.DEEPSEEK_MODEL_WORKER || process.env.DEEPSEEK_MODEL || "deepseek-chat").trim();
+    default:
+      return (process.env.DEEPSEEK_MODEL || "deepseek-chat").trim();
+  }
+}
+
+function openaiModel(role: LlmRole): string {
+  const specific =
+    role === "agent"
+      ? process.env.OPENAI_CHAT_MODEL_AGENT
+      : role === "judge"
+        ? process.env.OPENAI_CHAT_MODEL_JUDGE
+        : role === "nexus"
+          ? process.env.OPENAI_CHAT_MODEL_NEXUS
+          : undefined;
+  return (specific ?? process.env.OPENAI_CHAT_MODEL ?? "gpt-4o").trim();
+}
+
+/** Model id for the active provider + role. */
+export function getOpenAiChatModel(role: LlmRole = "default"): string {
+  return activeProvider() === "deepseek" ? deepseekModel(role) : openaiModel(role);
+}
+
+export type ChatMessage = { role: string; content: string };
+
+const REQUEST_TIMEOUT_MS = 45_000;
+const RETRY_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+
+/**
+ * Chat completion against the active provider (DeepSeek or OpenAI). Set
+ * `role` to pick a role-specific model, or pass an explicit `model`.
+ */
+export async function openaiChatCompletion(payload: {
+  messages: ChatMessage[];
+  model?: string;
+  role?: LlmRole;
+  max_tokens?: number;
+  temperature?: number;
+  response_format?: { type: "json_object" };
+  maxRetries?: number;
+}): Promise<{ ok: true; text: string; provider: LlmProvider } | { ok: false; error: string }> {
+  const provider = activeProvider();
+  if (!provider) {
+    return {
+      ok: false,
+      error: "The AI engine is not configured.",
+    };
+  }
+
+  const key = provider === "deepseek" ? resolveDeepseekApiKey()! : resolveOpenAiApiKey()!;
+  const url =
+    provider === "deepseek"
+      ? `${DEEPSEEK_BASE_URL}/chat/completions`
+      : "https://api.openai.com/v1/chat/completions";
+  const model = payload.model ?? getOpenAiChatModel(payload.role ?? "default");
+
+  const maxRetries = payload.maxRetries ?? 2;
+  let lastError = "Unknown error";
+  // A reasoning model can spend the whole budget thinking and return empty
+  // content. On an empty reply: double the budget, and on the last attempt
+  // fall back to the default (non-reasoning) chat model.
+  let maxTokens = payload.max_tokens ?? 900;
+  let useModel = model;
+  let lastWasEmpty = false;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: useModel,
+          messages: payload.messages,
+          max_tokens: maxTokens,
+          temperature: payload.temperature ?? 0.3,
+          ...(payload.response_format ? { response_format: payload.response_format } : {}),
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const bodyText = await res.text().catch(() => "");
+        lastError = `API error status ${res.status}: ${bodyText.slice(0, 200)}`;
+        if (RETRY_STATUS_CODES.has(res.status) && attempt < maxRetries) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+        return { ok: false, error: lastError };
+      }
+
+      const data = await res.json();
+      const text = data?.choices?.[0]?.message?.content ?? "";
+      
+      if (!text.trim() && attempt < maxRetries) {
+        lastWasEmpty = true;
+        maxTokens *= 2;
+        if (attempt === maxRetries - 1) {
+          useModel = getOpenAiChatModel(payload.role ?? "default");
+        }
+        continue;
+      }
+
+      return { ok: true, text, provider };
+    } catch (err: any) {
+      lastError = err?.message || String(err);
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
     }
   }
 
