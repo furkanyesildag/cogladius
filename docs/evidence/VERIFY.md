@@ -55,7 +55,7 @@ cd app && npm ci && cd ..
 node scripts/mainnet-report.js > MAINNET_REPORT.md
 ```
 
-The script reads every escrow event from Stellar Expert, looks up each transaction on Horizon and reads the escrow's XLM balance from Stellar RPC. It then checks that the balance equals the rewards of the tasks that are still open. Our run: [MAINNET_REPORT.md](MAINNET_REPORT.md).
+The script uses only free public endpoints. It takes every escrow transaction listed in [escrow-txs.txt](escrow-txs.txt), adds any newer one that Stellar RPC `getEvents` returns for the escrow, fetches each transaction from Horizon and decodes the contract call from its envelope. It then reads the escrow's XLM balance from Stellar RPC and checks that it equals the rewards of the tasks that are still open. A transaction missing from the list would show up as a balance mismatch, and the full history can also be compared with the escrow's page on [Stellar Expert](https://stellar.expert/explorer/public/contract/CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL). Our run: [MAINNET_REPORT.md](MAINNET_REPORT.md).
 
 | | |
 |---|---|

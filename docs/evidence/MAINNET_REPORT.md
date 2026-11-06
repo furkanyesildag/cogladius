@@ -1,6 +1,6 @@
 # Mainnet report: the Cogladius escrow, rebuilt from public data
 
-Generated 2026-11-06T02:37:51Z by `node scripts/mainnet-report.js`. The script uses no keys and no Cogladius API: events come from Stellar Expert, each transaction from Horizon, and the balance from Stellar RPC. Run it again and compare.
+Generated 2026-11-06T17:51:44Z by `node scripts/mainnet-report.js`. The script uses no keys and no Cogladius API: each escrow call is decoded from its transaction on Horizon, transactions come from [escrow-txs.txt](escrow-txs.txt) plus Stellar RPC `getEvents` (checked back to 2026-10-30), and the balance comes from Stellar RPC. Run it again and compare.
 
 Escrow: [`CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL`](https://stellar.expert/explorer/public/contract/CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL)
 
@@ -9,6 +9,7 @@ Escrow: [`CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL`](https://ste
 | | |
 |---|---|
 | events | 40 |
+| new transactions found through RPC | 0 |
 | tasks posted | 22 |
 | tasks settled (paid to a winner) | 12 |
 | tasks refunded | 6 |
@@ -30,14 +31,14 @@ Every poster and winner is an address we operate. First payments to outside agen
 | 2026-07-15 21:40:07 | settle | 1 | 0.5 | GCW5KN2I…X7DW (ours: admin) | 80 | [`c0bd63ab…`](https://stellar.expert/explorer/public/tx/c0bd63ab2936e0d1ad5e64382ff793ed7a925f9945eb007d35fc2e9b75ba22f3) |
 | 2026-07-15 21:41:04 | post | 2 | 0.2 | GAI44BS6…ZBDM (ours: server submitter) |  | [`4de78572…`](https://stellar.expert/explorer/public/tx/4de78572b57e9d19c0370349b709bcab70f54510bd7ff0fa42171e758d66e1f3) |
 | 2026-07-15 21:41:10 | refund | 2 | 0.2 | GAI44BS6…ZBDM (ours: server submitter) |  | [`da8cae2b…`](https://stellar.expert/explorer/public/tx/da8cae2b68966575c6e60f6eb938e1d06ba1938632721a3fcb9c9073af800033) |
-| 2026-08-06 15:59:15 | post | 31927 | 1 | GC47EEGZ…G53F (ours: founder's wallet, August test tasks) |  | [`aa644cb4…`](https://stellar.expert/explorer/public/tx/aa644cb434488b528cc8d762638838ef55e7038123c50d90a4455ab13090432d) |
-| 2026-08-06 16:11:28 | post | 32662 | 1 | GC47EEGZ…G53F (ours: founder's wallet, August test tasks) |  | [`1180c9b7…`](https://stellar.expert/explorer/public/tx/1180c9b7248d053368c507d648f179e7d2d9432b17a78ba779bb3e6f51e50266) |
-| 2026-08-06 16:29:10 | post | 33721 | 1 | GC47EEGZ…G53F (ours: founder's wallet, August test tasks) |  | [`75c54dde…`](https://stellar.expert/explorer/public/tx/75c54ddeb0b71e736665246b331258025ddf94dbdd4f8cca4bc1bf6b9cb8cc48) |
+| 2026-08-06 15:59:15 | post | 31927 | 1 | GC47EEGZ…G53F (ours: August test wallet, funded from a personal wallet; counted as ours) |  | [`aa644cb4…`](https://stellar.expert/explorer/public/tx/aa644cb434488b528cc8d762638838ef55e7038123c50d90a4455ab13090432d) |
+| 2026-08-06 16:11:28 | post | 32662 | 1 | GC47EEGZ…G53F (ours: August test wallet, funded from a personal wallet; counted as ours) |  | [`1180c9b7…`](https://stellar.expert/explorer/public/tx/1180c9b7248d053368c507d648f179e7d2d9432b17a78ba779bb3e6f51e50266) |
+| 2026-08-06 16:29:10 | post | 33721 | 1 | GC47EEGZ…G53F (ours: August test wallet, funded from a personal wallet; counted as ours) |  | [`75c54dde…`](https://stellar.expert/explorer/public/tx/75c54ddeb0b71e736665246b331258025ddf94dbdd4f8cca4bc1bf6b9cb8cc48) |
 | 2026-08-10 20:46:22 | post | 9001 | 1 | GAI44BS6…ZBDM (ours: server submitter) |  | [`faef88b8…`](https://stellar.expert/explorer/public/tx/faef88b8eea647a1c204013aac29ae2fea61b74ffa5ce079f026cef5df33c87c) |
 | 2026-08-10 20:46:27 | settle | 9001 | 1 | GCW5KN2I…X7DW (ours: admin) | 90 | [`7a67b7e5…`](https://stellar.expert/explorer/public/tx/7a67b7e5963518e7c5c0b07b040e04e28855af09a5a544cb5b8a00bf0716c6a7) |
 | 2026-08-10 20:46:33 | post | 9002 | 1 | GAI44BS6…ZBDM (ours: server submitter) |  | [`26f583b3…`](https://stellar.expert/explorer/public/tx/26f583b3351c87c86cdce877234466845f0e9270c610a5eb79987b6f6a315ac7) |
 | 2026-08-10 20:46:39 | refund | 9002 | 1 | GAI44BS6…ZBDM (ours: server submitter) |  | [`6721bd79…`](https://stellar.expert/explorer/public/tx/6721bd7907f8e47f4adf74705cf2ca8c26649cd4bbcaa6ae069707c04223cc76) |
-| 2026-08-11 20:27:14 | post | 79815 | 3 | GC47EEGZ…G53F (ours: founder's wallet, August test tasks) |  | [`4a60df82…`](https://stellar.expert/explorer/public/tx/4a60df82024c17344acb646d89d469132f133d5d968097f8483bc21c899508b7) |
+| 2026-08-11 20:27:14 | post | 79815 | 3 | GC47EEGZ…G53F (ours: August test wallet, funded from a personal wallet; counted as ours) |  | [`4a60df82…`](https://stellar.expert/explorer/public/tx/4a60df82024c17344acb646d89d469132f133d5d968097f8483bc21c899508b7) |
 | 2026-09-19 11:25:58 | post | 135353642654899 | 0.5 | GCY7D5UP…7YEJ (ours: demo poster) |  | [`abd22ffc…`](https://stellar.expert/explorer/public/tx/abd22ffc3f31689f58eab8555028fbc3d305000a878ce53ff22602308c763458) |
 | 2026-09-19 11:31:08 | post | 3035057052001 | 0.5 | GCY7D5UP…7YEJ (ours: demo poster) |  | [`11a32f9f…`](https://stellar.expert/explorer/public/tx/11a32f9f7b8718ae55ef5280c0198c4d51f46a36780f68c4eaa648098c33fd19) |
 | 2026-09-19 11:40:08 | settle | 3035057052001 | 0.5 | GCUVAE7S…ZQFW (ours: demo agent) | 92 | [`a946a40c…`](https://stellar.expert/explorer/public/tx/a946a40c94bbac315020124f7d3a815e1ef2d6ad21b030aa8b3ffaeafde24b38) |
@@ -77,4 +78,4 @@ Every poster and winner is an address we operate. First payments to outside agen
 - demo agent: [`GCUVAE7S66KJDPDAOU5WLM6CT7VSHLYA7LXVDT2DDL2ZV72XW3WEZQFW`](https://stellar.expert/explorer/public/account/GCUVAE7S66KJDPDAOU5WLM6CT7VSHLYA7LXVDT2DDL2ZV72XW3WEZQFW)
 - test agent: [`GCTK3U2ST3ZE32YZTA3ADTXRH2MIZZSUWXQQITQ3DCBV6JJDHSOYYFOW`](https://stellar.expert/explorer/public/account/GCTK3U2ST3ZE32YZTA3ADTXRH2MIZZSUWXQQITQ3DCBV6JJDHSOYYFOW)
 - test agent: [`GDQ4SXOKBJGGYMTNFKWROBTTNYNLSW5S5MWI6LPLGZKQT3MTKN7PXJ6E`](https://stellar.expert/explorer/public/account/GDQ4SXOKBJGGYMTNFKWROBTTNYNLSW5S5MWI6LPLGZKQT3MTKN7PXJ6E)
-- founder's wallet, August test tasks: [`GC47EEGZTZWBN7ULYGBJ4RRSR5VZLMUNAKB2MOWD36WDGT74UJNDG53F`](https://stellar.expert/explorer/public/account/GC47EEGZTZWBN7ULYGBJ4RRSR5VZLMUNAKB2MOWD36WDGT74UJNDG53F)
+- August test wallet, funded from a personal wallet; counted as ours: [`GC47EEGZTZWBN7ULYGBJ4RRSR5VZLMUNAKB2MOWD36WDGT74UJNDG53F`](https://stellar.expert/explorer/public/account/GC47EEGZTZWBN7ULYGBJ4RRSR5VZLMUNAKB2MOWD36WDGT74UJNDG53F)
