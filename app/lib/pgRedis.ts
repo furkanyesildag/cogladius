@@ -1,10 +1,10 @@
 /**
- * The subset of the @upstash/redis API this app uses, on Postgres (Neon).
+ * The subset of the @upstash/redis API this app uses, on Postgres (Neon or any other).
  *
- * Every command is a single SQL statement, so it is atomic on its own, and it
- * goes over Neon's HTTP driver: one stateless fetch, no pool to hold open.
- * pipeline()/multi() send their statements in one HTTP request as one
- * transaction. Return shapes and JSON deserialization match @upstash/redis.
+ * Every command is a single SQL statement, so it is atomic on its own. On Neon
+ * it goes over the HTTP driver: one stateless fetch, no pool to hold open; any
+ * other Postgres gets one TCP connection per instance. pipeline()/multi() send
+ * their statements as one transaction. Return shapes and JSON deserialization match @upstash/redis.
  *
  * Expiry is lazy: reads filter on expires_at, and a small share of TTL writes
  * also delete a batch of expired rows. TTLs exist on strings only, which is all
@@ -291,6 +291,7 @@ const RETRYABLE_SQLSTATE = /^(08|53300|57P01|57P02|57P03|40P01)/;
 
 function retryable(err: any): boolean {
   if (err?.sourceError) return true; // the fetch itself failed
+  if (/^(CONNECTION_|CONNECT_TIMEOUT|ECONNRESET|ETIMEDOUT|EPIPE)/.test(String(err?.code))) return true; // the TCP connection failed
   if (typeof err?.code === "string") return RETRYABLE_SQLSTATE.test(err.code);
   return /^Server error \(HTTP status 5/.test(String(err?.message));
 }
@@ -307,10 +308,38 @@ async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+type Driver = {
+  query: (text: string, params: unknown[]) => Promise<Rows>;
+  transaction: (ops: { text: string; params: unknown[] }[]) => Promise<Rows[]>;
+};
+
+/** Neon's HTTP driver for Neon, a TCP connection for any other Postgres (such as a Supabase pooler). */
+function driverFor(connectionString: string): Driver {
+  if (/\.neon\.tech[:/]/.test(connectionString)) {
+    const { neon } = require("@neondatabase/serverless");
+    // no-store: Next 14 otherwise caches identical POST fetches, and every query here is a POST.
+    const sql = neon(connectionString, { arrayMode: true, fullResults: false, fetchOptions: { cache: "no-store" } });
+    return {
+      query: (text, params) => sql.query(text, params),
+      transaction: (ops) => sql.transaction(ops.map((op) => sql.query(op.text, op.params))),
+    };
+  }
+  const postgres = require("postgres");
+  // prepare: false for transaction-mode poolers; max 1 because each serverless instance handles one request at a time.
+  const sql = postgres(connectionString, { prepare: false, max: 1, idle_timeout: 20, connect_timeout: 10 });
+  return {
+    query: (text, params) => sql.unsafe(text, params as any[]).values(),
+    transaction: (ops) =>
+      sql.begin(async (tx: any) => {
+        const out: Rows[] = [];
+        for (const op of ops) out.push(await tx.unsafe(op.text, op.params).values());
+        return out;
+      }),
+  };
+}
+
 export function createPgRedis(connectionString: string, options: PgRedisOptions = {}): PgRedis {
-  const { neon } = require("@neondatabase/serverless");
-  // no-store: Next 14 otherwise caches identical POST fetches, and every query here is a POST.
-  const sql = neon(connectionString, { arrayMode: true, fullResults: false, fetchOptions: { cache: "no-store" } });
+  const sql = driverFor(connectionString);
 
   const raw = options.automaticDeserialization === false;
   const cleanupRate = options.cleanupRate ?? 0.01;
@@ -318,7 +347,7 @@ export function createPgRedis(connectionString: string, options: PgRedisOptions 
 
   const runOne = async (op: Op) => {
     if (op.ttlWrite && Math.random() < cleanupRate) {
-      const [rows] = await withRetry<Rows[]>(() => sql.transaction([sql.query(op.text, op.params), sql.query(CLEANUP_SQL, [])]));
+      const [rows] = await withRetry<Rows[]>(() => sql.transaction([op, { text: CLEANUP_SQL, params: [] }]));
       return op.map(rows);
     }
     return op.map(await withRetry<Rows>(() => sql.query(op.text, op.params)));
@@ -329,7 +358,7 @@ export function createPgRedis(connectionString: string, options: PgRedisOptions 
     const pipeline: any = {
       exec: async () => {
         if (ops.length === 0) throw new Error("Pipeline is empty");
-        const results = await withRetry<Rows[]>(() => sql.transaction(ops.map((op) => sql.query(op.text, op.params))));
+        const results = await withRetry<Rows[]>(() => sql.transaction(ops));
         return results.map((rows, i) => ops[i].map(rows));
       },
     };

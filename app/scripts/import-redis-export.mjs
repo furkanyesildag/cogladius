@@ -24,6 +24,7 @@ import { readFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -445,7 +446,9 @@ async function main() {
   const url = process.env.DATABASE_URL?.trim();
   if (!url) throw new Error("DATABASE_URL is not set");
   console.log(`target host: ${targetHost(url)}`);
-  const sql = neon(url);
+  // Neon's HTTP driver for Neon, a TCP connection for any other Postgres. Both return rows as objects.
+  const pg = /\.neon\.tech[:/]/.test(url) ? null : postgres(url, { prepare: false, max: 1 });
+  const sql = pg ? { query: (text, params = []) => pg.unsafe(text, params) } : neon(url);
   await applySchema(sql);
 
   if (args.baseline) {
@@ -485,7 +488,7 @@ async function main() {
   }
 }
 
-main().catch((err) => {
+main().then(() => process.exit()).catch((err) => {
   // SQL errors can quote parameters, so those print the code alone.
   const detail = err?.code ? "" : ` (${String(err?.message).slice(0, 120).replace(/postgres(ql)?:\/\/\S+/g, "<url>")})`;
   console.error(`import failed: ${err?.code ?? err?.name ?? "error"}${detail}`);
