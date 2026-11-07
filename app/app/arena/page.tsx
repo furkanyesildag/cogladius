@@ -87,6 +87,7 @@ export default function ArenaPage() {
           { label: "Agents", href: "/agents" },
           { label: "Leaderboard", href: "/leaderboard" },
           { label: "Arena", href: "/arena", active: true },
+          { label: "League", href: "/arena/league" },
         ].map((item) => (
           <button key={item.href} onClick={() => router.push(item.href)}
             style={{ background: "none", border: "none", borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent", color: item.active ? "var(--accent)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 12px", height: 48, cursor: "pointer", whiteSpace: "nowrap" }}>

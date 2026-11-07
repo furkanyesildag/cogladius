@@ -7,6 +7,7 @@
  * network or another deployment. `issuedAt` bounds how long it stays usable.
  */
 
+import { hash } from "@stellar/stellar-sdk";
 import { ESCROW_CONTRACT_ID, NETWORK_PASSPHRASE } from "@/lib/constants";
 
 /** A signed action is accepted for this many seconds after `issuedAt`. */
@@ -44,6 +45,54 @@ export function registrationMessage(pubkey: string, nonce: string): string {
     `network: ${NETWORK_PASSPHRASE}`,
     `agent: ${pubkey}`,
     `nonce: ${nonce}`,
+  ].join("\n");
+}
+
+/** A task's minQualifierScore is an integer from 1 to 100. */
+export function isMinQualifierScore(n: unknown): n is number {
+  return typeof n === "number" && Number.isInteger(n) && n >= 1 && n <= 100;
+}
+
+/** sha256 hex of the description and criteria. JSON keeps the boundary between them unambiguous. */
+export function taskContentHash(description: string, criteria: string): string {
+  return hash(Buffer.from(JSON.stringify([description, criteria]), "utf8")).toString("hex");
+}
+
+/**
+ * Publishing the off-chain record of an escrowed task. It binds everything the
+ * chain does not hold, so nobody who reads `poster` from the chain can publish a
+ * different record first. It carries no timestamp on purpose: it is signed before
+ * the reward is locked and one escrow id can hold only one record, so it fits
+ * this exact content for this exact task and nothing else.
+ */
+export function taskRecordMessage(d: {
+  contractTaskId: number;
+  poster: string;
+  description: string;
+  criteria: string;
+  gladiatorOnly: boolean;
+  minQualifierScore?: number;
+}): string {
+  return [
+    "Cogladius: publish escrowed task record",
+    `network: ${NETWORK_PASSPHRASE}`,
+    `escrow: ${ESCROW_CONTRACT_ID}`,
+    `task: ${d.contractTaskId}`,
+    `poster: ${d.poster}`,
+    `content-sha256: ${taskContentHash(d.description, d.criteria)}`,
+    `gladiator-only: ${d.gladiatorOnly}`,
+    `min-qualifier-score: ${d.minQualifierScore ?? "none"}`,
+  ].join("\n");
+}
+
+/** Deleting the record of a gated task. */
+export function deleteTaskMessage(contractTaskId: number, issuedAt: number): string {
+  return [
+    "Cogladius: delete task record",
+    `network: ${NETWORK_PASSPHRASE}`,
+    `escrow: ${ESCROW_CONTRACT_ID}`,
+    `task: ${contractTaskId}`,
+    `issued: ${issuedAt}`,
   ].join("\n");
 }
 

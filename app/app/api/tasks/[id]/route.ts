@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMockTasks } from "@/lib/sampleTasks";
 import { getTask, deleteTask } from "@/lib/taskStore";
+import { verifySep53 } from "@/lib/sep53";
+import { deleteTaskMessage, isFresh } from "@/lib/actionMessages";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
@@ -64,6 +66,22 @@ export async function DELETE(
       { success: false, error: "Only the task poster can delete this task." },
       { status: 403 }
     );
+  }
+
+  // A gated task's poster address is public, so it needs a real signature: without
+  // one, anyone could wipe the submissions and verdicts of a funded final.
+  if (!isAdmin && task.contractTaskId !== undefined && (task.gladiatorOnly === true || task.minQualifierScore !== undefined)) {
+    const issuedAt = Number(body?.issuedAt);
+    const signed =
+      typeof body?.posterSignature === "string" &&
+      isFresh(issuedAt) &&
+      verifySep53(String(task.poster), deleteTaskMessage(task.contractTaskId, issuedAt), body.posterSignature);
+    if (!signed) {
+      return NextResponse.json(
+        { success: false, code: "poster_signature_required", error: "Deleting this task needs a fresh SEP-53 signature by its poster." },
+        { status: 403 }
+      );
+    }
   }
 
   if (task.status === "Settled" && !isAdmin) {

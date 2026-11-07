@@ -21,7 +21,7 @@ import {
   StrKey,
 } from "@stellar/stellar-sdk";
 import { signTransaction, signMessage, signAuthEntry } from "@stellar/freighter-api";
-import { settleMessage, disputeMessage } from "@/lib/actionMessages";
+import { settleMessage, disputeMessage, taskRecordMessage, deleteTaskMessage } from "@/lib/actionMessages";
 import {
   ESCROW_CONTRACT_ID,
   NETWORK_PASSPHRASE,
@@ -261,6 +261,27 @@ async function signWithWallet(message: string, address: string): Promise<string>
   return typeof res.signedMessage === "string"
     ? res.signedMessage
     : Buffer.from(res.signedMessage).toString("base64");
+}
+
+/**
+ * Sign the record of an escrowed task as its poster. Ask for this before locking
+ * the reward, so a declined signature cannot leave funds locked with no record.
+ */
+export function signTaskRecord(params: {
+  contractTaskId: number;
+  poster: string;
+  description: string;
+  criteria: string;
+  gladiatorOnly: boolean;
+  minQualifierScore?: number;
+}): Promise<string> {
+  return signWithWallet(taskRecordMessage(params), params.poster);
+}
+
+/** Sign the deletion of a gated task's record as its poster. */
+export async function signTaskDelete(contractTaskId: number, posterAddress: string): Promise<{ issuedAt: number; posterSignature: string }> {
+  const issuedAt = Math.floor(Date.now() / 1000);
+  return { issuedAt, posterSignature: await signWithWallet(deleteTaskMessage(contractTaskId, issuedAt), posterAddress) };
 }
 
 /**

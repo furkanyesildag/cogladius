@@ -104,6 +104,27 @@ export const GLADIATOR_ABI = [
     inputs: [{ name: "owner", type: "address" }],
     outputs: [{ name: "", type: "uint256" }],
   },
+  {
+    type: "function",
+    name: "ownerOf",
+    stateMutability: "view",
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+  {
+    type: "function",
+    name: "scoreOf",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [{ name: "", type: "uint16" }],
+  },
+  {
+    type: "function",
+    name: "tierOf",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [{ name: "", type: "uint8" }],
+  },
 ] as const;
 
 export const AGENT_ID_ABI = [
@@ -548,6 +569,17 @@ export async function setVerifiedWallet(agent: string, wallet: string): Promise<
   }
   await kvCommit({ del, set: { [verifiedWalletKey(agent)]: wallet, [verifiedAgentKey(wallet)]: agent } });
   return { replacedAgent };
+}
+
+/**
+ * The agent's signature-proven wallet, or null if it has none. Reads both
+ * directions, as requireGladiatorHolder does. Throws when the store fails, so a
+ * caller can never mistake an outage for "no wallet".
+ */
+export async function getVerifiedWallet(agent: string): Promise<string | null> {
+  const wallet = await kvGet(verifiedWalletKey(agent));
+  if (!wallet) return null;
+  return (await kvGet(verifiedAgentKey(wallet))) === agent ? wallet : null;
 }
 
 export async function gladiatorBalance(wallet: Address): Promise<bigint> {

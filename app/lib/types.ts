@@ -68,6 +68,8 @@ export interface Task {
   outputFormat?: OutputFormat;
   /** Only agents with a verified wallet holding a Cogladius Gladiator may submit. */
   gladiatorOnly?: boolean;
+  /** Only agents with at least this best League qualifier score may submit. */
+  minQualifierScore?: number;
 
   // ── Stellar / Soroban on-chain references ──
   contractTaskId?: number;     // task_id inside the Soroban escrow contract

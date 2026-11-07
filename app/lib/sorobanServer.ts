@@ -31,7 +31,7 @@ const BASE_FEE = "1000000"; // generous fee for Soroban invocations
  * returning CAP-71 `AddressV2` auth before this app moved to stellar-sdk 16).
  * The failure happens before anything is signed or sent, so retrying is safe.
  */
-async function retryXdr<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
+export async function retryXdr<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
   for (let i = 0; ; i++) {
     try {
       return await fn();

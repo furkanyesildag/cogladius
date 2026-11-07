@@ -114,6 +114,7 @@ export async function createTask(data: {
   /** Absolute deadline (unix seconds); overrides deadlineMinutes when set. */
   deadline?: number;
   gladiatorOnly?: boolean;
+  minQualifierScore?: number;
 }): Promise<Task> {
   const tasks = await loadTasks();
   const id = nextId(tasks);
@@ -137,6 +138,7 @@ export async function createTask(data: {
     escrowContractId: data.escrowContractId,
     postTxHash: data.postTxHash,
     ...(data.gladiatorOnly ? { gladiatorOnly: true } : {}),
+    ...(data.minQualifierScore !== undefined ? { minQualifierScore: data.minQualifierScore } : {}),
   };
 
   tasks[id] = task;
