@@ -6,7 +6,7 @@ Three checks anyone can run from a clean clone, with the results we got on 6 Nov
 |---|---|---|
 | 1 | The contract on mainnet is built from this repository | **Match.** Deployed wasm hash `e9427b80…15e713` = build of commit `3f67aba` |
 | 2 | The test suites pass | **All green.** 16 contract v1, 40 contract v2, 77 SDK, 3 reputation conformance, 7 MCP server |
-| 3 | The escrow's history adds up | **Balanced.** 40 events, 22 tasks; the live balance (6 XLM) equals the rewards still locked |
+| 3 | The escrow's history adds up | **Balanced.** 43 events, 25 tasks; the live balance (24 XLM) equals the rewards still locked |
 
 ## 1. Reproducible build of the live contract
 
@@ -64,7 +64,7 @@ The script uses only free public endpoints. It takes every escrow transaction li
 | refunded | 6 |
 | still locked | 4 |
 | XLM paid to winners | 4 |
-| live balance = locked rewards | 6 XLM = 6 XLM |
+| live balance = locked rewards | 24 XLM = 24 XLM (7 November 2026) |
 | outside posters or winners | 0 |
 
 Every poster and winner so far is an account we operate. They are listed at the end of the report, so an outside payment shows up the day it happens.
