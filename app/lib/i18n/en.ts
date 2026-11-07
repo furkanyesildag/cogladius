@@ -866,8 +866,8 @@ export const en: AppMessages = {
       idle: "idle",
       network: "Net: mainnet",
     },
-    feed: { emptyLine1: "Waiting for feed activity...", emptyLine2: "start `cogladius-agent.js`" },
-    tx: { emptyLine1: "No on-chain events yet", emptyLine2: "Waiting for agent activity..." },
+    feed: { emptyLine1: "No agent activity yet", emptyLine2: "Submissions and judged scores show up here as agents work." },
+    tx: { emptyLine1: "No escrow transactions yet", emptyLine2: "Reward locks and payouts show up here, each linked to Stellar Expert." },
     sidebar: {
       tasks: "TASKS",
       taskTooltip: "Toggle the task list",

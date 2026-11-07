@@ -17,6 +17,7 @@ import { Task, AgentState, JudgeState, FeedEntry, TxEntry } from "@/lib/types";
 import { AGENT_API_POLL_MS, POLL_INTERVAL_MS, shortenAddress, explorerAddress, explorerTx, usdcToStroops } from "@/lib/constants";
 import { fetchUsdcBalance, EXPLORER_TX } from "@/lib/stellar";
 import { settleAsPoster, signTaskDelete } from "@/lib/sorobanEscrow";
+import { activityFromTasks, displayStatus, isAcceptingSubmissions, isEnded, sortForPool, txFromEscrowEvents } from "@/lib/dashboardData";
 
 // Real registered agents are loaded from /api/agents/list; no demo agents.
 const DEFAULT_AGENTS: AgentState[] = [];
@@ -92,7 +93,7 @@ function Countdown({ deadline }: { deadline: number }) {
 }
 
 /* ── HUD Map section ──────────────────────────────────────────────────────── */
-function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: import("@/lib/types").Task[]; totalX402: number }) {
+function HudMap({ agents, tasks, totalX402, agentTotal }: { agents: AgentState[]; tasks: import("@/lib/types").Task[]; totalX402: number; agentTotal: number }) {
   const h = useMessages().ui.hud;
   const [barPct, setBarPct] = useState<Record<string, number>>({});
   const [tick, setTick] = useState(0);
@@ -121,7 +122,18 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
   }, [agents]);
 
   const workingCount = agents.filter((a) => a.status.startsWith("WORKING")).length;
-  const openTasks = tasks.filter((t) => t.status === "Open").length;
+  const openTasks = tasks.filter(isAcceptingSubmissions).length;
+  // Agents that are competing right now come first, then the most experienced.
+  const activeKeys = new Set(tasks.filter(isAcceptingSubmissions).flatMap((t) => [...(t.submissions ?? []).map((s) => s.agent), ...(t.claims ?? []).map((c) => c.agent)]));
+  const known = new Set(agents.map((a) => a.pubkey));
+  // The registry list is paged, so an active agent may be missing from it.
+  const extra: AgentState[] = Array.from(activeKeys).filter((k) => !known.has(k)).map((k, i) => ({
+    name: `${k.slice(0, 4)}…${k.slice(-4)}`, pubkey: k, status: "WORKING", tasksCompleted: 0, totalScore: 0, x402Spending: 0, currentTaskId: null,
+    color: ["#FF5625", "#40E183", "#FFD166", "#7AA2FF", "#C792EA", "#4FD1C5"][i % 6],
+  }));
+  const shown = [...extra, ...agents]
+    .sort((a, b) => Number(activeKeys.has(b.pubkey)) - Number(activeKeys.has(a.pubkey)) || b.tasksCompleted - a.tasksCompleted)
+    .slice(0, 6);
   const settledTasks = tasks.filter((t) => t.status === "Settled").length;
 
   return (
@@ -139,7 +151,7 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
           { label: h.network.replace("Net: ", ""), val: "MAINNET", color: "var(--green)" },
           { label: "OPEN", val: String(openTasks), color: "var(--accent)" },
           { label: "SETTLED", val: String(settledTasks), color: "#40E183" },
-          { label: "AGENTS", val: `${workingCount}/${agents.length}`, color: agents.length > 0 && workingCount > 0 ? "var(--green)" : "rgba(var(--text-rgb),0.4)" },
+          { label: "AGENTS", val: agentTotal.toLocaleString("en-US"), color: agentTotal > 0 ? "var(--green)" : "rgba(var(--text-rgb),0.4)" },
           { label: "x402", val: `${totalX402.toFixed(3)} XLM`, color: "var(--accent)" },
         ].map((s, i) => (
           <div key={s.label} style={{ flex: 1, padding: "5px 12px", borderRight: i < 4 ? "1px solid rgba(var(--white-rgb),0.04)" : "none", textAlign: "center" }}>
@@ -150,7 +162,7 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
       </div>
 
       {/* Center label */}
-      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 2, top: 32 }}>
+      <div style={{ position: "absolute", left: 0, right: 0, top: 36, bottom: 84, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 2 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: workingCount > 0 ? "var(--green)" : "rgba(var(--white-rgb),0.2)", animation: workingCount > 0 ? "pulse 1.5s infinite" : "none" }} />
           <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.35)", letterSpacing: "0.18em", textTransform: "uppercase" }}>{h.kicker}</span>
@@ -160,8 +172,8 @@ function HudMap({ agents, tasks, totalX402 }: { agents: AgentState[]; tasks: imp
 
       {/* Agent progress bars */}
       <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 14px", background: "linear-gradient(to top, rgba(var(--base-rgb),0.9) 0%, rgba(var(--base-rgb),0.5) 100%)", zIndex: 3, display: "flex", gap: 16 }}>
-        {agents.map((agent) => {
-          const isWorking = agent.status.startsWith("WORKING");
+        {shown.map((agent) => {
+          const isWorking = agent.status.startsWith("WORKING") || activeKeys.has(agent.pubkey);
           const progress = barPct[agent.name] ?? 15;
           const avg = agent.tasksCompleted > 0 ? Math.round(agent.totalScore / agent.tasksCompleted) : 0;
           return (
@@ -324,6 +336,9 @@ export default function Dashboard() {
   const [judges, setJudges]             = useState<JudgeState>(DEFAULT_JUDGES);
   const [feed, setFeed]                 = useState<FeedEntry[]>([]);
   const [txLog, setTxLog]               = useState<TxEntry[]>([]);
+  const [escrowTx, setEscrowTx]         = useState<TxEntry[]>([]);
+  const [agentTotal, setAgentTotal]     = useState(0);
+  const [showEnded, setShowEnded]       = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showPostModal, setShowPostModal] = useState(false);
   const [centerTab, setCenterTab]       = useState<"detail" | "agent" | "court">("detail");
@@ -419,6 +434,7 @@ export default function Dashboard() {
         if (!regRes.ok) return;
         const data = await regRes.json();
         if (cancelled || !Array.isArray(data.agents)) return;
+        if (Number.isFinite(Number(data.count))) setAgentTotal(Number(data.count));
 
         const registered: AgentState[] = data.agents.map((a: any) => ({
           name: a.name,
@@ -491,6 +507,24 @@ export default function Dashboard() {
       } catch (_) {}
     }
     poll(); const id = setInterval(poll, AGENT_API_POLL_MS); return () => clearInterval(id);
+  }, []);
+
+  // The TX column shows the escrow's own on-chain events, newest first.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadEscrow() {
+      try {
+        const res = await fetch("/api/reputation/events");
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!Array.isArray(d.events)) return;
+        const rows = await txFromEscrowEvents(d.events);
+        if (!cancelled) setEscrowTx(rows);
+      } catch (_) {}
+    }
+    loadEscrow();
+    const id = setInterval(loadEscrow, 60000);
+    return () => { cancelled = true; clearInterval(id); };
   }, []);
 
   useEffect(() => {
@@ -653,7 +687,7 @@ export default function Dashboard() {
             {dash.topbar.agents}
             {": "}
             <span className="kl-stat-mono" style={{ color: "var(--green)" }}>
-              {agents.filter((a) => a.status.startsWith("WORKING")).length}/{agents.length}
+              {agentTotal.toLocaleString("en-US")}
             </span>
           </span>
           <span>
@@ -915,20 +949,21 @@ export default function Dashboard() {
                   <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", letterSpacing: "0.06em" }}>{pl.emptyMissions}</div>
                   <button type="button" className="btn-primary" style={{ marginTop: 12, fontSize: 9, padding: "5px 12px" }} onClick={() => setShowPostModal(true)}>{ui.sidebar.firstPost}</button>
                 </div>
-              ) : tasks.map((task) => {
+              ) : sortForPool(tasks).filter((t) => showEnded || !isEnded(t)).map((task) => {
                 const isStellarTask = true;
                 const taskCurr = "XLM";
                 const rew = (task.rewardUsdc ?? task.reward / 1e7).toFixed(4);
                 const isSelected = selectedTask?.id === task.id;
                 const isUrgent = task.status === "Disputed";
-                const badgeKey = task.status === "Open" ? "open" : task.status === "UnderReview" ? "review" : task.status === "AwaitingDecision" ? "awaiting" : task.status === "Settled" ? "settled" : task.status === "Disputed" ? "disputed" : "stopped";
+                const shownStatus = displayStatus(task);
+                const badgeKey = shownStatus === "Open" ? "open" : shownStatus === "UnderReview" ? "review" : shownStatus === "AwaitingDecision" ? "awaiting" : shownStatus === "Settled" ? "settled" : shownStatus === "Disputed" ? "disputed" : "stopped";
                 const statusColor: Record<string, string> = { Open: "var(--green)", UnderReview: "#FFD166", AwaitingDecision: "var(--blue)", Settled: "var(--green)", Disputed: "var(--red)", Resolved: "var(--blue)", Stopped: "rgba(var(--text-rgb),0.15)" };
                 const taskTypeIcon: Record<string, string> = { question: "help_outline", research: "lab_research", code: "code", data: "analytics", web: "public", custom: "tune" };
-                const borderColor = statusColor[task.status] ?? "rgba(var(--white-rgb),0.08)";
+                const borderColor = statusColor[shownStatus] ?? "rgba(var(--white-rgb),0.08)";
                 return (
                   <div key={task.id} style={{ position: "relative" }}>
                     <div
-                      className={getTaskCardClass(task.status)}
+                      className={getTaskCardClass(shownStatus)}
                       onClick={() => { setSelectedTask(task); setCenterTab("detail"); }}
                       style={{ padding: "10px 10px 10px 12px", marginBottom: 6, background: isSelected ? "var(--bg-surface-high)" : "var(--bg-surface-low)", cursor: "pointer", transition: "background 0.12s, box-shadow 0.12s", borderRadius: "0 6px 6px 0", borderLeft: `2px solid ${borderColor}`, boxShadow: isSelected ? `inset 0 0 0 1px ${borderColor}22` : "none" }}
                       onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.background = "var(--bg-surface-high)"; e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${borderColor}15`; } }}
@@ -936,7 +971,7 @@ export default function Dashboard() {
                       {/* Row 1: badge + task type + id + actions */}
                       <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
                         <span className={isUrgent ? "badge badge-urgent" : `badge badge-${badgeKey}`}>
-                          {isUrgent ? (ui.status as Record<string, string>).Urgent : (ui.status as Record<string, string>)[task.status] || task.status}
+                          {isUrgent ? (ui.status as Record<string, string>).Urgent : (ui.status as Record<string, string>)[shownStatus] || shownStatus}
                         </span>
                         {task.taskType && (
                           <span title={task.taskType} style={{ display: "inline-flex", alignItems: "center", background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 3, padding: "1px 5px" }}>
@@ -994,6 +1029,15 @@ export default function Dashboard() {
                   </div>
                 );
               })}
+              {tasks.some(isEnded) && (
+                <button
+                  type="button"
+                  onClick={() => setShowEnded((v) => !v)}
+                  style={{ width: "100%", marginTop: 4, padding: "8px", background: "transparent", border: "1px dashed var(--bg-border)", borderRadius: 6, cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.08em", color: "rgba(var(--text-rgb),0.4)" }}
+                >
+                  {showEnded ? (locale === "tr" ? "BİTEN GÖREVLERİ GİZLE" : "HIDE ENDED TASKS") : (locale === "tr" ? `BİTEN ${tasks.filter(isEnded).length} GÖREVİ GÖSTER` : `SHOW ${tasks.filter(isEnded).length} ENDED TASKS`)}
+                </button>
+              )}
             </div>
 
             {/* Resize handle (sağ kenar) */}
@@ -1104,7 +1148,7 @@ export default function Dashboard() {
           {!selectedTask ? (
             /* HUD + Live Feed */
             <div className="kl-center-feed">
-              <HudMap agents={agents} tasks={tasks} totalX402={totalX402} />
+              <HudMap agents={agents} tasks={tasks} totalX402={totalX402} agentTotal={agentTotal} />
               <div className="kl-feed-column-hdr">
                 <div className="kl-feed-column-hdr__icon" aria-hidden>
                   <span className="material-symbols-outlined">grid_view</span>
@@ -1115,7 +1159,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
-                <LiveTerminal entries={feed} agents={agents} />
+                <LiveTerminal entries={feed.length ? feed : activityFromTasks(tasks)} agents={agents} />
               </div>
               <div className="kl-terminal-bar">
                 <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
@@ -1301,7 +1345,13 @@ export default function Dashboard() {
               title={dash.resizeHandle}
               aria-label={dash.resizeHandle}
             />
-            <TxColumn txLog={txLog} onClose={() => setTxFeedOpen(false)} />
+            <TxColumn
+              txLog={[...txLog, ...escrowTx.filter((e) => !txLog.some((t) => t.hash === e.hash))].map((e) => {
+                const site = tasks.find((t) => t.contractTaskId !== undefined && t.contractTaskId === e.taskId);
+                return site ? { ...e, taskId: site.id } : e.taskId !== undefined && e.taskId > 1e6 ? { ...e, taskId: undefined } : e;
+              })}
+              onClose={() => setTxFeedOpen(false)}
+            />
           </aside>
         )}
       </div>

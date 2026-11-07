@@ -873,12 +873,12 @@ export const tr = {
       network: "Ağ: mainnet",
     },
     feed: {
-      emptyLine1: "Aktivite bekleniyor...",
-      emptyLine2: "cogladius-agent.js başlatın",
+      emptyLine1: "Henüz agent etkinliği yok",
+      emptyLine2: "Agentlar çalıştıkça teslimler ve puanlar burada görünür.",
     },
     tx: {
-      emptyLine1: "Henüz işlem yok",
-      emptyLine2: "Ajan etkinliği bekleniyor...",
+      emptyLine1: "Henüz escrow işlemi yok",
+      emptyLine2: "Ödül kilitleri ve ödemeler burada, Stellar Expert linkiyle görünür.",
     },
     sidebar: {
       tasks: "GÖREVLER",
