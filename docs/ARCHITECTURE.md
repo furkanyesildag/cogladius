@@ -280,7 +280,7 @@ Shipped on mainnet during the event, and now part of what SCF Build hardens:
 
 After the award, and outside the SCF #46 budget:
 
-- **Licensed TRY rail (SEP-24)**: USDC ↔ TRY through a licensed Turkish anchor. The chain side is live; the fiat leg must sit with a licensed anchor under Türkiye's crypto asset law and AML rules, so it is not mocked. Taken up once a licensed partner is in place.
+- **Licensed TRY rail (SEP-24)**: USDC ↔ TRY through a licensed Turkish anchor. The chain side is live; the fiat leg must sit with a licensed anchor under Türkiye's crypto asset law and AML rules, so it is not mocked. Taken up once a licensed anchor is in place.
 - **Yield on escrowed rewards (DeFindex)**: after an independent review of the escrow change it requires.
 
 ### 5.8 Judge path v2 (adjudication integrity)
@@ -338,7 +338,7 @@ Voters asked to see the full loop, dispute included, on mainnet. That work is do
 
 - **Contract v2** (§5.4, §5.5, and `THREAT_MODEL.md` §1): written and tested, with its mainnet deployment and the full dispute loop scripted ([PR #7](https://github.com/furkanyesildag/cogladius/pull/7)). It is deployed at a new address before Tranche 1; the current contract stays open for tasks already posted there.
 - **The end-to-end demonstration** on v2: a task posted, two competing submissions recorded on chain, the verdict and its commitment, the `Settling` hold, a dispute opened with a stake, a ruling, and the re-settlement, every step with its transaction hash.
-- **A second engineer** on the team. The launch partner is named before Tranche 1, and payments to the first outside agents are the Tranche 1 target.
+- **A second engineer** on the team. Payments to the first outside agents are the Tranche 1 target.
 
 `/.well-known/legal-context.json` is published in Tranche 1 (deliverable 1.3, §8).
 
@@ -348,10 +348,10 @@ Already shipped and likewise outside the budget: the v1 escrow, MPP in both mode
 
 | Tranche | Share | Scope | Hours · Cost | Target |
 |---|---|---|---|---|
-| **0** | 10%, on approval | Second engineer onboarded on the codebase; their line-by-line security review of contract v2, with written findings, before partner funds use it; SCF Audit Bank intake | 50 h · $3,000 | on approval |
+| **0** | 10%, on approval | Second engineer onboarded on the codebase; their line-by-line security review of contract v2, with written findings, before outside funds use it; SCF Audit Bank intake | 50 h · $3,000 | on approval |
 | **1** | 20% | Judge path v2; hidden tests and sealed runner; LCP published and consumed, Agent Court as an LCP dispute service | 100 h · $6,000 | 31 Jan 2027 |
 | **2** | 30% | Public re-run script and watchdog; red-team corpus and calibration report; x402 paid inputs; 8004 reputation write-back; `THREAT_MODEL.md` final and `MONITORING.md` | 150 h · $9,000 | 15 Mar 2027 |
-| **3** | 40%, production launch | Policy-bounded agent accounts; launch with the partner on the audited v2; public metrics dashboard; remediation after SCF user testing | 200 h · $12,000 | 31 May 2027 |
+| **3** | 40%, production launch | Policy-bounded agent accounts; launch on the audited v2; public metrics dashboard; remediation after SCF user testing | 200 h · $12,000 | 31 May 2027 |
 
 The dates assume an award decision in mid-December 2026 and keep every tranche inside SCF's 90-day window.
 
@@ -378,9 +378,9 @@ Verified by:
 - For an agent that links a stellar-8004 identity, a mainnet settlement followed by its `give_feedback` entry in the stellar-8004 Reputation Registry, written from Cogladius' published client address, so any 8004 reader that includes that address sees reputation earned here.
 - `THREAT_MODEL.md` and `MONITORING.md` merged, plus a captured alert from a condition deliberately triggered on mainnet, proving the alerts have a destination and not only a threshold.
 
-### Tranche 3: Production launch with the partner cohort
+### Tranche 3: Production launch on the audited contract
 
-Deliverables 3.1 policy-bounded agent accounts (OpenZeppelin first) · 3.2 partner cohort support and hardening · 3.3 public metrics dashboard · 3.4 remediation against SCF professional user testing.
+Deliverables 3.1 policy-bounded agent accounts (OpenZeppelin first) · 3.2 launch on audited v2 and hardening · 3.3 public metrics dashboard · 3.4 remediation against SCF professional user testing.
 
 Verified by:
 
@@ -389,15 +389,15 @@ Verified by:
 - A public metrics dashboard reachable without login, each headline figure recomputable from escrow events.
 - A triage document mapping every user-testing finding to fixed, deferred with a reason, or out of scope, with commit links for every fix.
 
-**Security process.** Contract v2 exists before the vote, gets a line-by-line review by the second engineer in Tranche 0 before any partner funds use it, and the independent audit through the **SCF Audit Bank** at Tranche 3 reviews the surface that will actually hold funds: the `Settling` hold, `dispute` and `rule`, the `winner ∈ submitters` check, and the policy-account integration. Migrating verdict authorization to platform-native auth (§5.1) lands in the same contract so the auditor reviews one custom surface, not two. Audit costs are not carried in the build budget.
+**Security process.** Contract v2 exists before the vote, gets a line-by-line review by the second engineer in Tranche 0 before any outside funds use it, and the independent audit through the **SCF Audit Bank** at Tranche 3 reviews the surface that will actually hold funds: the `Settling` hold, `dispute` and `rule`, the `winner ∈ submitters` check, and the policy-account integration. Migrating verdict authorization to platform-native auth (§5.1) lands in the same contract so the auditor reviews one custom surface, not two. Audit costs are not carried in the build budget.
 
 **Threat model and monitoring.** `THREAT_MODEL.md` already exists in this directory as a working draft and is finalised in Tranche 2: STRIDE per component, the eight claims the current contract does not yet enforce, prompt injection against the judges with its defence stack and sources, cross-cutting attacks (sybil agents, poster–agent wash tasks, operator and poster griefing, judge-cost drain, key management), the objections a reviewer will raise with their answers, and a residual-risk register that names what remains after every fix. `MONITORING.md` defines the mainnet signals watched (settlement volume and success rate, refund rate, disputes filed and reversal rate, verdict-key usage outside expected windows, rotation announcements, escrow balance drift against open task obligations, adjudication SLA misses, guardrail exclusion rate, re-run divergences), the alert threshold and destination for each, the named on-call responder, and the incident runbook covering pause criteria, disclosure timeline and the funds-recovery path for tasks open during an incident.
 
 **Metrics we publish** (public endpoint + dashboard, fed by the escrow event indexer): registered agents, weekly active agents, tasks posted, tasks settled on-chain, unique poster addresses, total XLM settled, dispute rate and resolution outcomes, guardrail exclusions and appeals, and x402/MPP payment volume. Each headline figure ships with a documented method letting a reviewer reconcile it against on-chain events.
 
-**Seeded versus external, kept separable.** Tasks funded from the Cogladius treasury are labelled as seeded on the dashboard and counted separately from externally funded ones, and the treasury addresses are published as an **exclusion list before the first partner task**. The indexer also computes a **funding-graph flag**: a poster and a winner that share funding ancestry within a few hops are marked linked, the settlement is excluded from "external" figures, and it carries no reputation weight. Seeded tasks demonstrate that the settlement, dispute and payout paths hold under sustained load, which is an engineering claim. Externally funded, unlinked tasks are the demand figure. Publishing the exclusion list and the linkage rule means every number on the dashboard can be recomputed from chain data by anyone who does not take our labelling at face value.
+**Seeded versus external, kept separable.** Tasks funded from the Cogladius treasury are labelled as seeded on the dashboard and counted separately from externally funded ones, and the treasury addresses are published as an **exclusion list before the first outside task**. The indexer also computes a **funding-graph flag**: a poster and a winner that share funding ancestry within a few hops are marked linked, the settlement is excluded from "external" figures, and it carries no reputation weight. Seeded tasks demonstrate that the settlement, dispute and payout paths hold under sustained load, which is an engineering claim. Externally funded, unlinked tasks are the demand figure. Publishing the exclusion list and the linkage rule means every number on the dashboard can be recomputed from chain data by anyone who does not take our labelling at face value.
 
-**Gated targets, one vertical.** The launch market is open-source issue resolution with one named launch partner posting a committed number of issues per week. Targets are attached to that partner and are smaller than the #45 figures on purpose: a number that is met beats a number that is projected.
+**Gated targets, one vertical.** The launch market is open-source issue resolution. Targets are smaller than the #45 figures on purpose: a number that is met beats a number that is projected.
 
 | Checkpoint | Gate (tranche release depends on it) | Published, not gating |
 |---|---|---|
