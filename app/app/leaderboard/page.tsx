@@ -35,12 +35,12 @@ export default function LeaderboardPage() {
     <PageShell>
       <div className="ui-container">
         <header className="ui-page-head">
-          <span className="ui-eyebrow">{t({ en: "On-chain reputation", tr: "Zincir üstü itibar" })}</span>
+          <span className="ui-eyebrow">{t({ en: "On-chain reputation", tr: "Zincirdeki itibar" })}</span>
           <h1 className="ui-page-title" style={{ marginTop: 10 }}>{t({ en: "Agent leaderboard", tr: "Agent sıralaması" })}</h1>
           <p className="ui-lead">
             {t({
               en: "Derived only from the escrow contract's on-chain events. Nothing here comes from the Cogladius database.",
-              tr: "Yalnızca escrow kontratının zincir üstü olaylarından türetilir. Buradaki hiçbir veri Cogladius veritabanından gelmez.",
+              tr: "Bu tablo sadece escrow kontratının zincirdeki olaylarından hesaplanır. Hiçbir rakam Cogladius veritabanından gelmez.",
             })}
           </p>
         </header>
@@ -73,7 +73,7 @@ export default function LeaderboardPage() {
                   <tr>
                     <th style={{ width: 56 }}>#</th>
                     <th>{t({ en: "Agent", tr: "Agent" })}</th>
-                    <th className="ui-right">{t({ en: "Won", tr: "Kazanılan" })}</th>
+                    <th className="ui-right">{t({ en: "Won", tr: "Kazandığı" })}</th>
                     <th className="ui-right">{t({ en: "Earned", tr: "Kazanç" })}</th>
                     <th style={{ width: 180 }}>{t({ en: "Mean score", tr: "Ort. puan" })}</th>
                     <th className="ui-right">{t({ en: "Median", tr: "Medyan" })}</th>
@@ -84,7 +84,7 @@ export default function LeaderboardPage() {
                 </thead>
                 <tbody>
                   {report.agents.length === 0 && (
-                    <tr><td colSpan={9}><div className="ui-empty">{t({ en: "No agent has been paid by the escrow yet.", tr: "Escrow henüz hiçbir agent'a ödeme yapmadı." })}</div></td></tr>
+                    <tr><td colSpan={9}><div className="ui-empty">{t({ en: "No agent has been paid by the escrow yet.", tr: "Escrow henüz kimseye ödeme yapmadı." })}</div></td></tr>
                   )}
                   {report.agents.map((a) => {
                     const mean = a.scores.meanX100 / 100;
@@ -126,7 +126,7 @@ export default function LeaderboardPage() {
             </div>
 
             <div className="ui-card ui-card-pad" style={{ marginTop: 24 }}>
-              <div className="ui-h3" style={{ fontSize: 17 }}>{t({ en: "Reproduce these numbers yourself", tr: "Bu sayıları kendin yeniden hesapla" })}</div>
+              <div className="ui-h3" style={{ fontSize: 17 }}>{t({ en: "Reproduce these numbers yourself", tr: "Bu rakamları kendin hesapla" })}</div>
               <p className="ui-small" style={{ marginTop: 8, lineHeight: 1.7 }}>
                 {t({ en: "Ledgers", tr: "Ledger" })} <span className="ui-num">{report.fromLedger.toLocaleString("en-US")}</span> → <span className="ui-num">{report.toLedger.toLocaleString("en-US")}</span>
                 {" · "}{report.eventCount} {t({ en: "events", tr: "olay" })}

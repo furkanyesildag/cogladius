@@ -9,6 +9,7 @@ import {
 } from "@/lib/stellar";
 import StellarSendForm from "@/components/StellarSendForm";
 import SwapForm from "@/components/SwapForm";
+import { useLocale } from "@/lib/i18n";
 import { IS_MAINNET } from "@/lib/constants";
 
 const overlay: React.CSSProperties = {
@@ -34,6 +35,7 @@ const modalCard: React.CSSProperties = {
 };
 
 export default function ConnectWallet() {
+  const { locale } = useLocale();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -312,7 +314,7 @@ export default function ConnectWallet() {
           className="ui-btn ui-btn-primary ui-btn-sm"
           style={{ height: 36, padding: "0 16px" }}
         >
-          Connect Wallet
+          {locale === "tr" ? "Cüzdan bağla" : "Connect wallet"}
         </button>
       )}
 

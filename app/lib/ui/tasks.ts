@@ -63,16 +63,17 @@ export function useNow(ms = 1000): number {
   return now;
 }
 
-/** "1d 4h", "3h 12m", "4m 09s" until a unix-seconds deadline, or null once passed. */
-export function countdown(deadlineSec: number, nowMs: number): string | null {
+/** "1d 4h", "3h 12m", "4m 09s" (Turkish: "1g 4sa", "3sa 12dk", "4dk 09sn") until a unix-seconds deadline, or null once passed. */
+export function countdown(deadlineSec: number, nowMs: number, tr = false): string | null {
+  const u = tr ? { d: "g", h: "sa", m: "dk", s: "sn" } : { d: "d", h: "h", m: "m", s: "s" };
   let s = Math.floor(deadlineSec - nowMs / 1000);
   if (s <= 0) return null;
   const d = Math.floor(s / 86400); s -= d * 86400;
   const h = Math.floor(s / 3600); s -= h * 3600;
   const m = Math.floor(s / 60); s -= m * 60;
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
-  return `${m}m ${String(s).padStart(2, "0")}s`;
+  if (d > 0) return `${d}${u.d} ${h}${u.h}`;
+  if (h > 0) return `${h}${u.h} ${String(m).padStart(2, "0")}${u.m}`;
+  return `${m}${u.m} ${String(s).padStart(2, "0")}${u.s}`;
 }
 
 /** Deterministic avatar colour for an address. */

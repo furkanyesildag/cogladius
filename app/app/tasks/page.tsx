@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import PageShell from "@/components/site/PageShell";
 import { TaskStatusBadge } from "@/components/site/bits";
+import TaskCard from "@/components/site/TaskCard";
 import { useT } from "@/lib/ui/copy";
 import { useLocale } from "@/lib/i18n";
 import type { Task } from "@/lib/types";
@@ -51,7 +52,7 @@ export default function TasksListPage() {
             <p className="ui-lead">
               {t({
                 en: "Every reward here is locked in the Soroban escrow. Pick a live task, submit your agent's answer and let the judges decide.",
-                tr: "Buradaki her ödül Soroban escrow'unda kilitli. Canlı bir görev seç, agent'ının cevabını teslim et, kararı hakemler versin.",
+                tr: "Buradaki her ödül Soroban escrow'unda kilitli. Bir görev seç, agent'ın cevabını göndersin, gerisini hakemler halletsin.",
               })}
             </p>
           </div>
@@ -84,24 +85,27 @@ export default function TasksListPage() {
           />
         </div>
 
+        {filter === "live" && data && shown.length > 0 && !q.trim() ? (
+          <div className="ui-grid-3">{shown.map((task) => <TaskCard key={task.id} task={task} />)}</div>
+        ) : (
         <div className="ui-card" style={{ overflow: "hidden" }}>
           {!data && !error && [0, 1, 2, 3].map((i) => (
             <div key={i} style={{ padding: 22, borderBottom: "1px solid var(--bg-border)" }}><div className="ui-skeleton" style={{ height: 46 }} /></div>
           ))}
           {error && !data && (
-            <div className="ui-empty">{t({ en: "Tasks could not be loaded. Refresh in a moment.", tr: "Görevler yüklenemedi. Birazdan yenile." })}</div>
+            <div className="ui-empty">{t({ en: "Tasks could not be loaded. Refresh in a moment.", tr: "Görevler şu an yüklenemedi. Birazdan tekrar dene." })}</div>
           )}
           {data && shown.length === 0 && (
             <div className="ui-empty">
               {filter === "live"
-                ? t({ en: "No live tasks right now. Check All for past tasks.", tr: "Şu an canlı görev yok. Geçmiş görevler için Tümü'ne bak." })
+                ? t({ en: "No live tasks right now. Check All for past tasks.", tr: "Şu an açık görev yok. Eskilerine Tümü sekmesinden bakabilirsin." })
                 : t({ en: "Nothing matches.", tr: "Eşleşen görev yok." })}
             </div>
           )}
           {shown.map((task) => {
             const live = isAcceptingSubmissions(task);
             const top = standings(task)[0];
-            const left = live ? countdown(task.deadline, now) : null;
+            const left = live ? countdown(task.deadline, now, locale === "tr") : null;
             return (
               <Link key={task.id} href={`/task/${task.id}`} className="ui-task-row">
                 <div style={{ minWidth: 0, flex: 1 }}>
@@ -112,9 +116,9 @@ export default function TasksListPage() {
                   </div>
                   <div className="ui-task-title">{taskTitle(task, 120)}</div>
                   <div className="ui-small" style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 8 }}>
-                    <span>{t({ en: "by", tr: "veren" })} <span className="ui-mono">{shortKey(task.poster)}</span></span>
+                    <span>{t({ en: "by", tr: "açan" })} <span className="ui-mono">{shortKey(task.poster)}</span></span>
                     <span>{task.submissions?.length ?? 0} {t({ en: "submissions", tr: "teslim" })}</span>
-                    {top && <span>{t({ en: "top score", tr: "en yüksek" })} <b style={{ color: "var(--text-primary)" }}>{top.avg}</b></span>}
+                    {top && <span>{t({ en: "top score", tr: "en iyi puan" })} <b style={{ color: "var(--text-primary)" }}>{top.avg}</b></span>}
                     {!live && <span>{fmtDate(task.deadline)}</span>}
                   </div>
                 </div>
@@ -122,12 +126,13 @@ export default function TasksListPage() {
                   <div className="ui-num" style={{ fontFamily: "var(--font-head)", fontWeight: 700, fontSize: 20, color: "var(--text-primary)" }}>
                     {formatXlm(rewardXlm(task), 4)} <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>XLM</span>
                   </div>
-                  {left && <div className="ui-mono ui-num" style={{ fontSize: 13, color: "var(--accent)", marginTop: 4 }}>{t({ en: "closes in", tr: "kapanışa" })} {left}</div>}
+                  {left && <div className="ui-mono ui-num" style={{ fontSize: 13, color: "var(--accent)", marginTop: 4 }}>{t({ en: `closes in ${left}`, tr: `${left} kaldı` })}</div>}
                 </div>
               </Link>
             );
           })}
         </div>
+        )}
       </section>
     </PageShell>
   );

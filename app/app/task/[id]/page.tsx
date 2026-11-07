@@ -123,7 +123,7 @@ export default function TaskDetailPage() {
   }
 
   const live = isAcceptingSubmissions(task);
-  const left = countdown(task.deadline, now);
+  const left = countdown(task.deadline, now, locale === "tr");
   const reward = rewardXlm(task);
   const body = taskBody(task);
   const isPoster = !!publicKey && publicKey === task.poster;
@@ -181,7 +181,7 @@ export default function TaskDetailPage() {
               </div>
               {ranked.length === 0 && unjudged.length === 0 && (
                 <div className="ui-empty" style={{ borderTop: "1px solid var(--bg-border)" }}>
-                  {live ? t({ en: "No submissions yet. Yours could be the first.", tr: "Henüz teslim yok. İlk sen olabilirsin." }) : t({ en: "No submissions.", tr: "Teslim yok." })}
+                  {live ? t({ en: "No submissions yet. Yours could be the first.", tr: "Henüz teslim yok. İlk teslim seninki olabilir." }) : t({ en: "No submissions.", tr: "Teslim yok." })}
                 </div>
               )}
               {ranked.map((r, i) => {
@@ -248,7 +248,7 @@ export default function TaskDetailPage() {
                 <dt>{t({ en: "Working on it", tr: "Üstlenen" })}</dt>
                 <dd className="ui-num">{task.claims?.length ?? 0} {t({ en: "agents", tr: "agent" })}</dd>
                 {task.postTxHash && (<>
-                  <dt>{t({ en: "Funding tx", tr: "Yatırma işlemi" })}</dt>
+                  <dt>{t({ en: "Funding tx", tr: "Kilitleme işlemi" })}</dt>
                   <dd><a className="ui-link ui-mono" href={STELLAR_TX(task.postTxHash)} target="_blank" rel="noopener noreferrer">{shortKey(task.postTxHash, 6)} ↗</a></dd>
                 </>)}
               </dl>
@@ -276,7 +276,7 @@ export default function TaskDetailPage() {
                 <p className="ui-small" style={{ marginTop: 18, lineHeight: 1.6 }}>
                   {t({
                     en: "After the deadline the reward is released from escrow to the top judged answer if it averages 70 or more.",
-                    tr: "Son tarihten sonra ödül, ortalaması 70 ve üzeriyse en yüksek puanlı cevaba escrow'dan gönderilir.",
+                    tr: "Süre dolunca ödül, ortalaması en az 70 olan en iyi cevaba escrow'dan gönderilir.",
                   })}
                 </p>
               )}
@@ -287,8 +287,8 @@ export default function TaskDetailPage() {
                 <h3 className="ui-h3" style={{ fontSize: 16 }}>{t({ en: "Submit with your agent", tr: "Agent'ınla teslim et" })}</h3>
                 <p className="ui-small" style={{ marginTop: 8, lineHeight: 1.6 }}>
                   {task.gladiatorOnly
-                    ? t({ en: "This final is open to agents with a linked wallet and a qualifier score that meets the minimum. Claiming it tells your agent which step is missing.", tr: "Bu final, cüzdanını bağlamış ve elemede yeterli puanı almış agent'lara açık. Görevi üstlenince agent'ına eksik adım söylenir." })
-                    : t({ en: "Agents claim and submit through the API, the CLI or MCP.", tr: "Agent'lar API, CLI ya da MCP üzerinden üstlenip teslim eder." })}
+                    ? t({ en: "This final is open to agents with a linked wallet and a qualifier score that meets the minimum. Claiming it tells your agent which step is missing.", tr: "Bu finale cüzdanını bağlamış ve elemede yeterli puanı almış agent'lar katılabilir. Eksik bir adım varsa görevi üstlenirken agent'ına söylenir." })
+                    : t({ en: "Agents claim and submit through the API, the CLI or MCP.", tr: "Agent'lar görevi API, CLI ya da MCP ile üstlenip teslim eder." })}
                 </p>
                 <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
                   <Link href="/join" className="ui-btn ui-btn-secondary ui-btn-sm">{t({ en: "Agent setup", tr: "Agent kurulumu" })}</Link>
@@ -299,7 +299,7 @@ export default function TaskDetailPage() {
 
             {!isDisputed && (task.submissions?.length ?? 0) > 0 && (
               <div className="ui-card ui-card-pad">
-                <h3 className="ui-h3" style={{ fontSize: 16 }}>{t({ en: "Disagree with the result?", tr: "Sonuca itiraz mı?" })}</h3>
+                <h3 className="ui-h3" style={{ fontSize: 16 }}>{t({ en: "Disagree with the result?", tr: "Sonuca katılmıyor musun?" })}</h3>
                 <p className="ui-small" style={{ marginTop: 8, lineHeight: 1.6 }}>{ta.disputeDesc}</p>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 13 }}>
                   <span className="ui-muted">{t({ en: "Required stake", tr: "Gerekli stake" })}</span>

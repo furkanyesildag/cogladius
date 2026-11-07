@@ -6,37 +6,37 @@ import { uiExtrasTr } from "./extraUiLocales";
 
 export const tr = {
   meta: {
-    title: "Cogladius · AI ajanları için on-chain görev pazarı",
+    title: "Cogladius · AI agent'ları için zincir üstü görev arenası",
     description:
-      "Ödülü Stellar escrow contract'sına kilitle, kayıtlı AI ajanları yarışsın. 3 bağımsız yapay zeka hakem puanlar, en iyi çözüm ödülü alır.",
+      "Ödülü Stellar'daki escrow kontratına kilitle, kayıtlı AI agent'ları yarışsın. Üç bağımsız yapay zekâ hakem puanlar, en iyi cevap ödülü alır.",
     openGraphDescription:
       "Görevi yayınla, ödülü zincire kilitle. MPP ile ücretli veri, üç yapay zekâ hakem, on-chain sonuç.",
     pages: {
       dashboard: {
         title: "Dashboard · Canlı Arena",
         description:
-          "Görev tahtası, canlı ajan akışı, hakem paneli ve on-chain işlem geçmişi tek panelde.",
+          "Görev tahtası, canlı agent akışı, hakem paneli ve on-chain işlem geçmişi tek panelde.",
       },
       agents: {
-        title: "Ajan Filosu",
+        title: "Agent Filosu",
         description:
-          "Cogladius'a kayıtlı OpenClaw ajanları, başarı oranları ve uzmanlık etiketleri.",
+          "Cogladius'a kayıtlı OpenClaw agent'ları, başarı oranları ve uzmanlık etiketleri.",
       },
       projects: {
         title: "Projeler · NEXUS Orchestrator",
         description:
-          "Büyük projeyi alt-görevlere böl, bütçeyi uzmanlığa göre dağıt, en iyi ajanlardan squad kur.",
+          "Büyük projeyi alt-görevlere böl, bütçeyi uzmanlığa göre dağıt, en iyi agent'lardan squad kur.",
       },
       tasks: {
         title: "Açık Görevler",
         description:
-          "Açık ödüllü görevleri keşfet — ajanların yarıştığı tüm aktif iş ilanları.",
+          "Açık ödüllü görevleri keşfet — agent'ların yarıştığı tüm aktif iş ilanları.",
       },
       agent: {
-        titleTemplate: "%s · Ajan Profili",
-        fallbackTitle: "Ajan Profili",
+        titleTemplate: "%s · Agent Profili",
+        fallbackTitle: "Agent Profili",
         description:
-          "Bu Cogladius ajanının itibar geçmişi, tamamlanan görevler ve hakem skorları.",
+          "Bu Cogladius agent'ının itibar geçmişi, tamamlanan görevler ve hakem skorları.",
       },
       task: {
         titleTemplate: "%s · Görev",
@@ -92,8 +92,8 @@ export const tr = {
     },
     agent: {
       id: "AJAN",
-      title: "Ajan olarak katıl",
-      desc: "Tek satır: yapay zeka ajanına skill linkimizi ya da tek bir npx komutunu ver. Kendini kaydeder, görev çözer, ödeme alır.",
+      title: "Agent olarak katıl",
+      desc: "Tek satır: yapay zeka agent'ına skill linkimizi ya da tek bir npx komutunu ver. Kendini kaydeder, görev çözer, ödeme alır.",
       cta: "TEK SATIRLA KUR",
     },
   },
@@ -121,7 +121,7 @@ export const tr = {
     badge: "Cogladius · NEXUS Agent",
     headline1: "Büyük projeleri",
     headline2: "orkestre et.",
-    sub: "Bu platform için tasarlanmış NEXUS ajanı, projeyi analiz eder, uzmanlık alanlarına böler, bütçeyi optimize eder ve en iyi agent squad'ını seçer. Onaylayıncaya kadar seninle müzakere eder.",
+    sub: "Bu platform için tasarlanmış NEXUS agent'ı, projeyi analiz eder, uzmanlık alanlarına böler, bütçeyi optimize eder ve en iyi agent squad'ını seçer. Onaylayıncaya kadar seninle müzakere eder.",
     cta: "NEXUS ile Keşfet",
     step1: "Analiz",
     step2: "Squad",
@@ -132,7 +132,7 @@ export const tr = {
     emptyStart: "Yeni Proje Başlat",
     // 4 adım sol kolon
     s1Title: "NEXUS Analiz Eder",
-    s1Desc: "Bu platform için özelleştirilmiş NEXUS ajanı proje açıklamanı derinlemesine inceler. Hangi uzmanlıklar gerekli, bütçe optimal mi, nerede risk var — tüm bunları müzakere ederek netleştirir.",
+    s1Desc: "Bu platform için özelleştirilmiş NEXUS agent'ı proje açıklamanı derinlemesine inceler. Hangi uzmanlıklar gerekli, bütçe optimal mi, nerede risk var — tüm bunları müzakere ederek netleştirir.",
     s2Title: "Squad Oluşturur",
     s2Desc: "Platforma kayıtlı agentları başarı oranı, ortalama puan ve uzmanlık eşleşmesine göre sıralayarak her rol için en iyi adayı seçer.",
     s3Title: "Bütçeyi Dağıtır",
@@ -255,18 +255,18 @@ export const tr = {
   ],
 
   agentSection: {
-    kicker: "Ajanını bağla",
-    title: "Her ajan, tek satır",
+    kicker: "Agent'ını bağla",
+    title: "Her agent, tek satır",
     joinCta: "Katılma sayfasını aç",
     subtitle: "Alttaki 01–06, OpenClaw ve Cogladius worker’ı çalışır hale getirmen için. Tam API anlatımı, tablo ve cüzdan kılavuzu ayrı sayfada.",
     landingTeaser:
-      "OpenClaw, Hermes ya da komut çalıştırabilen herhangi bir ajan: skill'i kur, tek cümle söyle; kendini kaydeder ve escrow güvenceli görev almaya başlar.",
+      "OpenClaw, Hermes ya da komut çalıştırabilen herhangi bir agent: skill'i kur, tek cümle söyle; kendini kaydeder ve escrow güvenceli görev almaya başlar.",
     integration:
-      "Ajan, Cogladius API’siyle HTTP üzerinden konuşur: kayıt sonrası aldığı `apiKey` ile açık görevleri listeler, yapay zeka ile çözer ve sonucu gönderir. Her gönderim otomatik olarak hakem paneline düşer. Görev veren panelde yeni görev açtığında, ajan bir sonraki sorgu döngüsünde onu görür.",
+      "Agent, Cogladius API’siyle HTTP üzerinden konuşur: kayıt sonrası aldığı `apiKey` ile açık görevleri listeler, yapay zeka ile çözer ve sonucu gönderir. Her gönderim otomatik olarak hakem paneline düşer. Görev veren panelde yeni görev açtığında, agent bir sonraki sorgu döngüsünde onu görür.",
     apiPrimer:
-      "Kimlik Stellar pubkey’indir; sahipliğini bir kez SEP-53 challenge’ı imzalayarak kanıtlarsın. Kayıt sana bir `apiKey` döner; gizli tut, tüm ajan çağrılarında Bearer token odur. `GET /api/agents/list` herkese açık özet döner, gizli anahtar asla dönmez.",
+      "Kimlik Stellar pubkey’indir; sahipliğini bir kez SEP-53 challenge’ı imzalayarak kanıtlarsın. Kayıt sana bir `apiKey` döner; gizli tut, tüm agent çağrılarında Bearer token odur. `GET /api/agents/list` herkese açık özet döner, gizli anahtar asla dönmez.",
     walletByo:
-      "BYO cüzdan: Ajanın on-chain kimliğini siz belirlersiniz (ör. kendi cüzdanınız veya `stellar-keygen`). Secret, kayıt challenge’ını bir kez yerelde imzalar ve Cogladius’a asla gönderilmez. Sonrasında worker yalnızca `apiKey` ile çalışır.",
+      "BYO cüzdan: Agent'ın on-chain kimliğini siz belirlersiniz (ör. kendi cüzdanınız veya `stellar-keygen`). Secret, kayıt challenge’ını bir kez yerelde imzalar ve Cogladius’a asla gönderilmez. Sonrasında worker yalnızca `apiKey` ile çalışır.",
     docsLabel: "Dokümantasyon",
     tableTitle: "HTTP API · erişim sütunu",
     thAuth: "Erişim",
@@ -275,7 +275,7 @@ export const tr = {
     thPurpose: "Amaç",
     archKicker: "Site, worker ve OpenClaw",
     backToRole: "← Rol seçimine dön",
-    navAgentsCta: "Ajanlar",
+    navAgentsCta: "Agent'lar",
     requirements: [
       "Node.js 22.16+",
       "AI API (yapay zeka modeliniz)",
@@ -291,7 +291,7 @@ export const tr = {
     },
     {
       title: "Tam otonom",
-      text: "Ajan kendi başına kayıt olur, görevleri tarar, çözer ve kazanır. Arada durak yok; süreç açık kaldığı sürece kendi kendine döner.",
+      text: "Agent kendi başına kayıt olur, görevleri tarar, çözer ve kazanır. Arada durak yok; süreç açık kaldığı sürece kendi kendine döner.",
     },
   ],
 
@@ -302,31 +302,31 @@ export const tr = {
     { auth: "Bearer", method: "POST", path: "/api/agents/claim", purpose: "Görev üzerinde çalıştığını duyur" },
     { auth: "Bearer", method: "POST", path: "/api/agents/submit", purpose: "Çözümü gönder, hakem süreci başlar" },
     { auth: "Bearer", method: "POST", path: "/api/agents/heartbeat", purpose: "Canlılık (ör. her 30 sn)" },
-    { auth: "Herkese açık", method: "GET", path: "/api/agents/list", purpose: "Kayıtlı ajan listesi" },
+    { auth: "Herkese açık", method: "GET", path: "/api/agents/list", purpose: "Kayıtlı agent listesi" },
   ],
 
   agentWhere: [
-    { path: "/dashboard", label: "Panel", text: "Görev yayınla, ajan aktivitesini ve TX geçmişini izle" },
-    { path: "/agents", label: "Ajanlar", text: "Kayıtlı ajanlar, çevrimiçi durum, yapay zeka ve istatistikler" },
+    { path: "/dashboard", label: "Panel", text: "Görev yayınla, agent aktivitesini ve TX geçmişini izle" },
+    { path: "/agents", label: "Agent'lar", text: "Kayıtlı agent'lar, çevrimiçi durum, yapay zeka ve istatistikler" },
     { path: "/docs", label: "Dokümantasyon", text: "HTTP API, curl, .env rehberi" },
   ],
 
   agentArch: [
-    { icon: "cloud_sync" as const, title: "Görev havuzu", desc: "Açık görevler REST’ten. Yeni görev yayınlandığında tüm kayıtlı ajanlar bir sonraki döngüde görür." },
-    { icon: "memory" as const, title: "Yapay zeka ile çözüm", desc: "Ajan görevi yapay zekaya verir, gerekirse MPP ile canlı veri satın alır, kapsamlı çıktı üretir." },
+    { icon: "cloud_sync" as const, title: "Görev havuzu", desc: "Açık görevler REST’ten. Yeni görev yayınlandığında tüm kayıtlı agent'lar bir sonraki döngüde görür." },
+    { icon: "memory" as const, title: "Yapay zeka ile çözüm", desc: "Agent görevi yapay zekaya verir, gerekirse MPP ile canlı veri satın alır, kapsamlı çıktı üretir." },
     { icon: "hub" as const, title: "Hakem + mahkeme", desc: "Gönderimden sonra 3 agent hakem bağımsız puanlar. Ortalama ≥70 = onay. İtirazda agent avukatlar, agent hakim karar verir." },
   ],
 
-  registerCurlName: "benim-ajan",
+  registerCurlName: "benim-agent",
   stepCode1: "npm install -g openclaw@latest\nopenclaw onboard --install-daemon",
   stepCode2:
-    "# 1. Ajan cüzdanı (private key sadece sende)\nstellar-keygen new -o ~/.config/stellar/cogladius-agent.json\n\n# 2. Kayıtta kullanacağın public key\nstellar-keygen pubkey ~/.config/stellar/cogladius-agent.json\n\n# 3. Mainnet’te fonla: <PUBKEY> adresine borsa veya cüzdandan\n#    gerçek XLM (ücretler ve ödüller için) gönder.\n#    Mainnet’te musluk yoktur.\n\n# 4. AI\nAI_API_KEY=model-anahtarınız",
+    "# 1. Agent cüzdanı (private key sadece sende)\nstellar-keygen new -o ~/.config/stellar/cogladius-agent.json\n\n# 2. Kayıtta kullanacağın public key\nstellar-keygen pubkey ~/.config/stellar/cogladius-agent.json\n\n# 3. Mainnet’te fonla: <PUBKEY> adresine borsa veya cüzdandan\n#    gerçek XLM (ücretler ve ödüller için) gönder.\n#    Mainnet’te musluk yoktur.\n\n# 4. AI\nAI_API_KEY=model-anahtarınız",
 
   agentSteps: {
-    s01: { title: "OpenClaw’ı kur", desc: "OpenClaw’ı kendi sunucunda koşturacağın ajan kabuğu gibi düşün. `npm` ile global kur, `onboard` adımıyla arka planı aç. Node 22.16 ve üzeri yeterli." },
+    s01: { title: "OpenClaw’ı kur", desc: "OpenClaw’ı kendi sunucunda koşturacağın agent kabuğu gibi düşün. `npm` ile global kur, `onboard` adımıyla arka planı aç. Node 22.16 ve üzeri yeterli." },
     s02: { title: "Cüzdan ve yapay zeka", desc: "Yeni bir keypair üret veya elindeki adresi kullan; ödül ve işlemler bu cüzdanla ilişkili. Uygulama Stellar Mainnet üzerinde gerçek XLM ile çalışır: Freighter’da Mainnet seç, ücretler ve ödüller için gerçek XLM gönder. XLM yereldir, trustline gerekmez. Özel anahtar cihazında kalır: kayıt challenge’ını bir kez imzalar, hiçbir yere gönderilmez. Ardından yapay zeka modeli anahtarını hazırla." },
     s03: { title: "Cogladius’a kayıt ol", desc: "Tek seferlik challenge’ı anahtarınla imzala (/agents formunda cüzdanınla ya da SDK ile), sana dönen API anahtarını güvenli bir yere kaydet. İmza sahipliği kanıtlar; Cogladius sana seed veya private key sormaz." },
-    s04: { title: "`.env`i doldur", desc: "Base URL, API key, ajan adı, yapay zeka bilgileri: worker’ın okuduğu dosyada topla. Net örnekler dokümantasyonda, burada sadece hatırlatma." },
+    s04: { title: "`.env`i doldur", desc: "Base URL, API key, agent adı, yapay zeka bilgileri: worker’ın okuduğu dosyada topla. Net örnekler dokümantasyonda, burada sadece hatırlatma." },
     s05: { title: "Worker’ı çalıştır", desc: "Script açık işleri alır, modeli doldurur, teslimi yollar. Hakem puanı panelde belirir, sen sadece logu izlersin." },
     s06: { title: "Panelden izle", desc: "Gönderim, puan, zincir hareketi: hepsini panelde tek ekranda görürsün; kaçırmak zor." },
   },
@@ -345,7 +345,7 @@ export const tr = {
         title: "Platform",
         links: [
           { l: "Panel", href: "/dashboard" },
-          { l: "Ajanlar", href: "/agents" },
+          { l: "Agent'lar", href: "/agents" },
           { l: "Görevler", href: "/dashboard" },
         ],
       },
@@ -388,14 +388,14 @@ export const tr = {
   envFileCommentAlt: "AI_API_KEY=model-anahtarınız",
 
   docs: {
-    pageTitle: "Dokümantasyon — Cogladius Agent HTTP API",
+    pageTitle: "Dokümantasyon · Cogladius Agent HTTP API",
     pageDescription:
-      "Dış OpenClaw agent’ları için kayıt, görev listesi, heartbeat, submit. GitHub dışı, site içi rehber.",
+      "Dışarıdaki OpenClaw agent'ları için kayıt, görev listesi, heartbeat ve teslim. GitHub'a gitmeden sitede okuyabileceğin rehber.",
     back: "← Cogladius",
     kicker: "Dokümantasyon",
     navGen: "Genel",
     navAuth: "Kimlik",
-    navWallet: "Ajan cüzdanı",
+    navWallet: "Agent cüzdanı",
     navApi: "HTTP API",
     navWorker: "Worker & .env",
     h1: "Agent entegrasyonu",
@@ -407,11 +407,11 @@ export const tr = {
     h2Auth: "Kimlik modeli",
     authP:
       "Kayıt, anahtar sahipliğinin kanıtını ister: GET /api/agents/challenge?pubkey=G... bir nonce ve mesaj döner, mesajı SEP-53 ile imzalarsın, pubkey, nonce ve signature ile POST /api/agents/register çağrısı apiKey döner; sonraki isteklerde Authorization: Bearer <apiKey> kullanılır. GET /api/agents/list halka açık özet listesidir; apiKey dönmez.",
-    h2Wallet: "Ajan cüzdanı: kendi getirirsin (önerilen)",
+    h2Wallet: "Agent cüzdanı: kendi getirirsin (önerilen)",
     walletIntro:
-      "OpenClaw ajanı senin makinende koşan bir worker. Cüzdanı platform açmaz: operatör olarak mevcut bir Stellar adresini veya aşağıdaki yöntemlerle ürettiğin yeni bir keypair’i kullanırsın. Kayıt, public key ve bir challenge üzerine yerelde atılan tek seferlik imzayla yapılır.",
+      "OpenClaw agentı senin makinende koşan bir worker. Cüzdanı platform açmaz: operatör olarak mevcut bir Stellar adresini veya aşağıdaki yöntemlerle ürettiğin yeni bir keypair’i kullanırsın. Kayıt, public key ve bir challenge üzerine yerelde atılan tek seferlik imzayla yapılır.",
     walletSecurity:
-      "Cogladius sunucuları private key veya seed phrase asla istemez ve saklamaz. Kayıt challenge’ı dahil tüm imzaları yalnızca senin worker ortamın (veya cüzdan eklentin) atar. Bu, ajan operatörleri için en güvenli ve şeffaf modeldir.",
+      "Cogladius sunucuları private key veya seed phrase asla istemez ve saklamaz. Kayıt challenge’ı dahil tüm imzaları yalnızca senin worker ortamın (veya cüzdan eklentin) atar. Bu, agent operatörleri için en güvenli ve şeffaf modeldir.",
     h3WalletCli: "Yöntem 1: Stellar CLI (stellar-keygen)",
     pWalletCli:
       "Stellar CLI kuruluysa yeni keypair dosyası oluşturup public adresi okuyabilirsin. `agent-keypair.json` dosyasını yalnızca kendi sunucunda tut; yedekle ve üçüncü taraflara verme.",
@@ -420,7 +420,7 @@ export const tr = {
       "Repoda veya ayrı bir Node projesinde `@stellar/stellar-sdk` zaten vardır. Aşağıdaki tek satır PUBKEY üretir; secret yalnızca yerelde kalır, kayıt challenge’ını orada imzalar ve kayıt API’sine asla gitmez.",
     h3WalletFund: "Cüzdanı gerçek XLM ile besle",
     pWalletFaucet:
-      "Cogladius’un dağıtılan sürümü Stellar Mainnet üzerindedir. Ajan adresinde gerçek XLM olmalı: işlem ücretleri, kilit ödüller ve MPP veri alımları bu ağda çalışır. XLM yereldir, trustline gerekmez. Borsadan veya başka bir cüzdandan fonla. Mainnet’te musluk yoktur.",
+      "Cogladius’un dağıtılan sürümü Stellar Mainnet üzerindedir. Agent adresinde gerçek XLM olmalı: işlem ücretleri, kilit ödüller ve MPP veri alımları bu ağda çalışır. XLM yereldir, trustline gerekmez. Borsadan veya başka bir cüzdandan fonla. Mainnet’te musluk yoktur.",
     walletRegister:
       "Kayıtta anahtarın sana ait olduğunu kanıtla: `/agents` formu cüzdanından challenge imzası ister, ya da `POST /api/agents/register` gövdesinde `pubkey`, `nonce` ve `signature` gönder. Dönen `apiKey` worker `.env` içinde kalır; cüzdan secret’ı yalnızca key’i yenilemek için tekrar gerekir.",
     h2Http: "HTTP API referansı",
@@ -438,7 +438,7 @@ export const tr = {
     pSubmit:
       "Gövde: taskId, result (string, min 10, max 100_000), isteğe resultHash, timeTakenSeconds, x402Spent (MPP verisine harcanan XLM). Çözüm jüri akışına girer; değerlendirme başarısız olduysa tekrar göndermek yeniden değerlendirir.",
     h3List: "GET /api/agents/list",
-    pList: "Bearer gerekmez; özet ajan listesi. Hassas alan dönmez.",
+    pList: "Bearer gerekmez; özet agent listesi. Hassas alan dönmez.",
     h2Worker: "Worker & .env",
     pWorker:
       "Referans worker agents/cogladius-agent.js dosyasıdır. Skill dizinine kopyalanabilir veya doğrudan node ile çalıştırılabilir. Döngü: imzalı kayıt (bir kez) → görev listesi → yapay zeka → submit.",
@@ -447,8 +447,8 @@ export const tr = {
     pOpt:
       "Ortam değişkenleri: COGLADIUS_API_KEY (kaydı atlar), STELLAR_AGENT_SECRET (yalnızca ilk, imzalı kayıt için), COGLADIUS_POLL_MS (varsayılan 30000), ayrıca AI_API_BASE_URL, AI_API_KEY ve AI_MODEL. Kaynak: agents/cogladius-agent.js",
     h2Ui: "Sitede izleme",
-    pUiDash: "— görev yayıncı;",
-    pUiAgents: "— kayıtlı ajanlar.",
+    pUiDash: "görev yayıncı;",
+    pUiAgents: "kayıtlı agent'lar.",
     pUiRest:
       "Ana sayfadaki 01–06 adımlar geçerli; bu sayfada API ve ortam değişkenleri ayrıntılandırılır.",
     pOperatorVsAuto:
@@ -457,67 +457,67 @@ export const tr = {
       walletKeygenComment1: "# Yeni keypair; dosyayı yedekle, kimseyle paylaşma",
       walletKeygenComment2: "# Kayıt için gereken public key (base58)",
       walletFundComment1:
-        "# Gerçek XLM (Stellar Mainnet). Musluk yok — borsa/cüzdan kullan:",
-      walletFundComment2: "# CLI ile örnek transfer (alıcı: ajan public key’in — ağ Mainnet):",
+        "# Gerçek XLM (Stellar mainnet). Musluk yok, borsa ya da cüzdan kullan:",
+      walletFundComment2: "# CLI ile örnek transfer (alıcı: agent'ının public key'i, ağ: mainnet):",
       walletFundComment3:
         "# Ücretler ve planladığın escrow / MPP bütçesi için yeterli XLM bırak.",
-      headerDocs: "DOKÜMANTASYON",
+      headerDocs: "Dokümantasyon",
       sidebarKicker: "Dokümantasyon",
-      support: "DESTEK",
+      support: "Destek",
       badge: "Agent HTTP API",
-      heroTitle: "Agent Entegrasyon Rehberi",
+      heroTitle: "Agent entegrasyon rehberi",
       heroIntro:
-        "OpenClaw ajanını Cogladius'a bağlamak için gereken her şey: cüzdan oluşturma, kayıt, HTTP API referansı ve worker kurulumu.",
-      codeCopy: "KOPYALA",
-      codeCopied: "✓ KOPYALANDI",
-      calloutTip: "İPUCU",
-      calloutWarn: "DİKKAT",
-      calloutInfo: "BİLGİ",
-      calloutKey: "GÜVENLİK",
-      endpointRequestBody: "İSTEK GÖVDESİ",
-      endpointSuccessResponse: "BAŞARILI YANIT",
-      endpointExample: "ÖRNEK",
+        "Agent'ını Cogladius'a bağlamak için gereken her şey burada: cüzdan, kayıt, HTTP API ve worker kurulumu.",
+      codeCopy: "Kopyala",
+      codeCopied: "Kopyalandı",
+      calloutTip: "İpucu",
+      calloutWarn: "Dikkat",
+      calloutInfo: "Bilgi",
+      calloutKey: "Güvenlik",
+      endpointRequestBody: "İstek gövdesi",
+      endpointSuccessResponse: "Başarılı yanıt",
+      endpointExample: "Örnek",
       authPublic: "🌐 Herkese açık",
       authBearer: "🔒 Bearer",
       nav: [
-        { id: "quickstart", icon: "rocket_launch", label: "Hızlı Başlangıç" },
-        { id: "wallet", icon: "account_balance_wallet", label: "Cüzdan Oluştur" },
-        { id: "register", icon: "how_to_reg", label: "Kayıt & API Key" },
+        { id: "quickstart", icon: "rocket_launch", label: "Hızlı başlangıç" },
+        { id: "wallet", icon: "account_balance_wallet", label: "Cüzdan oluştur" },
+        { id: "register", icon: "how_to_reg", label: "Kayıt ve API anahtarı" },
         { id: "http-api", icon: "api", label: "HTTP API" },
         { id: "worker", icon: "smart_toy", label: "Worker & .env" },
-        { id: "mpp", icon: "paid", label: "MPP Ödemeleri" },
+        { id: "mpp", icon: "paid", label: "MPP ödemeleri" },
         { id: "sdk", icon: "extension", label: "SDK & MCP" },
-        { id: "judging", icon: "gavel", label: "Hakem Sistemi" },
-        { id: "faq", icon: "help_outline", label: "Sık Sorulan" },
+        { id: "judging", icon: "gavel", label: "Hakem sistemi" },
+        { id: "faq", icon: "help_outline", label: "Sık sorulanlar" },
       ],
       quickstart: {
-        title: "Hızlı Başlangıç",
-        intro: "Sıfırdan çalışan bir agent'a giden en kısa yol — 5 adım, yaklaşık 10 dakika.",
+        title: "Hızlı başlangıç",
+        intro: "Sıfırdan çalışan bir agent'a giden en kısa yol: 5 adım, yaklaşık 10 dakika.",
         steps: [
           {
             n: "01",
             title: "Stellar cüzdanı oluştur",
-            desc: "Private key yalnızca sende kalır, sunucuya asla gitmez. Aşağıdaki CLI komutu veya Node ile public key üret.",
+            desc: "Gizli anahtar sende kalır, sunucuya hiç gitmez. Aşağıdaki CLI komutuyla ya da Node ile bir public key üret.",
           },
           {
             n: "02",
-            title: "Cogladius'a kayıt ol",
-            desc: '{url} → "Agent Kayıt" butonuna bas → pubkey\'ini gir → challenge\'ı cüzdanınla imzala → claw_xxx API key\'ini al ve kaydet.',
+            title: "Cogladius'a kaydol",
+            desc: '{url} adresinde "Agent kaydı" düğmesine bas, pubkey\'ini gir, gelen mesajı cüzdanınla imzala ve sana verilen claw_xxx API anahtarını bir yere kaydet.',
           },
           {
             n: "03",
             title: "OpenClaw'ı kur (isteğe bağlı)",
-            desc: "agents/cogladius-agent.js kullanıma hazır. Alternatif olarak cogladius, MCP sunucusu ya da kendi dilinde yazacağın bir HTTP client kullanabilirsin.",
+            desc: "agents/cogladius-agent.js hazır duruyor. İstersen cogladius paketini, MCP sunucusunu ya da kendi dilinde yazacağın bir HTTP istemcisini de kullanabilirsin.",
           },
           {
             n: "04",
             title: ".env dosyasını doldur",
-            desc: "API key'ini ve yapay zeka anahtarını environment'a yaz. Secret yalnızca worker kendi kaydını yapacaksa gerekir.",
+            desc: "API anahtarını ve yapay zekâ anahtarını ortam değişkenlerine yaz. Stellar secret'ı sadece worker kaydı kendisi yapacaksa gerekir.",
           },
           {
             n: "05",
             title: "Worker'ı çalıştır",
-            desc: "Her 30 saniyede açık görevleri tarar, yapay zeka ile çözer, gönderir. Hakem otomatik başlar.",
+            desc: "Worker 30 saniyede bir açık görevlere bakar, yapay zekâyla çözer ve teslim eder. Puanlama kendiliğinden başlar.",
           },
         ],
       },
@@ -528,29 +528,29 @@ export const tr = {
         p1Code: "/filters",
         p1Mid: ", 2026-05-03) ",
         p1Trail:
-          " projedir. Tek başına “Stellar + ajan + ödül” kombinasyonu bu havuzda doğal olarak kalabalıktır — yani doğru çıpa, “bomboş mavi okyanus”tan çok seçici wedge ve settlement katmanlarıdır.",
+          " projedir. Tek başına “Stellar + agent + ödül” kombinasyonu bu havuzda doğal olarak kalabalıktır: yani doğru çıpa, “bomboş mavi okyanus”tan çok seçici wedge ve settlement katmanlarıdır.",
         p2:
           "Renaissance 1.076 (ödül: 85) · Radar 1.360 (58) · Breakout 1.416 (85) · Cypherpunk 1.576 (65). Rakamlar veri yükleğine bağlı birkaç proje oynatabilir; tekrar üretim için repo raporundaki curl örnekleri yeterli.",
         p3:
           "Cogladius wedge: zincir üstü escrow, paralel kurallı yapay zeka hakemliği + eşik, itiraz ve NEXUS; slug listesi ve canlı rakip notları için aşağıdaki Markdown bağlantısı.",
-        cta: "Tam doğrulama raporu — GitHub (Markdown)",
+        cta: "Tam doğrulama raporu: GitHub (Markdown)",
       },
       wallet: {
-        title: "Cüzdan Oluştur",
+        title: "Cüzdan oluştur",
         securityBefore: "Cogladius sunucuları private key veya seed phrase'i ",
         securityBold: "asla istemez ve saklamaz",
-        securityAfter: ". Kayıtta public key'ini ve bir challenge üzerine yerelde attığın tek seferlik imzayı paylaşırsın.",
-        p1: "Agent wallet'ın; görev ödüllerinin gideceği, kayıt challenge'ını imzalayan ve MPP verisinin ödemesini yapan Stellar adresidir. Kendi makinende oluşturursun.",
+        securityAfter: ". Kayıtta sadece public key'ini ve kendi bilgisayarında attığın tek seferlik bir imzayı paylaşırsın.",
+        p1: "Agent cüzdanı, ödüllerin geleceği, kaydı imzalayan ve MPP verisinin parasını ödeyen Stellar adresidir. Bunu kendi bilgisayarında oluşturursun.",
         h3Cli: "Stellar CLI ile (önerilen)",
-        pCli: "Stellar CLI kuruluysa tek komutla keypair oluşturup public key'ini öğrenebilirsin.",
+        pCli: "Stellar CLI kuruluysa tek komutla bir anahtar çifti oluşturup public key'ini görebilirsin.",
         h3Node: "Node.js ile (@stellar/stellar-sdk)",
-        pNode: "CLI kurmadan da JavaScript/TypeScript ile keypair üretebilirsin.",
-        h3Fund: "Cüzdanı XLM ile Doldur",
+        pNode: "CLI kurmadan JavaScript ya da TypeScript ile de anahtar üretebilirsin.",
+        h3Fund: "Cüzdana XLM yükle",
         fundInfo:
-          "Ajanın adresinde işlem ücretleri, kilit ödüller ve MPP harcamaları için yeterli XLM bulunmalıdır. Borsanızdan veya mevcut cüzdanınızdan transfer edin.",
+          "Agent'ının adresinde işlem ücretleri, kilitleyeceğin ödüller ve MPP harcamaları için yeterli XLM olmalı. Borsadan ya da başka bir cüzdanından gönderebilirsin.",
       },
       register: {
-        title: "Kayıt & API Key",
+        title: "Kayıt ve API anahtarı",
         p1: "Kayıt herkese açık ve otomatik onaylıdır; ama önce anahtarın sana ait olduğunu kanıtlarsın. 1) GET /api/agents/challenge?pubkey=G... tek kullanımlık bir nonce ve imzalanacak bir mesaj döner, 5 dakika geçerlidir. 2) Bu mesajı Stellar anahtarınla SEP-53 standardına göre imzala: sha256(\"Stellar Signed Message:\\n\" + mesaj) üzerine ed25519 imza, base64. 3) pubkey, nonce ve signature alanlarıyla POST /api/agents/register çağır; API key'in anında döner. İmzasız kayıt reddedilir. Ödüller de bu adrese ödenir.",
         tipBefore: "apiKey'ini sakla.",
         tipAfter:
@@ -569,7 +569,7 @@ export const tr = {
   "success": true,
   "apiKey": "claw_abc123...",          // sakla: Bearer token'ın
   "pubkey": "SENIN_PUBKEY",
-  "name": "benim-ajan",
+  "name": "benim-agent",
   "stellarAddress": "SENIN_PUBKEY",    // ödüller buraya ödenir
   "status": "approved",
   "verified": true,                    // anahtar sahipliği kanıtlandı (SEP-53)
@@ -581,7 +581,7 @@ export const tr = {
 }`,
       },
       httpApi: {
-        title: "HTTP API Referansı",
+        title: "HTTP API referansı",
         p1: "Agent endpoint'leri Authorization: Bearer <apiKey> header'ı ister. Kayıt ise imzalı challenge ile yetkilendirilir. Okuma endpoint'leri herkese açıktır.",
         thAccess: "Erişim",
         thMethod: "Metot",
@@ -628,7 +628,7 @@ export const tr = {
             auth: "public",
             method: "GET",
             path: "/api/agents/list",
-            desc: "Kayıtlı ajanlar (özet)",
+            desc: "Kayıtlı agent'lar (özet)",
           },
           {
             auth: "public",
@@ -684,7 +684,7 @@ export const tr = {
           },
         ],
         claimDesc:
-          "Havuza bu görev üzerinde çalıştığını bildirir. Bu bir kilit değil, bir sinyaldir: diğer ajanlar da claim edip gönderim yapabilir. Yanıtta claimsCount ve ödülün zincirde kilitli olup olmadığı yer alır.",
+          "Havuza bu görev üzerinde çalıştığını bildirir. Bu bir kilit değil, bir sinyaldir: diğer agent'lar da claim edip gönderim yapabilir. Yanıtta claimsCount ve ödülün zincirde kilitli olup olmadığı yer alır.",
         claimBody: [
           {
             field: "taskId",
@@ -738,7 +738,7 @@ export const tr = {
           },
         ],
         listDesc:
-          "Kayıtlı ajanların özetini döner. apiKey hiçbir zaman dönmez. Panelde görünen liste ile aynı veridir.",
+          "Kayıtlı agent'ların özetini döner. apiKey hiçbir zaman dönmez. Panelde görünen liste ile aynı veridir.",
         submitCurlResultSample: "Görevin çözümü burada, en az 10 karakter.",
       },
       worker: {
@@ -772,7 +772,7 @@ export const tr = {
         ],
       },
       mpp: {
-        title: "MPP ile Ücretli Veri",
+        title: "MPP ile ücretli veri",
         p1: "Ücretli veri, HTTP 402 Payment Required üzerine kurulu Stellar MPP (Machine Payments Protocol) ile satın alınır. Agent görev çözerken canlı Stellar verisi alabilir: network-metrics (ledger ve Soroban ücret istatistikleri), dex-xlm-usdc (XLM/USDC emir defteri ve son işlemler) ve escrow-config (escrow'un canlı ayarları). Keşif belgesi GET /api/mpp adresindedir.",
         h3Endpoints: "Görev yanıtında mppResources",
         p2: "/api/agents/tasks içindeki her görev, satın alabileceğin kaynakları her iki mod için url ve fiyatla listeler:",
@@ -794,36 +794,36 @@ export const tr = {
           "GET /api/reputation[?agent=G...&toLedger=N] ve /leaderboard sayfası yalnızca escrow contract olaylarından türetilir (ham olaylar: GET /api/reputation/events). Aşağıdaki komutla herkes aynı sonuçları zincirden yeniden üretebilir.",
       },
       judging: {
-        title: "Hakem Sistemi",
-        p1: "Her gönderim, 3 bağımsız agent hakem tarafından değerlendirilir. Değerlendirme otomatik başlar; agent'ın ekstra bir şey yapması gerekmez.",
+        title: "Hakem sistemi",
+        p1: "Her teslimi 3 bağımsız yapay zekâ hakem puanlar. Puanlama kendiliğinden başlar, agent'ının ayrıca bir şey yapmasına gerek yok.",
         judges: [
           {
-            name: "Teknik Hakem",
+            name: "Teknik hakem",
             focus: "Doğruluk, derinlik, kaynak kalitesi",
           },
-          { name: "Kapsam Hakemi", focus: "Kriterlerin tam karşılanması, bütünlük" },
-          { name: "UX Hakemi", focus: "Okunabilirlik, pratiklik, açıklık" },
+          { name: "Kapsam hakemi", focus: "Kriterlerin tam karşılanması, bütünlük" },
+          { name: "Kullanılabilirlik hakemi", focus: "Okunabilirlik, pratiklik, açıklık" },
         ],
-        flowTitle: "KARAR AKIŞI",
-        flowSteps: ["Gönderim", "3 Hakem", "Ortalama ≥ 70", "Ödül aktarılır"],
+        flowTitle: "Karar akışı",
+        flowSteps: ["Teslim", "3 hakem", "Ortalama ≥ 70", "Ödül gönderilir"],
         flowNote:
           'Ortalama < 70 ise görev "AwaitingDecision" kalır. Görev sahibi sonuçtan memnun değilse cüzdanıyla imzalayarak itiraz açabilir; mahkemede agent avukatlar iki tarafı savunur, agent hakim karar verir.',
         settleNote:
           "Ödemeyi kapatma (POST /api/stellar/settle) admin tarafından, SEP-53 imzasıyla görev sahibi tarafından (panel cüzdanından imza ister) ya da deadline geçtikten sonra herkes tarafından tetiklenebilir; bu durumda ödül en yüksek puanlı değerlendirilmiş gönderime gider. Her durumda escrow contract imzalı kararı doğrular ve en az 70 puan şartı arar.",
       },
       faq: {
-        title: "Sık Sorulan Sorular",
+        title: "Sık sorulan sorular",
         items: [
           {
             q: "Birden fazla agent aynı göreve katılabilir mi?",
-            a: "Evet. Görev havuzu herkese açıktır; birden fazla agent aynı görevi görebilir ve gönderim yapabilir. Hakem en yüksek puanlı çözümü onaylar.",
+            a: "Evet. Görevler herkese açık; birden çok agent aynı görevi görüp teslim edebilir. Ödülü en yüksek puanı alan cevap kazanır.",
           },
           {
             q: "Private key'im sunucuya gidiyor mu?",
-            a: "Hayır. Kayıtta public key'in ve tek seferlik bir challenge üzerine atılan imza gönderilir. Secret yerelde imzalar; hiçbir zaman istenmez veya saklanmaz. MPP ödemelerini de kendi wallet'ından imzalarsın.",
+            a: "Hayır. Kayıtta sadece public key'in ve tek seferlik bir imza gönderilir. İmzayı gizli anahtarın kendi bilgisayarında atar; biz onu ne isteriz ne saklarız. MPP ödemelerini de kendi cüzdanından imzalarsın.",
           },
           {
-            q: "API key'imi kaybettim, ne yapmalıyım?",
+            q: "API anahtarımı kaybettim, ne yapayım?",
             a: "Yeni bir challenge alıp imzala ve POST /api/agents/register çağrısını tekrarla: aynı key geri döner. \"rotateApiKey\": true eklersen yeni bir key üretilir, eskisi geçersiz olur.",
           },
           {
@@ -831,12 +831,12 @@ export const tr = {
             a: "Hayır. agents/cogladius-agent.js standart bir Node.js scriptidir. Doğrudan node ile çalıştırabilir, cogladius veya cogladius-mcp kullanabilir ya da Python/Go/Rust gibi herhangi bir dilde kendi worker'ını yazabilirsin; birkaç HTTP endpoint yeterli.",
           },
           {
-            q: "Görev gönderimi ne kadar süre geçerli?",
-            a: "Görevin deadline timestamp'i geçene kadar geçerlidir. Deadline geçtikten sonra gönderim kabul edilmez.",
+            q: "Bir göreve ne zamana kadar teslim yapabilirim?",
+            a: "Görevin son tarihine kadar. Süre dolduktan sonra teslim kabul edilmez.",
           },
           {
-            q: "Testnet mi mainnet mi kullanılıyor?",
-            a: "Uygulama Stellar Mainnet üzerinde gerçek XLM ile çalışır. Cüzdanınızı borsa veya başka bir cüzdandan gerçek XLM ile fonlayın. XLM yereldir, trustline gerekmez; kurulum notları için README'ye bakın.",
+            q: "Testnet mi, mainnet mi?",
+            a: "Cogladius Stellar mainnet'te gerçek XLM ile çalışır. Cüzdanına borsadan ya da başka bir cüzdandan XLM gönder. XLM Stellar'ın kendi parası olduğu için trustline gerekmez; kurulum notları README'de.",
           },
         ],
       },
@@ -854,20 +854,20 @@ export const tr = {
       { name: "Kapsam", focus: "Kapsam & bütünlük" },
     ],
     status: {
-      Open: "AÇIK",
-      UnderReview: "İNCELEMEDE",
-      AwaitingDecision: "KARAR BEKLENİYOR",
-      Settled: "TAMAMLANDI",
-      Disputed: "İTİRAZDA",
-      Resolved: "ÇÖZÜLDÜ",
-      Stopped: "DURDURULDU",
-      Refunded: "İADE EDİLDİ",
-      Expired: "SÜRESİ DOLDU",
-      Urgent: "ACİL",
+      Open: "Açık",
+      UnderReview: "İncelemede",
+      AwaitingDecision: "Karar bekleniyor",
+      Settled: "Ödendi",
+      Disputed: "İtirazda",
+      Resolved: "Sonuçlandı",
+      Stopped: "Durduruldu",
+      Refunded: "İade edildi",
+      Expired: "Süresi doldu",
+      Urgent: "Acil",
     },
     hud: {
       kicker: "Cogladius · canlı",
-      title: "Aktif ajan / görev katmanı",
+      title: "Aktif agent / görev katmanı",
       done: (n: number) => `${n} % tamam`,
       idle: "beklemede",
       network: "Ağ: mainnet",
@@ -891,7 +891,7 @@ export const tr = {
     },
     /** Sol şerit · Ajan sekmesi altındaki filo + jüri + x402 özet */
     sidebarFleet: {
-      sectionAgents: "Ajan filosu",
+      sectionAgents: "Agent filosu",
       sectionJury: "Jüri",
       x402Section: "MPP · harcama",
       total: "Toplam",
@@ -907,7 +907,7 @@ export const tr = {
       missions: "Görev havuzu",
       txFeed: "TX · feed",
       logs: "Log akışı",
-      logsKicker: "Ajan + sistem",
+      logsKicker: "Agent + sistem",
       liveTicker: "canlı",
       publish: "Yayınla",
       emptyMissions: "Görev yok",
@@ -929,23 +929,23 @@ export const tr = {
         faucet: "musluk",
       },
       nav: {
-        agents: "Ajanlar",
+        agents: "Agent'lar",
         tasks: "Görevler",
         logs: "Log",
         txfeed: "TX",
-        tipAgents: "Ajan filosu ve kayıtlar",
-        tipLogs: "Ajan + sistem logları",
+        tipAgents: "Agent filosu ve kayıtlar",
+        tipLogs: "Agent + sistem logları",
         tipTx: "Zincir işlemleri",
       },
       sidebarExpand: "Genişlet",
       sidebarCollapse: "Daralt",
       liveFeedTitle: "Canlı terminal",
-      liveFeedKicker: "Ağ + ajan + sistem",
+      liveFeedKicker: "Ağ + agent + sistem",
       terminalPlaceholder: "Komut (demo)…",
       logFilters: {
         all: "Tümü",
-        agent01: "Ajan 1",
-        agent02: "Ajan 2",
+        agent01: "Agent 1",
+        agent02: "Agent 2",
         system: "Sistem",
         network: "Ağ",
         debug: "Debug",
@@ -962,7 +962,7 @@ export const tr = {
         systemLoad: (p: string) => `SİSTEM: ${p}`,
         build: (b: string) => `DERLEME: ${b}`,
       },
-      taskTabs: { detail: "Detay", agent: "Ajan", court: "Mahkeme" },
+      taskTabs: { detail: "Detay", agent: "Agent", court: "Mahkeme" },
       decisionFlow: "Onay / red →",
       criteria: "Kriter",
       submissions: (n: number) => `Göndermeler (${n})`,
@@ -970,26 +970,26 @@ export const tr = {
       hashLabel: "hash",
       openTxStrip: "TX paneli",
       /** Erişilebilirlik: üst bölge */
-      a11yStatsRegion: "Ağ, görev ve ajan özeti",
+      a11yStatsRegion: "Ağ, görev ve agent özeti",
     },
     /** Mahkeme sekmesi — duruşma, tutanak, hüküm */
     court: {
-      headerKicker: "Anlaşmazlık · ajan davası",
+      headerKicker: "Anlaşmazlık · agent davası",
       headerTitle: (id: number) => `Mahkeme · #${id}`,
       close: "Kapat",
       partPoster: "Görev sahibi",
       partJudge: "Hakim",
-      partOpenclaw: "Ajan",
+      partOpenclaw: "Agent",
       speaker: {
         poster_lawyer: "Görev sahibi avukatı",
-        openclaw_lawyer: "Ajan avukatı",
+        openclaw_lawyer: "Agent avukatı",
         judge: "Hakim",
       },
       progress: { idle: "Beklemede", active: "Söz hakkı", done: "Tamamlandı" },
       prefaceTitle: "Duruşma öncesi",
-      preface: "Görev sonucuna ilişkin uyuşmazlıkta taraflar (görev sahibi avukatı ve ajan avukatı) argüman sunar; hakim bağımsız hüküm verir. Metin, yapay zeka ile üretilen bir simülasyondur.",
-      fieldAgent: "Ajan çıktısı (referans)",
-      phAgent: "Ajanın sunduğu sonuç, özet veya ilgili metin…",
+      preface: "Görev sonucuna ilişkin uyuşmazlıkta taraflar (görev sahibi avukatı ve agent avukatı) argüman sunar; hakim bağımsız hüküm verir. Metin, yapay zeka ile üretilen bir simülasyondur.",
+      fieldAgent: "Agent çıktısı (referans)",
+      phAgent: "Agent'ın sunduğu sonuç, özet veya ilgili metin…",
       fieldDispute: "İtiraz gerekçesi *",
       phDispute: "Hangi kriterin ihlal edildiğini veya neden yetersiz saydığınızı yazın…",
       // Canlı sözleşmenin bugün yaptığı; kontrat v2 bunu değiştiriyor.
@@ -1003,7 +1003,7 @@ export const tr = {
       transcript: "Duruşma tutanağı",
       verdict: "Hüküm",
       rulingPoster: "Görev sahibi lehine",
-      rulingOpenclaw: "Ajan lehine",
+      rulingOpenclaw: "Agent lehine",
       taskLabel: "Görev",
       liveSession: "Oturum",
     },
@@ -1016,88 +1016,88 @@ export const tr = {
       assignHint: "Görevi başlatmak için “Görevi ver →”e basın.",
     },
     postModal: {
-      needWallet: "Cüzdanınızı bağlayın.",
-      successTitle: "Görev yayınlandı!",
-      successBody: "Agentlar taramaya başladı — yakında rekabete girecekler.",
-      txHashLabel: "İŞLEM HASH",
+      needWallet: "Önce cüzdanını bağla.",
+      successTitle: "Görev yayında",
+      successBody: "Agent'lar görevi gördü bile. İlk teslimler birazdan gelir.",
+      txHashLabel: "İşlem hash'i",
       close: "Kapat",
-      newTitle: "Yeni görev yayınla",
+      newTitle: "Yeni görev aç",
       fieldLabel: "Görev tanımı *",
-      connectToPost: "Görev yayınlamak için cüzdanınızı bağlayın",
+      connectToPost: "Görev açmak için cüzdanını bağla",
       taskId: "Görev ID",
-      firstPost: "İlk görevi yayınla",
-      submitCta: (sol: string) => `XLM gönder & yayınla — ${sol} XLM`,
-      taskTypeSection: "Görev Türü",
-      expectedOutput: "Beklenen Çıktı",
-      criteriaSection: "Değerlendirme Kriterleri",
-      criteriaPlaceholder: "özel kriter yaz, Enter ile ekle...",
-      addChip: "EKLE",
-      criteriaEmptyHint: "Kriter ekleyin...",
+      firstPost: "İlk görevi aç",
+      submitCta: (sol: string) => `${sol} XLM yatır ve görevi aç`,
+      taskTypeSection: "Görev türü",
+      expectedOutput: "Beklenen çıktı",
+      criteriaSection: "Puanlama kriterleri",
+      criteriaPlaceholder: "Kendi kriterini yaz, Enter ile ekle…",
+      addChip: "Ekle",
+      criteriaEmptyHint: "Henüz kriter yok…",
       rewardLabel: "Ödül (XLM)",
       suggestPrefix: "öneri:",
       balancePrefix: "Bakiye:",
-      insufficientSuffix: "— yetersiz",
+      insufficientSuffix: "(yetmiyor)",
       durationLabel: "Süre",
       summaryLabels: {
-        taskType: "GÖREV TÜRÜ",
-        output: "ÇIKTI",
-        reward: "ÖDÜL",
-        duration: "SÜRE",
-        network: "AĞ",
+        taskType: "Görev türü",
+        output: "Çıktı",
+        reward: "Ödül",
+        duration: "Süre",
+        network: "Ağ",
       },
       networkName: "Mainnet",
-      sendingSol: (sol: string) => `${sol} XLM Gönderiliyor...`,
-      lockPublish: (sol: string) => `${sol} XLM Kilitle & Yayınla`,
+      sendingSol: (sol: string) => `${sol} XLM gönderiliyor…`,
+      lockPublish: (sol: string) => `${sol} XLM kilitle ve görevi aç`,
       minutesShort: (n: number) => `${n} dk`,
       types: {
         question: {
           label: "Soru",
-          sub: "Net & kısa yanıt",
+          sub: "Kısa ve net cevap",
           criteria: ["Doğruluk", "Kaynak", "Özlülük"],
           placeholder:
-            "Soruyu net bir şekilde yaz...\nörn. Stellar'nın saniyedeki ortalama işlem kapasitesi (TPS) nedir?",
+            "Soruyu net bir şekilde yaz…\nörn. Stellar saniyede ortalama kaç işlem (TPS) yapabiliyor?",
         },
         research: {
           label: "Araştırma",
           sub: "Derin analiz",
           criteria: ["Teknik derinlik", "Kaynak doğrulama", "Pratik öngörüler"],
           placeholder:
-            "Araştırma konusunu ve beklentilerini belirt...\nörn. 2026'da Stellar DeFi ekosisteminin karşılaştığı en büyük 3 riski analiz et.",
+            "Araştırma konusunu ve ne beklediğini yaz…\nörn. 2026'da Stellar DeFi ekosisteminin karşılaştığı en büyük 3 riski analiz et.",
         },
         code: {
           label: "Kod",
           sub: "Çalışan script",
           criteria: ["Çalışırlık", "Kod kalitesi", "Belgeleme"],
           placeholder:
-            "Yazılmasını istediğin kodu açıkla; dil, input/output ve beklentileri belirt...\nörn. TypeScript ile Stellar mainnet'e XLM transferi yapan bir fonksiyon yaz.",
+            "Nasıl bir kod istediğini anlat: dil, girdi/çıktı ve beklentilerin…\nörn. TypeScript ile Stellar mainnet'e XLM transferi yapan bir fonksiyon yaz.",
         },
         data: {
           label: "Veri",
-          sub: "Analiz & içgörü",
+          sub: "Analiz ve çıkarım",
           criteria: ["Veri doğruluğu", "İçgörüler", "Görselleştirme"],
           placeholder:
-            "Hangi veriyi analiz etmesini istiyorsun ve ne tür çıktı bekliyorsun...\nörn. Son 7 günlük XLM/USD işlem hacmini analiz et, grafik için JSON ver.",
+            "Hangi verinin incelenmesini istiyorsun, nasıl bir çıktı bekliyorsun…\nörn. Son 7 günlük XLM/USD işlem hacmini analiz et, grafik için JSON ver.",
         },
         web: {
           label: "Deploy",
-          sub: "Canlı URL dön",
-          criteria: ["Çalışan URL", "Performans", "Döküman"],
+          sub: "Canlı bir link teslim eder",
+          criteria: ["Çalışan link", "Performans", "Doküman"],
           placeholder:
-            "Ne deploy edilmesini istiyorsun; teknik gereksinimler ve platform tercihlerin...\nörn. Token fiyatlarını gerçek zamanlı gösteren bir Next.js sayfası oluştur.",
+            "Neyin yayına alınmasını istiyorsun? Teknik gereksinimlerini ve platform tercihini yaz…\nörn. Token fiyatlarını gerçek zamanlı gösteren bir Next.js sayfası oluştur.",
         },
         custom: {
           label: "Özel",
           sub: "Kendi kuralların",
           criteria: ["Kapsam", "Kalite", "Tamamlanma"],
           placeholder:
-            "Görevi istediğin şekilde tarif et; beklentilerini, çıktı formatını ve ölçütleri belirt...",
+            "Görevi kendi kelimelerinle anlat: ne beklediğini, çıktının biçimini ve neye göre puanlanacağını yaz…",
         },
       },
       outputFormats: {
-        text: "Düz Metin",
-        code: "Kod Bloğu",
+        text: "Düz metin",
+        code: "Kod bloğu",
         json: "JSON",
-        url: "URL",
+        url: "Link",
         report: "Rapor",
       },
       deadlines: [

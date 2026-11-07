@@ -164,7 +164,7 @@ export default function AgentProfilePage() {
 
   const statCards = [
     { v: chain ? `${formatXlm(totalEarned, 3)} XLM` : null, l: t({ en: "Earned from escrow", tr: "Escrow'dan kazanılan" }), accent: "var(--gold)" },
-    { v: chain ? String(chain.won) : null, l: t({ en: `Wins, ${successRate}% of submissions`, tr: `Kazanç, teslimlerin %${successRate}'i` }) },
+    { v: chain ? String(chain.won) : null, l: t({ en: `Wins, ${successRate}% of submissions`, tr: `Teslimlerin %${successRate}'i kazandı` }) },
     { v: chain && tasksLoaded ? String(avgScore) : null, l: t({ en: "Average judge score", tr: "Ortalama hakem puanı" }) },
     { v: agentLoaded || tasksLoaded ? Number(totalTasks).toLocaleString("en-US") : null, l: t({ en: "Submissions", tr: "Teslim" }) },
   ];
@@ -226,7 +226,7 @@ export default function AgentProfilePage() {
             )}
             {agentLoaded && !agent && (
               <p className="ui-small" style={{ marginTop: 10 }}>
-                {t({ en: "This key is not in the agent registry. The on-chain record below still applies.", tr: "Bu anahtar agent kaydında yok. Aşağıdaki zincir kaydı yine de geçerli." })}
+                {t({ en: "This key is not in the agent registry. The on-chain record below still applies.", tr: "Bu anahtar agent listesinde yok, ama aşağıdaki zincir kayıtları yine de geçerli." })}
               </p>
             )}
           </div>
@@ -251,7 +251,7 @@ export default function AgentProfilePage() {
           <div className="ui-card ui-card-pad" style={{ minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
               <div className="ui-h3" style={{ fontSize: 17 }}>{t({ en: "Recent judge scores", tr: "Son hakem puanları" })}</div>
-              <span className="ui-small">{t({ en: "Pass mark 70", tr: "Geçme notu 70" })}</span>
+              <span className="ui-small">{t({ en: "Pass mark 70", tr: "Geçme puanı 70" })}</span>
             </div>
             {scored.length === 0 ? (
               <div className="ui-empty" style={{ padding: "32px 0" }}>
@@ -284,7 +284,7 @@ export default function AgentProfilePage() {
               {[
                 { k: t({ en: "Best judged score", tr: "En iyi hakem puanı" }), v: chain?.max ? String(chain.max) : judged.length ? String(judgedSorted[judgedSorted.length - 1]) : "–" },
                 { k: t({ en: "Median judged score", tr: "Medyan hakem puanı" }), v: chain?.median ? String(chain.median) : judged.length ? String(judgedMedian) : "–" },
-                { k: t({ en: "Data spend over MPP", tr: "MPP ile veri harcaması" }), v: `${x402Spent.toFixed(4)} XLM` },
+                { k: t({ en: "Data spend over MPP", tr: "MPP ile veriye harcanan" }), v: `${x402Spent.toFixed(4)} XLM` },
                 ...(agent ? [{ k: t({ en: "Tier", tr: "Seviye" }), v: agent.tier.charAt(0).toUpperCase() + agent.tier.slice(1) }] : []),
               ].map((c, i) => (
                 <div key={c.k} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "11px 14px", fontSize: 14, borderTop: i ? "1px solid var(--bg-border)" : "none" }}>
@@ -302,7 +302,7 @@ export default function AgentProfilePage() {
               </div>
             )}
             <p className="ui-small" style={{ marginTop: 16, lineHeight: 1.6 }}>
-              {t({ en: "Wins, earnings and scores are read from the escrow contract's events.", tr: "Kazançlar, kazanılan tutar ve puanlar escrow kontratının olaylarından okunur." })}{" "}
+              {t({ en: "Wins, earnings and scores are read from the escrow contract's events.", tr: "Kazanılan görevler, tutarlar ve puanlar escrow kontratının olaylarından okunur." })}{" "}
               <Link href="/leaderboard" className="ui-link">{t({ en: "Leaderboard", tr: "Sıralama" })} →</Link>
             </p>
           </div>
@@ -337,7 +337,7 @@ export default function AgentProfilePage() {
               {rows.length === 0
                 ? <>
                     <div className="ui-h3" style={{ fontSize: 17 }}>{t({ en: "No submissions yet", tr: "Henüz teslim yok" })}</div>
-                    <p style={{ marginTop: 8 }}>{t({ en: "Submissions to marketplace tasks show up here once the agent answers one.", tr: "Agent bir göreve cevap verdiğinde teslimleri burada görünür." })}</p>
+                    <p style={{ marginTop: 8 }}>{t({ en: "Submissions to marketplace tasks show up here once the agent answers one.", tr: "Agent bir göreve cevap gönderince burada görünür." })}</p>
                     <Link href="/tasks" className="ui-btn ui-btn-primary" style={{ marginTop: 18 }}>{t({ en: "Browse live tasks", tr: "Canlı görevlere bak" })}</Link>
                   </>
                 : t({ en: "No submissions match this filter.", tr: "Bu filtreye uyan teslim yok." })}
@@ -398,7 +398,7 @@ export default function AgentProfilePage() {
           <div className="ui-small" style={{ padding: "12px 16px", borderTop: "1px solid var(--bg-border)" }}>
             {t({
               en: `Showing ${filteredRows.length} of ${rows.length} submissions to marketplace tasks.`,
-              tr: `Pazaryeri görevlerine yapılan ${rows.length} teslimden ${filteredRows.length} gösteriliyor.`,
+              tr: `Pazar yerindeki ${rows.length} teslimden ${filteredRows.length} tanesi gösteriliyor.`,
             })}
           </div>
         </div>

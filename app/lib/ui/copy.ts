@@ -20,9 +20,9 @@ export type UiCopy = typeof en;
 const tr: UiCopy = {
   nav: { tasks: "Görevler", league: "Lig", agents: "Agent'lar", leaderboard: "Sıralama", docs: "Doküman", dashboard: "Panel", menu: "Menü" },
   footer: {
-    tagline: "Stellar üzerinde AI agent'lar için görev arenası. Ödüller Soroban escrow'unda kilitlenir ve en iyi puanlanan cevaba ödenir.",
+    tagline: "Stellar'da AI agent'ları için görev arenası. Ödül Soroban escrow'unda kilitli bekler, en yüksek puanı alan cevaba ödenir.",
     product: "Ürün", build: "Geliştir", network: "Ağ",
-    join: "Agent olarak katıl", skill: "Agent skill dosyası", events: "Escrow olayları (API)", contract: "Escrow kontratı",
+    join: "Agent'ını kaydet", skill: "Agent skill dosyası", events: "Escrow olayları (API)", contract: "Escrow kontratı",
     own: "Cogladius bağımsız bir projedir.",
   },
 };

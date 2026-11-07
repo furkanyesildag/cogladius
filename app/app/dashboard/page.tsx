@@ -404,7 +404,7 @@ export default function Dashboard() {
           <div className="ui-small">{t({ en: `${openCount} live, ${tasks.length} total`, tr: `${openCount} canlı, toplam ${tasks.length}` })}</div>
         </div>
         {connected && (
-          <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={openPost}>+ {t({ en: "Post", tr: "Yayınla" })}</button>
+          <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={openPost}>+ {t({ en: "Post", tr: "Görev aç" })}</button>
         )}
       </header>
       <div className={s.colBody}>
@@ -474,7 +474,7 @@ export default function Dashboard() {
             <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 20, padding: "0 8px", fontSize: 11 }}>{t({ en: "Live", tr: "Canlı" })}</span>
             {t({ en: "Activity", tr: "Akış" })}
           </div>
-          <div className="ui-small">{t({ en: "Submissions, judge scores and escrow events", tr: "Teslimler, hakem puanları ve escrow olayları" })}</div>
+          <div className="ui-small">{t({ en: "Submissions, judge scores and escrow events", tr: "Teslimler, hakem puanları ve escrow hareketleri" })}</div>
         </div>
         <div className="ui-tabs" role="tablist">
           {([["all", t({ en: "All", tr: "Tümü" })], ["net", t({ en: "Agents", tr: "Agent'lar" })], ["sys", t({ en: "System", tr: "Sistem" })]] as [LogFilterKey, string][]).map(([k, label]) => (
@@ -488,7 +488,7 @@ export default function Dashboard() {
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className="ui-small" style={{ marginBottom: 8 }}>{t({ en: "Agents in live tasks", tr: "Canlı görevlerdeki agent'lar" })}</div>
           {activeAgents.length === 0 ? (
-            <div className="ui-small">{t({ en: "No agent is working on a live task right now.", tr: "Şu an canlı bir görevde çalışan agent yok." })}</div>
+            <div className="ui-small">{t({ en: "No agent is working on a live task right now.", tr: "Şu an canlı görevlerde çalışan agent yok." })}</div>
           ) : (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {activeAgents.slice(0, 10).map((a, i) => (
@@ -521,7 +521,7 @@ export default function Dashboard() {
 
       <div className={s.colBody} style={{ padding: 0 }}>
         {shownActivity.length === 0 ? (
-          <div className="ui-empty">{activity.length === 0 ? t({ en: "Waiting for the first submission or escrow event.", tr: "İlk teslim ya da escrow olayı bekleniyor." }) : dash.logFilterEmpty}</div>
+          <div className="ui-empty">{activity.length === 0 ? t({ en: "Waiting for the first submission or escrow event.", tr: "Henüz teslim ya da escrow hareketi yok." }) : dash.logFilterEmpty}</div>
         ) : shownActivity.map((e, i) => (
           <div key={e.id || i} className={s.feedRow}>
             <span suppressHydrationWarning className="ui-mono ui-muted" style={{ fontSize: 12, flexShrink: 0, minWidth: 64 }}>
@@ -595,7 +595,7 @@ export default function Dashboard() {
               </div>
               <div className="ui-table-wrap">
                 <table className="ui-table">
-                  <thead><tr><th>{t({ en: "Agent", tr: "Agent" })}</th><th>{t({ en: "Time", tr: "Süre" })}</th><th>{t({ en: "Result hash", tr: "Sonuç hash" })}</th></tr></thead>
+                  <thead><tr><th>{t({ en: "Agent", tr: "Agent" })}</th><th>{t({ en: "Time", tr: "Süre" })}</th><th>{t({ en: "Result hash", tr: "Cevap hash'i" })}</th></tr></thead>
                   <tbody>
                     {selectedTask.submissions.map((sub, i) => (
                       <tr key={i}>
@@ -660,7 +660,7 @@ export default function Dashboard() {
       <header className={s.colHead}>
         <div>
           <div className="ui-h3" style={{ fontSize: 16 }}>{t({ en: "Escrow transactions", tr: "Escrow işlemleri" })}</div>
-          <div className="ui-small">{t({ en: "Read from the contract's own events", tr: "Kontratın kendi olaylarından" })}</div>
+          <div className="ui-small">{t({ en: "Read from the contract's own events", tr: "Doğrudan kontratın olaylarından" })}</div>
         </div>
       </header>
       <div className={s.colBody} style={{ padding: 0 }}>
@@ -694,7 +694,7 @@ export default function Dashboard() {
           <div>
             <h1 className="ui-page-title" style={{ fontSize: "clamp(26px, 3vw, 34px)" }}>{t({ en: "Dashboard", tr: "Panel" })}</h1>
             <p className="ui-small" style={{ marginTop: 6, fontSize: 14 }}>
-              {t({ en: "The live task pool, judging and escrow activity on Stellar mainnet.", tr: "Stellar mainnet'teki canlı görev havuzu, puanlama ve escrow hareketleri." })}
+              {t({ en: "The live task pool, judging and escrow activity on Stellar mainnet.", tr: "Stellar mainnet'teki canlı görevler, puanlar ve escrow hareketleri tek ekranda." })}
             </p>
           </div>
           <div className={s.headActions}>
@@ -722,9 +722,9 @@ export default function Dashboard() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="13" rx="3" /><path d="M16 12.5h2M3 10h18" /></svg>
               </span>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 15 }}>{t({ en: "Connect a wallet to post a task", tr: "Görev yayınlamak için bir cüzdan bağla" })}</div>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 15 }}>{t({ en: "Connect a wallet to post a task", tr: "Görev açmak için cüzdanını bağla" })}</div>
                 <div className="ui-small" style={{ marginTop: 2 }}>
-                  {t({ en: "Everything below is public. Posting locks your XLM reward in the Soroban escrow and needs a Stellar wallet such as Freighter.", tr: "Aşağıdaki her şey herkese açık. Görev yayınlamak XLM ödülünü Soroban escrow'una kilitler ve Freighter gibi bir Stellar cüzdanı gerektirir." })}
+                  {t({ en: "Everything below is public. Posting locks your XLM reward in the Soroban escrow and needs a Stellar wallet such as Freighter.", tr: "Buradaki her şey herkese açık. Görev açmak için Freighter gibi bir Stellar cüzdanı gerekir; açtığın görevin XLM ödülü Soroban escrow'una kilitlenir." })}
                 </div>
               </div>
             </div>
