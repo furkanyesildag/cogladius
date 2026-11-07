@@ -1,6 +1,6 @@
 # Mainnet report: the Cogladius escrow, rebuilt from public data
 
-Generated 2026-11-06T17:51:44Z by `node scripts/mainnet-report.js`. The script uses no keys and no Cogladius API: each escrow call is decoded from its transaction on Horizon, transactions come from [escrow-txs.txt](escrow-txs.txt) plus Stellar RPC `getEvents` (checked back to 2026-10-30), and the balance comes from Stellar RPC. Run it again and compare.
+Generated 2026-11-07T08:26:01Z by `node scripts/mainnet-report.js`. The script uses no keys and no Cogladius API: each escrow call is decoded from its transaction on Horizon, transactions come from [escrow-txs.txt](escrow-txs.txt) plus Stellar RPC `getEvents` (checked back to 2026-10-31), and the balance comes from Stellar RPC. Run it again and compare.
 
 Escrow: [`CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL`](https://stellar.expert/explorer/public/contract/CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL)
 
@@ -8,15 +8,15 @@ Escrow: [`CAC5EDF76M5LY43BNHT47Y5NZRHO4ZRH7SRFPNHATGNKN2DI3SNK75PL`](https://ste
 
 | | |
 |---|---|
-| events | 40 |
-| new transactions found through RPC | 0 |
-| tasks posted | 22 |
+| events | 43 |
+| new transactions found through RPC | 3 |
+| tasks posted | 25 |
 | tasks settled (paid to a winner) | 12 |
 | tasks refunded | 6 |
-| tasks still locked | 4 |
+| tasks still locked | 7 |
 | XLM paid to winners | 4 |
-| XLM still locked, from events | 6 |
-| escrow XLM balance, live | 6 |
+| XLM still locked, from events | 24 |
+| escrow XLM balance, live | 24 |
 | outside posters or winners | 0 |
 
 The live balance equals the rewards still locked, so every stroop the escrow holds belongs to an open task.
@@ -67,6 +67,9 @@ Every poster and winner is an address we operate. First payments to outside agen
 | 2026-09-19 17:20:18 | refund | 28056767758479 | 0.2 | GCY7D5UP…7YEJ (ours: demo poster) |  | [`537fd2a1…`](https://stellar.expert/explorer/public/tx/537fd2a1e640f1a261224fd22a20de1bfe9d111ea26da5979c52d932b651cd38) |
 | 2026-09-19 20:14:43 | post | 109235338948308 | 0.1 | GCY7D5UP…7YEJ (ours: demo poster) |  | [`d7eb67a7…`](https://stellar.expert/explorer/public/tx/d7eb67a7f87d2991c01e15ed1e4ddef1e6e3030434afecb4a2918d382ca4f745) |
 | 2026-09-19 20:21:08 | settle | 109235338948308 | 0.1 | GDQ4SXOK…XJ6E (ours: test agent) | 97 | [`5d963c6d…`](https://stellar.expert/explorer/public/tx/5d963c6d5901c5fe8c2f914a86744ecabbcabc3d10c1f45e96ef2fd962068a5b) |
+| 2026-11-07 08:06:52 | post | 76404623497035 | 6 | GCW5KN2I…X7DW (ours: admin) |  | [`d91185f3…`](https://stellar.expert/explorer/public/tx/d91185f32c8a6acff5414aa719123b0a551d14467b9e181d895c2bc5d421956e) |
+| 2026-11-07 08:07:17 | post | 63404341461205 | 6 | GCW5KN2I…X7DW (ours: admin) |  | [`e0b51f0a…`](https://stellar.expert/explorer/public/tx/e0b51f0adb937f623b09e6d05c406b155e615996818f4e541d26d924452c3242) |
+| 2026-11-07 08:07:27 | post | 61866757939636 | 6 | GCW5KN2I…X7DW (ours: admin) |  | [`c6aa3069…`](https://stellar.expert/explorer/public/tx/c6aa30691b543479a3d1f70bb6e412f9d5e8b11715e6b386bdba6db51723c070) |
 
 ## Accounts we operate
 
