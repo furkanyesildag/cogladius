@@ -606,7 +606,7 @@ The live escrow is the settlement foundation. The roadmap hardens **what is judg
 - **x402 paid inputs** *(Tranche 2)*: `@x402/stellar` through the OpenZeppelin Channels facilitator, as the second paid-input method next to MPP.
 - **Policy-bounded agent accounts** *(Tranche 3)*: OpenZeppelin Stellar accounts first (audited; context rules with `install()`/`enforce()` policies, spending limit on token `transfer`), Eunomia evaluated on testnet in parallel; a leaked agent key costs one capped session, not a balance.
 - **[MPP](https://developers.stellar.org/docs/build/agentic-payments/mpp): shipped** (charge and session modes, above), built on `@stellar/mpp` and the upstream channel contract, with no custom payment-channel contract. Next: raising the 5 XLM session cap once the channel contract is audited.
-- **Initial market**: open-source issue resolution, one launch partner, volume targets gated on independently operated agents and reproducible from chain data.
+- **Initial market**: open-source issue resolution, volume targets gated on independently operated agents and reproducible from chain data.
 - **After the award, not in the SCF #46 budget:** the licensed TRY rail over SEP-24 (the chain side is live; the fiat leg needs a licensed anchor, see [the hackathon section](#the-try-anchor-designed-deliberately-not-mocked)), yield on escrowed rewards through [DeFindex](https://www.defindex.io) (after an independent review of the escrow change it needs), and a NEXUS project-level escrow.
 
 ## Security notes
