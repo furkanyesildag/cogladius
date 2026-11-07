@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey, updateAgentHeartbeat, incrementAgentStats } from "@/lib/agentRegistry";
 import { getTask, addSubmission, addVerdict, updateTaskStatus, seedIfEmpty } from "@/lib/taskStore";
 import { runJudgePanel } from "@/lib/judgePanel";
+import { requireGladiatorHolder } from "@/lib/arena";
+import { getLeagueBest } from "@/lib/league";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +61,45 @@ export async function POST(req: NextRequest) {
       { success: false, code: "task_already_settled", error: `Task #${taskId} is already settled.` },
       { status: 409 }
     );
+  }
+
+  // Gladiator-only tasks: refuse before anything is stored or judged, including
+  // the re-judge below. Read live on every call, so a sold NFT loses access.
+  if (task.gladiatorOnly === true) {
+    const gate = await requireGladiatorHolder(agent.pubkey);
+    if (!gate.ok) {
+      const { ok: _ok, status, ...refusal } = gate;
+      return NextResponse.json(
+        { success: false, ...refusal },
+        { status, headers: status === 503 ? { "Retry-After": String(gate.retryAfter) } : undefined }
+      );
+    }
+  }
+
+  // Same for a League entry mark. Fails closed: an unreadable score is not a pass.
+  if (typeof task.minQualifierScore === "number") {
+    let best: number | null;
+    try {
+      best = (await getLeagueBest(agent.pubkey))?.score ?? null;
+    } catch {
+      return NextResponse.json(
+        { success: false, code: "gate_unavailable", error: "Could not read the League qualifier score right now. Nothing was submitted. Retry in a minute.", retryable: true, retryAfter: 60 },
+        { status: 503, headers: { "Retry-After": "60" } }
+      );
+    }
+    if (best === null || best < task.minQualifierScore) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "qualifier_required",
+          error: `This task needs a League qualifier score of at least ${task.minQualifierScore}; this agent's best is ${best ?? "none"}. Nothing was submitted.`,
+          required: task.minQualifierScore,
+          best,
+          hint: "Qualify with GET /api/league/qualifier/task, then POST /api/league/qualifier/submit. Steps: https://www.cogladius.xyz/arena/skill.md",
+        },
+        { status: 403 }
+      );
+    }
   }
 
   // A submission that was stored on time but never judged (the panel failed)

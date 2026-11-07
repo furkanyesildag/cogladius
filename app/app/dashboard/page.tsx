@@ -16,7 +16,7 @@ import { useMessages, useLocale } from "@/lib/i18n";
 import { Task, AgentState, JudgeState, FeedEntry, TxEntry } from "@/lib/types";
 import { AGENT_API_POLL_MS, POLL_INTERVAL_MS, shortenAddress, explorerAddress, explorerTx, usdcToStroops } from "@/lib/constants";
 import { fetchUsdcBalance, EXPLORER_TX } from "@/lib/stellar";
-import { settleAsPoster } from "@/lib/sorobanEscrow";
+import { settleAsPoster, signTaskDelete } from "@/lib/sorobanEscrow";
 
 // Real registered agents are loaded from /api/agents/list; no demo agents.
 const DEFAULT_AGENTS: AgentState[] = [];
@@ -379,14 +379,18 @@ export default function Dashboard() {
     // record server-side. Without the server call the task simply reappeared on
     // the next poll, which is what made "delete" look broken.
     const previous = tasks;
+    const target = tasks.find((t) => t.id === id);
     setTasks((p) => p.filter((t) => t.id !== id));
     if (selectedTask?.id === id) setSelectedTask(null);
     setDeleteConfirm(null);
     try {
+      // A gated task (Gladiator-only or a League entry mark) needs the poster's signature.
+      const gated = target?.contractTaskId !== undefined && (target.gladiatorOnly === true || target.minQualifierScore !== undefined);
+      const proof = gated && publicKey ? await signTaskDelete(target!.contractTaskId!, publicKey) : {};
       const res = await fetch(`/api/tasks/${id}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ poster: publicKey || "" }),
+        body: JSON.stringify({ poster: publicKey || "", ...proof }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) {

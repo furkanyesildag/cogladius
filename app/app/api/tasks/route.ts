@@ -3,6 +3,8 @@ import { getAllTasks, createTask, seedIfEmpty } from "@/lib/taskStore";
 import { getOnchainTask } from "@/lib/sorobanServer";
 import { ESCROW_CONTRACT_ID } from "@/lib/constants";
 import { withDisplayStatus } from "@/lib/escrowOutcomes";
+import { verifySep53 } from "@/lib/sep53";
+import { isMinQualifierScore, taskRecordMessage } from "@/lib/actionMessages";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
@@ -31,7 +33,10 @@ export async function GET(request: NextRequest) {
       : { ...t, submissions: (t.submissions || []).map((s) => ({ ...s, resultUrl: "" })) }
   );
 
-  return NextResponse.json({ tasks: redacted });
+  return NextResponse.json(
+    { tasks: redacted },
+    { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" } }
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -39,7 +44,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       poster, description, criteria, reward, rewardUsdc, deadlineMinutes,
-      taskType, outputFormat, contractTaskId, escrowContractId, postTxHash,
+      taskType, outputFormat, contractTaskId, escrowContractId, postTxHash, gladiatorOnly,
+      minQualifierScore, posterSignature,
     } = body;
 
     if (!description || !criteria || !poster) {
@@ -47,6 +53,13 @@ export async function POST(request: NextRequest) {
         { success: false, error: "poster, description ve criteria zorunludur" },
         { status: 400 }
       );
+    }
+
+    if (gladiatorOnly !== undefined && typeof gladiatorOnly !== "boolean") {
+      return NextResponse.json({ success: false, error: "gladiatorOnly must be a boolean" }, { status: 400 });
+    }
+    if (minQualifierScore !== undefined && !isMinQualifierScore(minQualifierScore)) {
+      return NextResponse.json({ success: false, error: "minQualifierScore must be an integer from 1 to 100" }, { status: 400 });
     }
 
     // A record that claims an escrowed reward must match the escrow exactly.
@@ -58,6 +71,35 @@ export async function POST(request: NextRequest) {
     if (escrowId !== undefined) {
       if (!Number.isSafeInteger(escrowId) || escrowId < 0) {
         return NextResponse.json({ success: false, error: "contractTaskId must be a u64" }, { status: 400 });
+      }
+      // The poster is readable on chain, so matching it proves nothing. Only the
+      // poster's key can publish what this funded task says and who may enter it.
+      if (typeof description !== "string" || typeof criteria !== "string") {
+        return NextResponse.json({ success: false, error: "description and criteria must be strings" }, { status: 400 });
+      }
+      if (typeof posterSignature !== "string" || !posterSignature) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: "poster_signature_required",
+            error: "An escrowed task's record needs posterSignature: a SEP-53 signature by the poster over the task record message. POST /api/league/final/prepare returns the message.",
+          },
+          { status: 401 }
+        );
+      }
+      const signed = taskRecordMessage({
+        contractTaskId: escrowId,
+        poster,
+        description,
+        criteria,
+        gladiatorOnly: gladiatorOnly === true,
+        minQualifierScore,
+      });
+      if (!verifySep53(poster, signed, posterSignature)) {
+        return NextResponse.json(
+          { success: false, code: "poster_signature_invalid", error: "posterSignature does not match this poster and this exact task record." },
+          { status: 403 }
+        );
       }
       const onchain = await getOnchainTask(escrowId);
       if (!onchain) {
@@ -83,6 +125,21 @@ export async function POST(request: NextRequest) {
       onchainDeadline = onchain.deadline;
     }
 
+    // Only the branch above checks the poster against the escrow, so only an
+    // escrowed task can carry an entry gate.
+    if (gladiatorOnly === true && escrowId === undefined) {
+      return NextResponse.json(
+        { success: false, error: "gladiatorOnly requires an escrowed task (contractTaskId)" },
+        { status: 400 }
+      );
+    }
+    if (minQualifierScore !== undefined && escrowId === undefined) {
+      return NextResponse.json(
+        { success: false, error: "minQualifierScore requires an escrowed task (contractTaskId)" },
+        { status: 400 }
+      );
+    }
+
     const task = await createTask({
       poster,
       description,
@@ -96,6 +153,8 @@ export async function POST(request: NextRequest) {
       contractTaskId: escrowId,
       escrowContractId: escrowId !== undefined ? ESCROW_CONTRACT_ID : undefined,
       postTxHash: typeof postTxHash === "string" ? postTxHash : undefined,
+      gladiatorOnly: gladiatorOnly === true,
+      minQualifierScore,
     });
 
     return NextResponse.json({ success: true, task });

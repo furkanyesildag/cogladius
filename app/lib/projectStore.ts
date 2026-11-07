@@ -39,20 +39,17 @@ function localSave(store: Record<number, Project>) {
 
 // ── Redis helpers ─────────────────────────────────────────────────────────────
 
+// A failed read must throw: treating it as empty would let the next save wipe the store.
 async function redisLoad(): Promise<Record<number, Project> | null> {
   const r = getRedis();
   if (!r) return null;
-  try {
-    return (await r.get<Record<number, Project>>(REDIS_KEY)) ?? {};
-  } catch {
-    return null;
-  }
+  return (await r.get<Record<number, Project>>(REDIS_KEY)) ?? {};
 }
 
 async function redisSave(store: Record<number, Project>) {
   const r = getRedis();
   if (!r) return;
-  try { await r.set(REDIS_KEY, store); } catch { /* ignore */ }
+  await r.set(REDIS_KEY, store);
 }
 
 async function loadStore(): Promise<Record<number, Project>> {
@@ -113,6 +110,22 @@ export async function getAllProjects(): Promise<Project[]> {
 export async function getProjectsByPoster(poster: string): Promise<Project[]> {
   const all = await getAllProjects();
   return all.filter((p) => p.poster === poster);
+}
+
+/**
+ * Remove a project record.
+ *
+ * This deletes the orchestration record only. Sub-tasks already posted to the
+ * task pool keep their own lifecycle, and any reward already escrowed on-chain
+ * is unaffected and still recovered through `refund`.
+ */
+export async function deleteProject(id: number): Promise<Project | null> {
+  const store = await loadStore();
+  const project = store[id];
+  if (!project) return null;
+  delete store[id];
+  await saveStore(store);
+  return project;
 }
 
 export async function updateProject(

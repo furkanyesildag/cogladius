@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from "next/server";
-import { getAllApprovedAgents } from "@/lib/agentRegistry";
+import { getAgent, getApprovedAgentsPage } from "@/lib/agentRegistry";
 import { reputationReport } from "@/lib/reputation";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +12,16 @@ export const dynamic = "force-dynamic";
 // identical bodies, which Next 14 would otherwise cache.
 export const fetchCache = "force-no-store";
 
-export async function GET() {
-  const agents = await getAllApprovedAgents();
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit")) || 200, 1), 200);
+  const pubkey = url.searchParams.get("pubkey");
+  const one = pubkey ? await getAgent(pubkey) : null;
+  const page = pubkey
+    ? { agents: one && !one.isBanned && one.approvalStatus === "approved" ? [one] : [], total: one ? 1 : 0, nextCursor: null }
+    : await getApprovedAgentsPage(limit, url.searchParams.get("cursor") || "0");
 
-  const safe = agents.map(({ apiKey: _ak, ...rest }) => rest);
+  const safe = page.agents.map(({ apiKey: _ak, ...rest }) => rest);
   // Wins, earnings and scores come from the escrow's settle events, the same
   // source as /leaderboard, so no page can show a different count than the
   // chain. Attempts and MPP spend stay off-chain. If the event index is down,
@@ -54,10 +60,15 @@ export async function GET() {
     };
   });
 
-  return NextResponse.json({
-    success: true,
-    count: enriched.length,
-    agents: enriched,
-    serverTime: new Date().toISOString(),
-  });
+  return NextResponse.json(
+    {
+      success: true,
+      count: page.total,
+      limit,
+      nextCursor: page.nextCursor,
+      agents: enriched,
+      serverTime: new Date().toISOString(),
+    },
+    { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
+  );
 }

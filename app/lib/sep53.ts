@@ -21,7 +21,7 @@ export function sep53Hash(message: string | Buffer): Buffer {
 }
 
 /** Decode a signature sent as base64 (Freighter v4, SDK) or hex. */
-function decodeSignature(sig: string): Buffer | null {
+export function decodeSignature(sig: string): Buffer | null {
   const s = sig.trim();
   if (/^[0-9a-fA-F]{128}$/.test(s)) return Buffer.from(s, "hex");
   try {

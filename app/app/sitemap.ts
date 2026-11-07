@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getSiteBaseUrl } from "@/lib/siteUrl";
 import { getAllTasks } from "@/lib/taskStore";
-import { getAllApprovedAgents } from "@/lib/agentRegistry";
+import { getApprovedAgentsPage } from "@/lib/agentRegistry";
 
 /** Static marketing & product surfaces (no admin, no API). */
 const STATIC_PATHS: { path: string; changeFrequency: MetadataRoute.Sitemap[0]["changeFrequency"]; priority: number }[] = [
@@ -51,7 +51,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let agentEntries: MetadataRoute.Sitemap = [];
   try {
-    const agents = await getAllApprovedAgents();
+    const { agents } = await getApprovedAgentsPage(200);
     agentEntries = agents.slice(0, 5_000).map((a) => ({
       url: `${base}/agent/${a.pubkey}`,
       lastModified: a.lastSeen ? new Date(a.lastSeen) : now,

@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import ConnectWallet from "@/components/ConnectWallet";
 import { TaskType, OutputFormat } from "@/lib/types";
 import { ESCROW_CONTRACT_ID, IS_MAINNET } from "@/lib/constants";
-import { postTaskOnChain, postTaskSponsored, relayerInfo } from "@/lib/sorobanEscrow";
+import { postTaskOnChain, postTaskSponsored, relayerInfo, signTaskRecord } from "@/lib/sorobanEscrow";
+import { isMinQualifierScore } from "@/lib/actionMessages";
 import { fetchXlmBalance, EXPLORER_TX } from "@/lib/stellar";
 import { useMessages, useLocale } from "@/lib/i18n";
 import type { AppMessages } from "@/lib/i18n";
@@ -86,6 +87,10 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
   const [sponsorAvailable, setSponsorAvailable] = useState(false);
   const [sponsored, setSponsored] = useState(false);
   const [relayFee, setRelayFee] = useState<string | null>(null);
+  const [gladiatorOnly, setGladiatorOnly] = useState(false);
+  const [minScoreInput, setMinScoreInput] = useState("");
+  // Set once the reward is locked. A failed record save then retries without locking again.
+  const [lockedRecord, setLockedRecord] = useState<{ hash: string; body: Record<string, unknown>; criteria: string; description: string } | null>(null);
   useEffect(() => {
     relayerInfo().then((r) => {
       setSponsorAvailable(!!r);
@@ -139,35 +144,49 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
     setLoading(true);
     setError(null);
     try {
-      const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
-      // 1) Lock the XLM reward in the Soroban escrow contract (real on-chain).
-      // Sponsored: the poster signs only the authorization entry and the relayer
-      // pays the network fee. Otherwise the poster signs and pays as before.
-      // Some wallets (xBull, Albedo, Lobstr, Rabet) can't sign auth entries;
-      // for them fall back to the poster-paid path instead of failing.
-      const postArgs = { posterAddress: conn.address, taskId, rewardUsdc, deadline };
-      const { hash } = sponsored
-        ? await postTaskSponsored(postArgs)
-            .then((r) => {
-              setRelayFee(r.feePaidByRelayer);
-              return r;
-            })
-            .catch((err) => {
-              if (/does not support/i.test(String(err?.message))) return postTaskOnChain(postArgs);
-              throw err;
-            })
-        : await postTaskOnChain(postArgs);
-
-      // 2) Persist the task server-side so agents/judges/UI can see it.
-      let serverId = taskId;
-      try {
-        const res = await fetch("/api/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+      let locked = lockedRecord;
+      if (!locked) {
+        const criteria = criteriaChips.join(", ");
+        const minQualifierScore = minScoreInput.trim() === "" ? undefined : Number(minScoreInput);
+        if (minQualifierScore !== undefined && !isMinQualifierScore(minQualifierScore)) {
+          throw new Error("Minimum qualifier score must be a whole number from 1 to 100.");
+        }
+        // 1) Sign the record first: a declined signature then locks nothing, and
+        // the server refuses an escrowed record without it.
+        const posterSignature = await signTaskRecord({
+          contractTaskId: taskId,
+          poster: conn.address,
+          description,
+          criteria,
+          gladiatorOnly,
+          minQualifierScore,
+        });
+        const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
+        // 2) Lock the XLM reward in the Soroban escrow contract (real on-chain).
+        // Sponsored: the poster signs only the authorization entry and the relayer
+        // pays the network fee. Otherwise the poster signs and pays as before.
+        // Some wallets (xBull, Albedo, Lobstr, Rabet) can't sign auth entries;
+        // for them fall back to the poster-paid path instead of failing.
+        const postArgs = { posterAddress: conn.address, taskId, rewardUsdc, deadline };
+        const { hash } = sponsored
+          ? await postTaskSponsored(postArgs)
+              .then((r) => {
+                setRelayFee(r.feePaidByRelayer);
+                return r;
+              })
+              .catch((err) => {
+                if (/does not support/i.test(String(err?.message))) return postTaskOnChain(postArgs);
+                throw err;
+              })
+          : await postTaskOnChain(postArgs);
+        locked = {
+          hash,
+          description,
+          criteria,
+          body: {
             poster: conn.address,
             description,
-            criteria: criteriaChips.join(", "),
+            criteria,
             rewardUsdc,
             deadlineMinutes: deadlineMin,
             taskType,
@@ -175,14 +194,33 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
             contractTaskId: taskId,
             escrowContractId: ESCROW_CONTRACT_ID,
             postTxHash: hash,
-          }),
-        });
-        const data = await res.json();
-        if (data?.success && data.task?.id) serverId = data.task.id;
-      } catch { /* persisted best-effort */ }
+            gladiatorOnly,
+            minQualifierScore,
+            posterSignature,
+          },
+        };
+        setLockedRecord(locked);
+      }
+
+      // 3) Persist the task server-side so agents/judges/UI can see it. A funded
+      // task without a record is invisible to agents, so a failure here must show.
+      const { hash } = locked;
+      let serverId = taskId;
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(locked.body),
+      }).catch(() => null);
+      const data = await res?.json().catch(() => null);
+      if (!data?.success) {
+        throw new Error(
+          `The reward is locked (tx ${hash.slice(0, 10)}…) but the task record was not saved: ${data?.error || "network error"}. Press the button again to retry; it will not lock the reward twice, and edits to the form are ignored.`
+        );
+      }
+      if (data.task?.id) serverId = data.task.id;
 
       setTxHash(hash);
-      onTaskPosted(hash, serverId, description, criteriaChips.join(", "), rewardUsdc, deadlineMin, taskType, outputFormat, {
+      onTaskPosted(hash, serverId, locked.description, locked.criteria, rewardUsdc, deadlineMin, taskType, outputFormat, {
         contractTaskId: taskId,
         escrowContractId: ESCROW_CONTRACT_ID,
       });
@@ -494,6 +532,20 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
             ))}
           </div>
 
+          {/* League final: who may enter. Signed with the record, so nobody else can change it. */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)" }}>
+              <input type="checkbox" checked={gladiatorOnly} onChange={(e) => setGladiatorOnly(e.target.checked)} />
+              {locale === "tr" ? "Yalnızca Gladiator sahipleri (doğrulanmış cüzdan)" : "Gladiator holders only (verified wallet)"}
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)" }}>
+              {locale === "tr" ? "En düşük lig eleme puanı (isteğe bağlı, 1-100)" : "Minimum League qualifier score (optional, 1-100)"}
+              <input type="text" inputMode="numeric" value={minScoreInput} placeholder="–"
+                onChange={(e) => { if (/^\d{0,3}$/.test(e.target.value)) setMinScoreInput(e.target.value); }}
+                style={{ width: 64, fontFamily: "var(--font)", fontSize: 12 }} />
+            </label>
+          </div>
+
           {/* Fee sponsorship */}
           {sponsorAvailable && (
             <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)" }}>
@@ -544,7 +596,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               ) : (
                 <>
                   <span className="material-symbols-outlined" style={{ fontSize: 15 }}>rocket_launch</span>
-                  {`Lock ${rewardUsdc.toFixed(4)} XLM & Publish`}
+                  {lockedRecord ? "Retry saving the task record" : `Lock ${rewardUsdc.toFixed(4)} XLM & Publish`}
                 </>
               )}
             </button>
