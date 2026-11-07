@@ -135,9 +135,10 @@ function makeBuilders(parse: (v: any) => any, parseHashResult: (flat: string[]) 
       return {
         text: `WITH s AS (DELETE FROM kv_strings WHERE key = ANY($1::text[]) RETURNING key, expires_at),
           h AS (DELETE FROM kv_hashes WHERE key = ANY($1::text[]) RETURNING key),
-          m AS (DELETE FROM kv_sets WHERE key = ANY($1::text[]) RETURNING key)
+          m AS (DELETE FROM kv_sets WHERE key = ANY($1::text[]) RETURNING key),
+          z AS (DELETE FROM kv_zsets WHERE key = ANY($1::text[]) RETURNING key)
           SELECT count(*)::int FROM (
-            SELECT key FROM s WHERE ${LIVE} UNION SELECT key FROM h UNION SELECT key FROM m
+            SELECT key FROM s WHERE ${LIVE} UNION SELECT key FROM h UNION SELECT key FROM m UNION SELECT key FROM z
           ) deleted`,
         params: [keys.map(name)],
         map: (rows) => Number(rows[0][0]),
@@ -240,6 +241,80 @@ function makeBuilders(parse: (v: any) => any, parseHashResult: (flat: string[]) 
       params: [name(key)],
       map: (rows) => parse(rows.map((r) => r[0])),
     }),
+
+    mget: (...keys: string[]): Op => {
+      const flat = (keys.length === 1 && Array.isArray(keys[0]) ? keys[0] : keys) as string[];
+      if (flat.length === 0) throw new Error("ERR wrong number of arguments for 'mget' command");
+      return {
+        text: `SELECT s.value FROM unnest($1::text[]) WITH ORDINALITY AS k(key, i)
+          LEFT JOIN kv_strings s ON s.key = k.key AND ${LIVE.replace(/expires_at/g, "s.expires_at")}
+          ORDER BY k.i`,
+        params: [flat.map(name)],
+        map: (rows) => rows.map((r) => (r[0] === null ? null : parse(r[0]))),
+      };
+    },
+
+    // ── Sorted sets. Ties order by member bytewise, as in Redis. ────────────────
+
+    /** zadd(key, member) or zadd(key, { gt | lt | nx | xx }, member...). Returns the number of new members. */
+    zadd: (key: string, ...args: any[]): Op => {
+      const opts = args.length && args[0] && !("member" in args[0]) ? (args.shift() as Record<string, boolean>) : {};
+      const unknownOpt = Object.keys(opts).find((o) => !["gt", "lt", "nx", "xx"].includes(o));
+      if (unknownOpt) throw new Error(`pgRedis: ZADD option ${unknownOpt} is not implemented`);
+      const members = args as { score: number; member: unknown }[];
+      if (members.length === 0) throw new Error("ERR wrong number of arguments for 'zadd' command");
+      const cond = opts.nx ? "false" : opts.gt ? "EXCLUDED.score > kv_zsets.score" : opts.lt ? "EXCLUDED.score < kv_zsets.score" : "true";
+      const insert = opts.xx
+        ? `UPDATE kv_zsets z SET score = t.s FROM unnest($2::text[], $3::double precision[]) AS t(m, s)
+             WHERE z.key = $1 AND z.member = t.m AND ${opts.gt ? "t.s > z.score" : opts.lt ? "t.s < z.score" : "true"} RETURNING false AS inserted`
+        : `INSERT INTO kv_zsets (key, member, score) SELECT $1, m, s FROM unnest($2::text[], $3::double precision[]) AS t(m, s)
+             ON CONFLICT (key, member) DO UPDATE SET score = EXCLUDED.score WHERE ${cond}
+             RETURNING (xmax = 0) AS inserted`;
+      return {
+        text: `WITH up AS (${insert}) SELECT count(*) FILTER (WHERE inserted)::int FROM up`,
+        params: [name(key), members.map((m) => name(serialize(m.member))), members.map((m) => Number(m.score))],
+        map: (rows) => Number(rows[0][0]),
+      };
+    },
+
+    zscore: (key: string, member: unknown): Op => ({
+      text: "SELECT score FROM kv_zsets WHERE key = $1 AND member = $2",
+      params: [name(key), name(serialize(member))],
+      map: (rows) => (rows.length ? Number(rows[0][0]) : null),
+    }),
+
+    zcard: (key: string): Op => ({
+      text: "SELECT count(*)::int FROM kv_zsets WHERE key = $1",
+      params: [name(key)],
+      map: (rows) => Number(rows[0][0]),
+    }),
+
+    /** 0-based position from the highest score, or null when absent. */
+    zrevrank: (key: string, member: unknown): Op => ({
+      text: `SELECT (SELECT count(*)::int FROM kv_zsets o WHERE o.key = z.key AND (o.score > z.score OR (o.score = z.score AND o.member > z.member)))
+        FROM kv_zsets z WHERE z.key = $1 AND z.member = $2`,
+      params: [name(key), name(serialize(member))],
+      map: (rows) => (rows.length ? Number(rows[0][0]) : null),
+    }),
+
+    /** By index only (no BYSCORE/BYLEX). withScores returns [member, score, member, score, ...]. */
+    zrange: (key: string, start: number, stop: number, opts?: { rev?: boolean; withScores?: boolean }): Op => {
+      const unknownOpt = Object.keys(opts ?? {}).find((o) => !["rev", "withScores"].includes(o));
+      if (unknownOpt) throw new Error(`pgRedis: ZRANGE option ${unknownOpt} is not implemented`);
+      const dir = opts?.rev ? "DESC" : "ASC";
+      return {
+        text: `WITH o AS (
+            SELECT member, score, row_number() OVER (ORDER BY score ${dir}, member ${dir}) - 1 AS i, count(*) OVER () AS n
+            FROM kv_zsets WHERE key = $1
+          ) SELECT member, score FROM o
+          WHERE i >= CASE WHEN $2::int < 0 THEN n + $2::int ELSE $2::int END
+            AND i <= CASE WHEN $3::int < 0 THEN n + $3::int ELSE $3::int END
+          ORDER BY i`,
+        params: [name(key), start, stop],
+        map: (rows) =>
+          opts?.withScores ? rows.flatMap((r) => [parse(r[0]), Number(r[1])]) : rows.map((r) => parse(r[0])),
+      };
+    },
 
     /**
      * Compare-and-set on the exact stored string, the Postgres form of the Lua

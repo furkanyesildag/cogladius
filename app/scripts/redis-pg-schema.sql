@@ -20,3 +20,11 @@ CREATE TABLE IF NOT EXISTS kv_sets (
   member text COLLATE "C" NOT NULL,
   PRIMARY KEY (key, member)
 );
+
+CREATE TABLE IF NOT EXISTS kv_zsets (
+  key    text COLLATE "C" NOT NULL,
+  member text COLLATE "C" NOT NULL,
+  score  double precision NOT NULL,
+  PRIMARY KEY (key, member)
+);
+CREATE INDEX IF NOT EXISTS kv_zsets_key_score ON kv_zsets (key, score DESC, member DESC);
