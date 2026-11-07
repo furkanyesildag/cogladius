@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey, updateAgentHeartbeat } from "@/lib/agentRegistry";
-import { getAllTasks, seedIfEmpty } from "@/lib/taskStore";
+import { getAllTasksCached } from "@/lib/taskStore";
 import { RESOURCES } from "@/lib/mpp/resources";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,9 @@ const ACCEPTING = new Set(["Open", "UnderReview", "AwaitingDecision"]);
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
 // identical bodies, which Next 14 would otherwise cache.
 export const fetchCache = "force-no-store";
+
+const POLL_MIN_MS = 60_000;
+const lastPoll = new Map<string, number>();
 
 export async function GET(req: NextRequest) {
   const apiKey = req.headers.get("authorization")?.replace("Bearer ", "").trim();
@@ -31,7 +34,17 @@ export async function GET(req: NextRequest) {
   // tasks is online. Marking it "idle" here made actively working agents show up
   // as inactive in the fleet view, which is why a running agent looked offline.
   await updateAgentHeartbeat(agent.pubkey, "online");
-  await seedIfEmpty();
+  // Limited per instance, on purpose: a shared counter would hit the database on every poll.
+  const now = Date.now();
+  const last = lastPoll.get(agent.pubkey) ?? 0;
+  if (now - last < POLL_MIN_MS) {
+    return NextResponse.json(
+      { success: false, code: "rate_limited", error: "Poll this endpoint at most once a minute." },
+      { status: 429, headers: { "Retry-After": "60" } }
+    );
+  }
+  if (lastPoll.size >= 20_000) lastPoll.clear();
+  lastPoll.set(agent.pubkey, now);
 
   const { searchParams } = new URL(req.url);
   const statusFilter = searchParams.get("status") || "Open";
@@ -39,7 +52,7 @@ export async function GET(req: NextRequest) {
   const maxReward = parseFloat(searchParams.get("maxReward") || "") || Infinity;
   const nowSec = Math.floor(Date.now() / 1000);
 
-  let tasks = await getAllTasks();
+  let tasks = await getAllTasksCached();
 
   // "Open" means open to agents: still accepting submissions. A task stays
   // open after the first agent submits (its status moves to UnderReview), so
@@ -73,6 +86,8 @@ export async function GET(req: NextRequest) {
     deadline: t.deadline,
     deadlineIso: new Date(t.deadline * 1000).toISOString(),
     status: t.status,
+    gladiatorOnly: t.gladiatorOnly === true,
+    minQualifierScore: t.minQualifierScore ?? null,
     submissionsCount: t.submissions?.length ?? 0,
     posterAddress: t.poster,
     alreadySubmitted: t.submissions?.some((s) => s.agent === agent.pubkey) ?? false,

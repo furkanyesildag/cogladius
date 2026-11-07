@@ -191,30 +191,31 @@ function keywordAnalyze(description: string, totalBudget: number): OrchestratorB
 
 async function llmAnalyze(description: string, totalBudget: number): Promise<OrchestratorBreakdown[] | null> {
   try {
-    const prompt = `Sen kıdemli bir teknik proje mimarısın. Aşağıdaki projeyi analiz et ve her uzmanlık alanının tahmini iş yükü payını belirle.
+    const prompt = `You are a senior technical project architect. Analyse the project below and estimate the share of the workload each specialty carries.
 
-Proje: "${description}"
-Toplam Bütçe: ${totalBudget} XLM
+Project: "${description}"
+Total budget: ${totalBudget} XLM
 
-Kullanılabilir uzmanlık alanları (YALNIZCA bu değerleri kullan): ${SPECIALTIES_LIST}
+Available specialties (use ONLY these values): ${SPECIALTIES_LIST}
 
-SADECE geçerli JSON döndür; markdown veya kod çiti yok.
+Return ONLY valid JSON. No markdown, no code fences.
 
 Format:
-{"breakdown":[{"specialty":"<alan>","workloadPct":35,"reasoning":"<kısa Türkçe gerekçe>"}]}
+{"breakdown":[{"specialty":"<value>","workloadPct":35,"reasoning":"<short reasoning>"}]}
 
-Kurallar:
-- workloadPct değerleri toplamı TAM OLARAK 100 olmalı (tam sayılar)
-- Yalnızca proje için gerçekten gerekli alanları dahil et (2-5 arası)
-- Her specialty değeri listeden biri olmalı
-- Gerekçe kısa ama bilgilendirici olsun (neden bu pay?)`;
+Rules:
+- workloadPct values must sum to EXACTLY 100 (integers)
+- include only the specialties the project genuinely needs (2 to 5)
+- every specialty must be one of the listed values
+- keep each reasoning short but informative (why this share?)
+- write the reasoning in the same language as the project description above`;
 
     const res = await openaiChatCompletion({
       model: getOpenAiChatModel("nexus"),
       messages: [
         {
           role: "system",
-          content: "Sen bir proje analiz motorusun. Yanıtın yalnızca tek bir JSON objesi olmalı; başka metin yazma.",
+          content: "You are a project analysis engine. Respond with a single JSON object and nothing else.",
         },
         { role: "user", content: prompt },
       ],

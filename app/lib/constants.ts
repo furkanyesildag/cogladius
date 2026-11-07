@@ -51,8 +51,8 @@ export const AGENT_NAMES: Record<string, string> = {
   "8TKy9R4MnVtTBrFHzAGiKChbXr7jPj3k3NKedxNtLLpL": "Vega",
 };
 
-export const POLL_INTERVAL_MS = 500;
-export const AGENT_API_POLL_MS = 1000;
+export const POLL_INTERVAL_MS = 15000;
+export const AGENT_API_POLL_MS = 15000;
 
 // Stellar assets carry 7 decimal places (stroops at the protocol level).
 export const USDC_DECIMALS = 7;

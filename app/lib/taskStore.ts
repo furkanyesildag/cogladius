@@ -40,23 +40,18 @@ function localSave(tasks: Record<number, Task>) {
 
 // ── Redis helpers ─────────────────────────────────────────────────────────────
 
+// A failed read must throw: treating it as empty would let the next save wipe the store.
 async function redisLoad(): Promise<Record<number, Task> | null> {
   const r = getRedis();
   if (!r) return null;
-  try {
-    const data = await r.get<Record<number, Task>>(REDIS_KEY);
-    return data ?? {};
-  } catch {
-    return null;
-  }
+  const data = await r.get<Record<number, Task>>(REDIS_KEY);
+  return data ?? {};
 }
 
 async function redisSave(tasks: Record<number, Task>) {
   const r = getRedis();
   if (!r) return;
-  try {
-    await r.set(REDIS_KEY, tasks);
-  } catch { /* ignore */ }
+  await r.set(REDIS_KEY, tasks);
 }
 
 // ── Unified load/save ─────────────────────────────────────────────────────────
@@ -99,6 +94,17 @@ function nextId(tasks: Record<number, Task>): number {
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
+let listCache: { at: number; tasks: Task[] } | null = null;
+const LIST_CACHE_MS = 5 * 60 * 1000;
+
+/** The task list for agents polling at scale. May be a few minutes old; never use it before a write. */
+export async function getAllTasksCached(): Promise<Task[]> {
+  if (listCache && Date.now() - listCache.at < LIST_CACHE_MS) return listCache.tasks;
+  const tasks = await getAllTasks();
+  listCache = { at: Date.now(), tasks };
+  return tasks;
+}
+
 export async function getAllTasks(): Promise<Task[]> {
   const tasks = await loadTasks();
   return Object.values(tasks).sort((a, b) => b.id - a.id);
@@ -123,6 +129,8 @@ export async function createTask(data: {
   postTxHash?: string;
   /** Absolute deadline (unix seconds); overrides deadlineMinutes when set. */
   deadline?: number;
+  gladiatorOnly?: boolean;
+  minQualifierScore?: number;
 }): Promise<Task> {
   return mutateTasks(async (tasks) => {
     const id = nextId(tasks);
@@ -144,6 +152,8 @@ export async function createTask(data: {
       contractTaskId: data.contractTaskId,
       escrowContractId: data.escrowContractId,
       postTxHash: data.postTxHash,
+      ...(data.gladiatorOnly ? { gladiatorOnly: true } : {}),
+      ...(data.minQualifierScore !== undefined ? { minQualifierScore: data.minQualifierScore } : {}),
     };
     tasks[id] = task;
     return task;

@@ -74,22 +74,17 @@ function localSave(store: Record<string, AgentApplication>) {
 
 // ── Redis helpers ─────────────────────────────────────────────────────────────
 
+// A failed read must throw: treating it as empty would let the next save wipe the store.
 async function redisLoad(): Promise<Record<string, AgentApplication> | null> {
   const r = getRedis();
   if (!r) return null;
-  try {
-    return (await r.get<Record<string, AgentApplication>>(REDIS_KEY)) ?? {};
-  } catch {
-    return null;
-  }
+  return (await r.get<Record<string, AgentApplication>>(REDIS_KEY)) ?? {};
 }
 
 async function redisSave(store: Record<string, AgentApplication>) {
   const r = getRedis();
   if (!r) return;
-  try {
-    await r.set(REDIS_KEY, store);
-  } catch { /* ignore */ }
+  await r.set(REDIS_KEY, store);
 }
 
 async function load(): Promise<Record<string, AgentApplication>> {

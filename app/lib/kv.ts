@@ -79,3 +79,45 @@ export async function kvIncrBy(key: string, amount: number, windowSeconds: numbe
   mem.set(key, { value: String(cur), expiresAt: live ? prev!.expiresAt : Date.now() + windowSeconds * 1000 });
   return cur;
 }
+
+/** Read a value without consuming it. Upstash may hand back parsed JSON; normalize to a string. */
+export async function kvGet(key: string): Promise<string | null> {
+  const r = getRedis();
+  if (r) {
+    const v = await r.get<unknown>(key);
+    if (v == null) return null;
+    return typeof v === "string" ? v : JSON.stringify(v);
+  }
+  return memGet(key);
+}
+
+/** Seconds until `key` expires, or null when it does not exist / has no TTL. */
+export async function kvTtl(key: string): Promise<number | null> {
+  const r = getRedis();
+  if (r) {
+    const t = await r.ttl(key);
+    return t > 0 ? t : null;
+  }
+  const hit = mem.get(key);
+  if (!hit || hit.expiresAt < Date.now()) return null;
+  return Math.ceil((hit.expiresAt - Date.now()) / 1000);
+}
+
+/**
+ * Apply deletes, then permanent (no TTL) writes, as one atomic step. Without
+ * Redis it runs synchronously on the in-process map, which is equally atomic.
+ */
+export async function kvCommit(ops: { del?: string[]; set?: Record<string, string> }): Promise<void> {
+  const del = ops.del ?? [];
+  const set = Object.entries(ops.set ?? {});
+  const r = getRedis();
+  if (r) {
+    const tx = r.multi();
+    for (const key of del) tx.del(key);
+    for (const [key, value] of set) tx.set(key, value);
+    await tx.exec();
+    return;
+  }
+  for (const key of del) mem.delete(key);
+  for (const [key, value] of set) mem.set(key, { value, expiresAt: Infinity });
+}

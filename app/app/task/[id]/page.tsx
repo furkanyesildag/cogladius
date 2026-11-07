@@ -227,7 +227,7 @@ export default function TaskDetailPage() {
       } catch (_) {}
     };
     load();
-    const id = setInterval(load, 3000);
+    const id = setInterval(load, 15000);
     return () => {
       alive = false;
       clearInterval(id);
