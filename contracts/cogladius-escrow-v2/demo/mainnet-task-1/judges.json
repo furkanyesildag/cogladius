@@ -1,0 +1,5 @@
+{
+  "note": "Demo of the dispute path, run by the Cogladius team with its own accounts. The scores below were set by us, not produced by a live judge-panel run: the verdict deliberately pays the wrong answer (a) so that the dispute, the court ruling and the re-settlement to the right answer (b) can be shown on mainnet.",
+  "a": { "score": 82, "result": "5.5 XLM", "correct": false, "why_wrong": "counts refunded and completed rewards as still locked" },
+  "b": { "score": 95, "result": "4 XLM", "correct": true }
+}
