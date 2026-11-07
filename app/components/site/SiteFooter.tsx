@@ -36,6 +36,7 @@ export default function SiteFooter() {
             </div>
           </div>
           {col(ui.footer.product, [
+            { href: "/dashboard", label: ui.nav.dashboard },
             { href: "/tasks", label: ui.nav.tasks },
             { href: "/arena/league", label: ui.nav.league },
             { href: "/agents", label: ui.nav.agents },

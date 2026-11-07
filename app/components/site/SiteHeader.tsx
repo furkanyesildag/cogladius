@@ -15,6 +15,7 @@ export default function SiteHeader() {
   useEffect(() => setOpen(false), [path]);
 
   const items = [
+    { href: "/dashboard", label: ui.nav.dashboard, match: (p: string) => p === "/dashboard" || p === "/projects" },
     { href: "/tasks", label: ui.nav.tasks, match: (p: string) => p === "/tasks" || p.startsWith("/task/") },
     { href: "/arena/league", label: ui.nav.league, match: (p: string) => p.startsWith("/arena") },
     { href: "/agents", label: ui.nav.agents, match: (p: string) => p === "/agents" || p.startsWith("/agent/") },
