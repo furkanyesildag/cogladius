@@ -26,7 +26,7 @@ inv() {  # inv <source> <function and args...>; prints the tx link
   local out
   out=$(stellar contract invoke --id "$ID" --source-account "$src" --network "$NET" -- "$@" 2>&1)
   local tx
-  tx=$(printf '%s\n' "$out" | grep -o -E '[0-9a-f]{64}' | tail -1 || true)
+  tx=$(printf "%s\n" "$out" | grep -E "Signing transaction:" | grep -o -E "[0-9a-f]{64}" | tail -1 || true)
   printf '%-18s https://stellar.expert/explorer/public/tx/%s\n' "$1" "$tx"
 }
 

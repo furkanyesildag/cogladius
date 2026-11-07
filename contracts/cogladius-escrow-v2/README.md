@@ -67,4 +67,4 @@ cargo test              # 38 tests
 stellar contract build  # target/wasm32v1-none/release/cogladius_escrow_v2.wasm
 ```
 
-Status: written and tested; not yet reviewed by the second engineer, not audited, not deployed.
+Status: written and tested (40 tests); deployed on mainnet at `CCHO7KKPURU4JTP3OI7USJOQKLZ2AO2ARPPQSLU7K4QUXNHDSRDHTH7Y` with the full dispute loop run on it, see [MAINNET_DEMO.md](MAINNET_DEMO.md); not yet reviewed by the second engineer, not audited.
