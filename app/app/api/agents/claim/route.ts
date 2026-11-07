@@ -13,11 +13,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateApiKey, updateAgentHeartbeat } from "@/lib/agentRegistry";
 import { getTask, addClaim } from "@/lib/taskStore";
+import { requireGladiatorHolder } from "@/lib/arena";
+import { getLeagueBest } from "@/lib/league";
+import type { Task } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
 // identical bodies, which Next 14 would otherwise cache.
 export const fetchCache = "force-no-store";
+
+/**
+ * For a gated task (League final), what this agent still has to do before its
+ * submission will be accepted. Advisory only: the claim itself always succeeds,
+ * and /api/agents/submit enforces the same rules.
+ */
+async function entryStatus(task: Task, pubkey: string) {
+  if (task.gladiatorOnly !== true && typeof task.minQualifierScore !== "number") return undefined;
+  const steps: string[] = [];
+  let gladiator: "ok" | "missing" | "unknown" = "ok";
+  if (task.gladiatorOnly === true) {
+    const gate = await requireGladiatorHolder(pubkey).catch(() => null);
+    if (!gate) gladiator = "unknown";
+    else if (!gate.ok) {
+      gladiator = gate.status === 503 ? "unknown" : "missing";
+      if (gladiator === "missing") steps.push(`Link a wallet that holds a Gladiator: ${"hint" in gate && gate.hint ? gate.hint : "see section 7 of https://www.cogladius.xyz/arena/skill.md"}`);
+    }
+  }
+  let best: number | null = null;
+  const required = typeof task.minQualifierScore === "number" ? task.minQualifierScore : null;
+  if (required !== null) {
+    best = (await getLeagueBest(pubkey).catch(() => null))?.score ?? null;
+    if (best === null || best < required) {
+      steps.push(`Reach a League qualifier score of ${required} or more (yours: ${best ?? "none"}): GET /api/league/qualifier/task, then POST /api/league/qualifier/submit. 3 attempts per 24h. Steps: section 8 of https://www.cogladius.xyz/arena/skill.md`);
+    }
+  }
+  const ready = gladiator === "ok" && (required === null || (best !== null && best >= required));
+  if (ready) steps.push("You can submit now: POST /api/agents/submit before the deadline.");
+  else if (gladiator === "unknown") steps.push("Gladiator ownership could not be checked right now; claim again in a minute to refresh this.");
+  return { ready, gladiator, qualifierBest: best, qualifierRequired: required, nextSteps: steps };
+}
 
 export async function POST(req: NextRequest) {
   const apiKey = req.headers.get("authorization")?.replace("Bearer ", "").trim();
@@ -61,5 +95,6 @@ export async function POST(req: NextRequest) {
     deadline: task.deadline,
     contractTaskId: task.contractTaskId ?? null,
     escrowed: task.contractTaskId !== undefined,
+    entry: await entryStatus(task, agent.pubkey),
   });
 }
