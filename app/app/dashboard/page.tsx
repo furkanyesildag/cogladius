@@ -1,40 +1,31 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, type CSSProperties } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useWallet } from "@/lib/useWallet";
 import ConnectWallet from "@/components/ConnectWallet";
-import { useRouter } from "next/navigation";
-
+import PageShell from "@/components/site/PageShell";
 import PostTaskModal from "@/components/PostTaskModal";
 import JudgePanel from "@/components/JudgePanel";
 import CourtRoom from "@/components/CourtRoom";
 import AgentWorkPanel, { AgentPanelSavedState } from "@/components/AgentWorkPanel";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useMessages, useLocale } from "@/lib/i18n";
+import { useT } from "@/lib/ui/copy";
 
 import { Task, AgentState, JudgeState, FeedEntry, TxEntry } from "@/lib/types";
-import { AGENT_API_POLL_MS, POLL_INTERVAL_MS, shortenAddress, explorerAddress, explorerTx, usdcToStroops } from "@/lib/constants";
+import { AGENT_API_POLL_MS, POLL_INTERVAL_MS, shortenAddress, explorerTx, usdcToStroops } from "@/lib/constants";
 import { fetchUsdcBalance, EXPLORER_TX } from "@/lib/stellar";
 import { settleAsPoster, signTaskDelete } from "@/lib/sorobanEscrow";
 import { activityFromTasks, displayStatus, isAcceptingSubmissions, isEnded, sortForPool, txFromEscrowEvents } from "@/lib/dashboardData";
+import s from "./dashboard.module.css";
 
 // Real registered agents are loaded from /api/agents/list; no demo agents.
 const DEFAULT_AGENTS: AgentState[] = [];
-const AGENT_COLORS = ["#40e183", "#adc6ff", "#FFD166", "#FF8C42", "#B97DFF", "#7C9EFF"];
+const AGENT_COLORS = ["#3dd68c", "#8ab4ff", "#f5b83d", "#ff8a5c", "#b98cff", "#5fd4c8"];
 const DEFAULT_JUDGES: JudgeState = {
   TeknikHakem: "READY", KullanılabilirlikHakemi: "READY", KapsamHakemi: "READY",
 };
-
-function getTaskBadgeClass(status: string): string {
-  if (status === "Open")             return "badge badge-open";
-  if (status === "UnderReview")      return "badge badge-review";
-  if (status === "AwaitingDecision") return "badge badge-awaiting";
-  if (status === "Settled")          return "badge badge-settled";
-  if (status === "Disputed")         return "badge badge-disputed";
-  if (status === "Resolved")         return "badge badge-resolved";
-  return "badge badge-stopped";
-}
 
 /** Submitter with the best average judge score, or undefined if nobody was judged. */
 function bestJudgedSubmitter(task: Task): string | undefined {
@@ -48,280 +39,65 @@ function bestJudgedSubmitter(task: Task): string | undefined {
   return best?.agent;
 }
 
-function getTaskCardClass(status: string): string {
-  if (status === "Open")             return "task-card task-card-open";
-  if (status === "UnderReview")      return "task-card task-card-review";
-  if (status === "AwaitingDecision") return "task-card task-card-awaiting";
-  if (status === "Settled")          return "task-card task-card-settled";
-  if (status === "Disputed")         return "task-card task-card-disputed";
-  return "task-card task-card-stopped";
-}
-
-type LogFilterKey = "all" | "alpha" | "beta" | "sys" | "net" | "debug";
+type LogFilterKey = "all" | "net" | "sys";
 function logEntryMatchesFilter(entry: FeedEntry, f: LogFilterKey): boolean {
   if (f === "all") return true;
   const ic = (entry.icon || "").toLowerCase();
   const ag = (entry.agent || "").toLowerCase();
-  if (f === "alpha") return ic === "alpha" || ag.includes("alpha") || ag.includes("nova");
-  if (f === "beta") return ic === "beta" || ag.includes("beta") || ag.includes("vega");
   if (f === "sys") return ["tx", "sys", "judge"].includes(ic) || ag.includes("hakem") || ag === "judge" || ag === "tx";
-  if (f === "net") return ic === "net" || ag.includes("network");
-  if (f === "debug") return ic === "debug" || ag.includes("debug");
+  if (f === "net") return ic === "net" || ag.includes("network") || ic === "alpha" || ic === "beta";
   return true;
 }
 
+/** Badge class and label key for a task status in the new UI kit. */
+function statusBadge(status: string): string {
+  if (status === "Open") return "ui-badge ui-badge-live ui-badge-dot";
+  if (status === "UnderReview") return "ui-badge ui-badge-gold";
+  if (status === "AwaitingDecision") return "ui-badge ui-badge-blue";
+  if (status === "Settled" || status === "Resolved") return "ui-badge ui-badge-gold";
+  if (status === "Disputed") return "ui-badge ui-badge-red";
+  return "ui-badge";
+}
+
+const STATUS_LABEL: Record<string, { en: string; tr: string }> = {
+  Open: { en: "Live", tr: "Canlı" },
+  UnderReview: { en: "Under review", tr: "İnceleniyor" },
+  AwaitingDecision: { en: "Awaiting decision", tr: "Karar bekliyor" },
+  Settled: { en: "Paid", tr: "Ödendi" },
+  Disputed: { en: "In dispute", tr: "İtirazda" },
+  Resolved: { en: "Resolved", tr: "Çözüldü" },
+  Stopped: { en: "Stopped", tr: "Durduruldu" },
+  Refunded: { en: "Refunded", tr: "İade edildi" },
+  Expired: { en: "Ended", tr: "Bitti" },
+};
+
 function Countdown({ deadline }: { deadline: number }) {
-  const ended = useMessages().ui.time.ended;
+  const { locale } = useLocale();
+  const ended = locale === "tr" ? "Bitti" : "Ended";
   const [rem, setRem] = useState("");
   const [urgent, setUrgent] = useState(false);
   useEffect(() => {
     const tick = () => {
       const d = deadline - Math.floor(Date.now() / 1000);
-      if (d <= 0) { setRem(ended); return; }
-      setUrgent(d < 120);
-      const h = Math.floor(d / 3600); const m = Math.floor((d % 3600) / 60); const s = d % 60;
-      setRem(h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`);
+      if (d <= 0) { setRem(ended); setUrgent(false); return; }
+      setUrgent(d < 3600);
+      const days = Math.floor(d / 86400);
+      const h = Math.floor((d % 86400) / 3600); const m = Math.floor((d % 3600) / 60); const sec = d % 60;
+      setRem(days > 0 ? `${days}d ${h}h` : h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m ${String(sec).padStart(2, "0")}s`);
     };
     tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
   }, [deadline, ended]);
-  return (
-    <span style={{ fontFamily: "var(--font)", fontSize: 10, color: urgent ? "var(--yellow)" : "rgba(var(--text-rgb),0.4)", display: "flex", alignItems: "center", gap: 3 }}>
-      <span className="material-symbols-outlined" style={{ fontSize: 11 }}>schedule</span>
-      {rem}
-    </span>
-  );
+  return <span className="ui-mono ui-num" style={{ fontSize: 12, color: urgent ? "var(--yellow)" : "var(--text-muted)" }}>{rem}</span>;
 }
 
-/* ── HUD Map section ──────────────────────────────────────────────────────── */
-function HudMap({ agents, tasks, totalX402, agentTotal }: { agents: AgentState[]; tasks: import("@/lib/types").Task[]; totalX402: number; agentTotal: number }) {
-  const h = useMessages().ui.hud;
-  const [barPct, setBarPct] = useState<Record<string, number>>({});
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    setBarPct((p) => {
-      const o = { ...p };
-      for (const a of agents) { if (o[a.name] === undefined) o[a.name] = 15; }
-      for (const k of Object.keys(o)) { if (!agents.some((a) => a.name === k)) delete o[k]; }
-      return o;
-    });
-  }, [agents]);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setTick((t) => t + 1);
-      setBarPct((prev) => {
-        const out: Record<string, number> = { ...prev };
-        for (const a of agents) {
-          out[a.name] = a.status.startsWith("WORKING") ? 70 : 15;
-        }
-        return out;
-      });
-    }, 2000);
-    return () => clearInterval(id);
-  }, [agents]);
-
-  const workingCount = agents.filter((a) => a.status.startsWith("WORKING")).length;
-  const openTasks = tasks.filter(isAcceptingSubmissions).length;
-  // Agents that are competing right now come first, then the most experienced.
-  const activeKeys = new Set(tasks.filter(isAcceptingSubmissions).flatMap((t) => [...(t.submissions ?? []).map((s) => s.agent), ...(t.claims ?? []).map((c) => c.agent)]));
-  const known = new Set(agents.map((a) => a.pubkey));
-  // The registry list is paged, so an active agent may be missing from it.
-  const extra: AgentState[] = Array.from(activeKeys).filter((k) => !known.has(k)).map((k, i) => ({
-    name: `${k.slice(0, 4)}…${k.slice(-4)}`, pubkey: k, status: "WORKING", tasksCompleted: 0, totalScore: 0, x402Spending: 0, currentTaskId: null,
-    color: ["#FF5625", "#40E183", "#FFD166", "#7AA2FF", "#C792EA", "#4FD1C5"][i % 6],
-  }));
-  const shown = [...extra, ...agents]
-    .sort((a, b) => Number(activeKeys.has(b.pubkey)) - Number(activeKeys.has(a.pubkey)) || b.tasksCompleted - a.tasksCompleted)
-    .slice(0, 6);
-  const settledTasks = tasks.filter((t) => t.status === "Settled").length;
-
-  return (
-    <div className="hud-surface" style={{ position: "relative" }}>
-      {/* Scanlines */}
-      <div className="scanline-overlay" style={{ position: "absolute", inset: 0, zIndex: 1 }} />
-      {/* Grid dots pattern */}
-      <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,86,37,0.06) 1px, transparent 1px)", backgroundSize: "32px 32px", zIndex: 0 }} />
-      {/* Central glow */}
-      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 300, height: 200, background: "radial-gradient(ellipse, rgba(255,86,37,0.07) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
-
-      {/* Top stats strip */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, display: "flex", alignItems: "center", gap: 0, zIndex: 3, borderBottom: "1px solid rgba(255,86,37,0.08)" }}>
-        {[
-          { label: h.network.replace("Net: ", ""), val: "MAINNET", color: "var(--green)" },
-          { label: "OPEN", val: String(openTasks), color: "var(--accent)" },
-          { label: "SETTLED", val: String(settledTasks), color: "#40E183" },
-          { label: "AGENTS", val: agentTotal.toLocaleString("en-US"), color: agentTotal > 0 ? "var(--green)" : "rgba(var(--text-rgb),0.4)" },
-          { label: "x402", val: `${totalX402.toFixed(3)} XLM`, color: "var(--accent)" },
-        ].map((s, i) => (
-          <div key={s.label} style={{ flex: 1, padding: "5px 12px", borderRight: i < 4 ? "1px solid rgba(var(--white-rgb),0.04)" : "none", textAlign: "center" }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "rgba(var(--text-rgb),0.28)", letterSpacing: "0.12em", marginBottom: 2 }}>{s.label}</div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: s.color, letterSpacing: "0.04em" }}>{s.val}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Center label */}
-      <div style={{ position: "absolute", left: 0, right: 0, top: 36, bottom: 84, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", zIndex: 2 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <div style={{ width: 6, height: 6, borderRadius: "50%", background: workingCount > 0 ? "var(--green)" : "rgba(var(--white-rgb),0.2)", animation: workingCount > 0 ? "pulse 1.5s infinite" : "none" }} />
-          <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.35)", letterSpacing: "0.18em", textTransform: "uppercase" }}>{h.kicker}</span>
-        </div>
-        <div style={{ fontFamily: "var(--font)", fontSize: 18, fontWeight: 900, color: "var(--text-primary)", letterSpacing: "0.06em" }}>{h.title}</div>
-      </div>
-
-      {/* Agent progress bars */}
-      <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "10px 14px", background: "linear-gradient(to top, rgba(var(--base-rgb),0.9) 0%, rgba(var(--base-rgb),0.5) 100%)", zIndex: 3, display: "flex", gap: 16 }}>
-        {shown.map((agent) => {
-          const isWorking = agent.status.startsWith("WORKING") || activeKeys.has(agent.pubkey);
-          const progress = barPct[agent.name] ?? 15;
-          const avg = agent.tasksCompleted > 0 ? Math.round(agent.totalScore / agent.tasksCompleted) : 0;
-          return (
-            <div key={agent.name} style={{ flex: 1 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div className={isWorking ? "pulse-ring" : ""} style={{ width: 7, height: 7, borderRadius: "50%", background: isWorking ? agent.color : "rgba(var(--white-rgb),0.15)", flexShrink: 0, position: "relative", boxShadow: isWorking ? `0 0 8px ${agent.color}` : "none" }} />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: agent.color, letterSpacing: "0.04em" }}>{agent.name.replace("-", "_")}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {avg > 0 && <span style={{ fontFamily: "var(--font)", fontSize: 9, color: avg >= 70 ? "var(--green)" : "#FFD166" }}>◈{avg}</span>}
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isWorking ? agent.color : "rgba(var(--text-rgb),0.3)" }}>
-                    {isWorking ? h.done(progress) : h.idle}
-                  </span>
-                </div>
-              </div>
-              <div style={{ height: 3, background: "rgba(var(--white-rgb),0.06)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ width: `${progress}%`, height: "100%", background: agent.color, transition: "width 1.2s ease", opacity: isWorking ? 1 : 0.3, boxShadow: isWorking ? `0 0 6px ${agent.color}` : "none" }} />
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)" }}>
-                <span>{agent.pubkey.substring(0,6)}…{agent.pubkey.slice(-3)}</span>
-                <span>{agent.x402Spending.toFixed(3)} XLM</span>
-              </div>
-            </div>
-          );
-        })}
-        {agents.length === 0 && (
-          <div style={{ flex: 1, textAlign: "center", fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", letterSpacing: "0.1em", paddingBottom: 4 }}>
-            NO ACTIVE AGENTS
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ── Live feed / terminal ─────────────────────────────────────────────────── */
-function LiveTerminal({ entries, agents }: { entries: FeedEntry[]; agents: AgentState[] }) {
-  const tf = useMessages().ui.feed;
-  const ref = useRef<HTMLDivElement>(null);
-  function getTag(icon: string, agent?: string): { label: string; cls: string; color?: string } {
-    const a = (agent || icon || "").toLowerCase();
-    if (a.includes("alpha") || a.includes("nova")) return { label: "AGENT_01", cls: "feed-tag-alpha", color: agents[0]?.color };
-    if (a.includes("beta") || a.includes("vega"))  return { label: "AGENT_02", cls: "feed-tag-beta",  color: agents[1]?.color };
-    if (a.includes("hakem") || a.includes("judge")) return { label: "SYSTEM", cls: "feed-tag-tx" };
-    if (a === "tx" || icon === "tx") return { label: "SYSTEM", cls: "feed-tag-tx" };
-    if (a.includes("network")) return { label: "NETWORK", cls: "feed-tag-net" };
-    if (a.includes("debug")) return { label: "DEBUG", cls: "feed-tag-debug" };
-    return { label: "SYSTEM", cls: "feed-tag-tx" };
-  }
-  return (
-    <div style={{ flex: 1, overflowY: "auto", padding: "10px 0" }} ref={ref}>
-      {entries.length === 0 ? (
-        <div style={{ padding: "40px 16px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)", lineHeight: 2 }}>
-          {tf.emptyLine1}<br />
-          <span style={{ fontSize: 10 }}>{tf.emptyLine2}</span>
-        </div>
-      ) : entries.map((e, i) => {
-        const tag = getTag(e.icon, e.agent);
-        return (
-          <div key={e.id || i} className="terminal-row feed-entry">
-            <span suppressHydrationWarning style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.3)", flexShrink: 0, minWidth: 64 }}>
-              [{e.timeStr && e.timeStr !== "--:--:--" ? e.timeStr : new Date(e.time).toLocaleTimeString(undefined, { hour12: false })}]
-            </span>
-            <span
-              className={`feed-tag ${tag.cls}`}
-              style={tag.color ? { color: tag.color, background: `${tag.color}1f`, border: `1px solid ${tag.color}55` } : undefined}
-            >
-              {tag.label}
-            </span>
-            <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-primary)", flex: 1 }}>{e.message}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ── TxFeed column ────────────────────────────────────────────────────────── */
-function TxColumn({ txLog, onClose }: { txLog: TxEntry[]; onClose?: () => void }) {
-  const pl = useMessages().ui.panels;
-  const txe = useMessages().ui.tx;
-  function col(type: string): string {
-    if (type.includes("settle") || type.includes("reward")) return "var(--green)";
-    if (type.includes("dispute") || type.includes("resolve")) return "var(--red)";
-    return "var(--accent)";
-  }
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <header className="kl-panel-header">
-        <div className="kl-panel-header__icon" aria-hidden>
-          <span className="material-symbols-outlined">account_balance_wallet</span>
-        </div>
-        <span className="kl-panel-header__title">{pl.txFeed}</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <div className="pulse-dot" style={{ width: 5, height: 5, flexShrink: 0 }} />
-          <span className="kl-panel-header__meta">{pl.liveTicker}</span>
-        </div>
-        {onClose ? (
-          <button
-            type="button"
-            className="kl-icon-btn-ghost"
-            title={pl.close}
-            onClick={onClose}
-            aria-label={pl.close}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>close</span>
-          </button>
-        ) : null}
-      </header>
-      <div style={{ flex: 1, overflowY: "auto" }}>
-        {txLog.length === 0 ? (
-          <div style={{ padding: "32px 14px", textAlign: "center", fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.25)", lineHeight: 2 }}>
-            {txe.emptyLine1}<br />{txe.emptyLine2}
-          </div>
-        ) : txLog.map((tx, i) => (
-          <div key={tx.id || i} className={`tx-feed-row${tx.highlight ? " tx-new" : ""}`}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-              <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: col(tx.type) }}>{tx.type}</span>
-              <span style={{ fontFamily: "var(--font)", fontSize: 10, color: tx.type.includes("settle") ? "var(--green)" : "var(--accent)" }}>
-                {tx.amount || (tx.score !== undefined ? `${tx.score}/100` : "")}
-              </span>
-            </div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", marginBottom: 4 }}>
-              {tx.winner ? <span style={{ color: "var(--green)" }}>→ {tx.winner.length > 10 ? shortenAddress(tx.winner) : tx.winner}</span>
-                : tx.agent ? tx.agent.toLowerCase() : tx.judge ? tx.judge.toLowerCase() : null}
-              {tx.taskId ? <span style={{ color: "rgba(var(--text-rgb),0.25)", marginLeft: 6 }}>#{tx.taskId}</span> : null}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.25)" }}>
-                {tx.ms ? `${tx.ms}ms` : ""}
-              </span>
-              <a href={explorerTx(tx.hash)} target="_blank" rel="noopener noreferrer"
-                style={{ color: "rgba(var(--text-rgb),0.2)", display: "flex", alignItems: "center", textDecoration: "none", transition: "color 0.12s" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.2)")}>
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>open_in_new</span>
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function txColor(type: string): string {
+  if (type.includes("release") || type.includes("settle") || type.includes("reward")) return "var(--green)";
+  if (type.includes("dispute") || type.includes("resolve") || type.includes("refund")) return "var(--red)";
+  return "var(--accent)";
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   MAIN DASHBOARD
+   DASHBOARD
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function Dashboard() {
   const ui = useMessages().ui;
@@ -346,48 +122,11 @@ export default function Dashboard() {
   const [courtData, setCourtData]       = useState<{ agentResult: string; disputeReason: string } | null>(null);
   const [agentPanelTaskId, setAgentPanelTaskId] = useState<number | null>(null);
   const [agentPanelStates, setAgentPanelStates] = useState<Record<number, AgentPanelSavedState>>({});
-  const [sidebarTab, setSidebarTab]     = useState<"agents" | "tasks" | "logs" | "txfeed">("agents");
-  const [termInput, setTermInput]       = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [editingTask, setEditingTask]   = useState<Task | null>(null);
 
-  // ── Panel visibility & width state ──────────────────────────────────────────
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(isMobile);  // sol sidebar icon-only
-  const [missionsOpen, setMissionsOpen]         = useState(!isMobile); // ACTIVE_MISSIONS panel
-  const [missionsWidth, setMissionsWidth]       = useState(280);       // genişlik (px)
-  const [txFeedOpen, setTxFeedOpen]             = useState(!isMobile); // TX_FEED panel
-  const [txFeedWidth, setTxFeedWidth]           = useState(260);       // genişlik (px)
-  const [logsOpen, setLogsOpen]                 = useState(false);  // LOGS overlay
-  const [logFilter, setLogFilter]               = useState<LogFilterKey>("all");
-
-  // Resize drag refs
-  const missionsDragRef  = useRef<{ startX: number; startW: number } | null>(null);
-  const txFeedDragRef    = useRef<{ startX: number; startW: number } | null>(null);
-
-  function startMissionsDrag(e: React.MouseEvent) {
-    missionsDragRef.current = { startX: e.clientX, startW: missionsWidth };
-    const onMove = (ev: MouseEvent) => {
-      if (!missionsDragRef.current) return;
-      const delta = ev.clientX - missionsDragRef.current.startX;
-      setMissionsWidth(Math.max(180, Math.min(480, missionsDragRef.current.startW + delta)));
-    };
-    const onUp = () => { missionsDragRef.current = null; window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }
-
-  function startTxFeedDrag(e: React.MouseEvent) {
-    txFeedDragRef.current = { startX: e.clientX, startW: txFeedWidth };
-    const onMove = (ev: MouseEvent) => {
-      if (!txFeedDragRef.current) return;
-      const delta = txFeedDragRef.current.startX - ev.clientX;
-      setTxFeedWidth(Math.max(160, Math.min(440, txFeedDragRef.current.startW + delta)));
-    };
-    const onUp = () => { txFeedDragRef.current = null; window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }
+  const [logFilter, setLogFilter]       = useState<LogFilterKey>("all");
+  const [mobileTab, setMobileTab]       = useState<"tasks" | "live" | "tx">("live");
 
   async function deleteTask(id: number) {
     // Drop it locally first so the UI responds immediately, then delete the
@@ -473,18 +212,9 @@ export default function Dashboard() {
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!localStorage.getItem("aa_role")) router.replace("/");
-  }, [router]);
 
-  // Cüzdan bağlantısı kesilince landing page'e yönlendir
-  useEffect(() => {
-    if (!connected && typeof window !== "undefined" && localStorage.getItem("aa_role") === "user") {
-      localStorage.removeItem("aa_role");
-      router.replace("/");
-    }
-  }, [connected, router]);
+  // The dashboard is a public live view: it never redirects. Posting needs a connected wallet.
+
 
   // API polls
   useEffect(() => {
@@ -631,748 +361,409 @@ export default function Dashboard() {
     setCourtData({ agentResult, disputeReason: reason }); setCenterTab("court");
   }
 
+
+  const t = useT();
+  const dash = ui.dashboard;
   const JUDGE_NAMES = ["TeknikHakem", "KullanılabilirlikHakemi", "KapsamHakemi"] as const;
   const JUDGE_LABELS = ui.judgeNames;
-  const JUDGE_ICONS: Record<string, string> = { TeknikHakem: "code", KullanılabilirlikHakemi: "accessibility", KapsamHakemi: "rule" };
 
-  const totalX402 = agents.reduce((s, a) => s + a.x402Spending, 0);
-  const dash = ui.dashboard;
+  const openCount = tasks.filter(isAcceptingSubmissions).length;
+  const settledCount = tasks.filter((x) => x.status === "Settled" || x.status === "Resolved").length;
+  const endedCount = tasks.filter(isEnded).length;
+  const poolTasks = sortForPool(tasks).filter((x) => showEnded || !isEnded(x));
 
-  const filteredLogFeed = useMemo(
-    () => feed.filter((e) => logEntryMatchesFilter(e, logFilter)),
-    [feed, logFilter]
+  const activity = feed.length ? feed : activityFromTasks(tasks);
+  const shownActivity = useMemo(() => activity.filter((e) => logEntryMatchesFilter(e, logFilter)), [activity, logFilter]);
+
+  // Agents competing right now first (they may be missing from the paged registry list).
+  const activeKeys = useMemo(
+    () => new Set(tasks.filter(isAcceptingSubmissions).flatMap((x) => [...(x.submissions ?? []).map((sub) => sub.agent), ...(x.claims ?? []).map((c) => c.agent)])),
+    [tasks]
+  );
+  const activeAgents = useMemo(() => {
+    const known = new Map(agents.map((a) => [a.pubkey, a]));
+    return Array.from(activeKeys).map((k, i) => known.get(k) ?? ({
+      name: `${k.slice(0, 4)}…${k.slice(-4)}`, pubkey: k, status: "WORKING", tasksCompleted: 0, totalScore: 0, x402Spending: 0, currentTaskId: null,
+      color: AGENT_COLORS[i % AGENT_COLORS.length],
+    } as AgentState));
+  }, [agents, activeKeys]);
+
+  const txRows = [...txLog, ...escrowTx.filter((e) => !txLog.some((x) => x.hash === e.hash))].map((e) => {
+    const site = tasks.find((x) => x.contractTaskId !== undefined && x.contractTaskId === e.taskId);
+    return site ? { ...e, taskId: site.id } : e.taskId !== undefined && e.taskId > 1e6 ? { ...e, taskId: undefined } : e;
+  });
+
+  const openPost = () => { if (connected) setShowPostModal(true); };
+
+  /* ── Columns ─────────────────────────────────────────────────────────── */
+  const tasksColumn = (
+    <section className={`ui-card ${s.col}`} aria-label={t({ en: "Task pool", tr: "Görev havuzu" })}>
+      <header className={s.colHead}>
+        <div>
+          <div className="ui-h3" style={{ fontSize: 16 }}>{t({ en: "Task pool", tr: "Görev havuzu" })}</div>
+          <div className="ui-small">{t({ en: `${openCount} live, ${tasks.length} total`, tr: `${openCount} canlı, toplam ${tasks.length}` })}</div>
+        </div>
+        {connected && (
+          <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={openPost}>+ {t({ en: "Post", tr: "Yayınla" })}</button>
+        )}
+      </header>
+      <div className={s.colBody}>
+        {tasks.length === 0 ? (
+          <div className="ui-empty">{pl.emptyMissions}</div>
+        ) : poolTasks.map((task) => {
+          const rew = (task.rewardUsdc ?? task.reward / 1e7);
+          const isSelected = selectedTask?.id === task.id;
+          const shownStatus = displayStatus(task);
+          const isPoster = !!publicKey && task.poster === publicKey.toString();
+          return (
+            <div key={task.id}>
+              <div
+                role="button"
+                tabIndex={0}
+                className={`${s.taskRow}${isSelected ? ` ${s.taskRowOn}` : ""}`}
+                onClick={() => { setSelectedTask(task); setCenterTab("detail"); setMobileTab("live"); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedTask(task); setCenterTab("detail"); setMobileTab("live"); } }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <span className={statusBadge(shownStatus)}>{t(STATUS_LABEL[shownStatus] ?? { en: shownStatus, tr: shownStatus })}</span>
+                  <span className="ui-mono ui-muted" style={{ fontSize: 12 }}>#{task.id}</span>
+                  {isPoster && (
+                    <button
+                      type="button"
+                      className={s.iconGhost}
+                      onClick={(e) => { e.stopPropagation(); setDeleteConfirm(deleteConfirm === task.id ? null : task.id); }}
+                      title={ui.sidebar.removeTitle}
+                      aria-label={ui.sidebar.removeTitle}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
+                    </button>
+                  )}
+                </div>
+                <div className={s.taskText}>{task.description}</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+                  <span className="ui-num" style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>{rew.toLocaleString("en-US", { maximumFractionDigits: 4 })} XLM</span>
+                  <Countdown deadline={task.deadline} />
+                </div>
+              </div>
+              {deleteConfirm === task.id && (
+                <div className={s.confirm} onClick={(e) => e.stopPropagation()}>
+                  <div className="ui-small" style={{ marginBottom: 10 }}>{ui.sidebar.removeConfirm}</div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" className="ui-btn ui-btn-sm" style={{ flex: 1, background: "var(--red-dim)", color: "var(--red)" }} onClick={() => deleteTask(task.id)}>{dash.remove}</button>
+                    <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" style={{ flex: 1 }} onClick={() => setDeleteConfirm(null)}>{dash.cancel}</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {endedCount > 0 && (
+          <button type="button" className={s.endedToggle} onClick={() => setShowEnded((v) => !v)}>
+            {showEnded ? t({ en: "Hide ended tasks", tr: "Biten görevleri gizle" }) : t({ en: `Show ${endedCount} ended tasks`, tr: `Biten ${endedCount} görevi göster` })}
+          </button>
+        )}
+      </div>
+    </section>
   );
 
-  const logChipDefs: { key: LogFilterKey; label: string }[] = [
-    { key: "all", label: dash.logFilters.all },
-    { key: "alpha", label: dash.logFilters.agent01 },
-    { key: "beta", label: dash.logFilters.agent02 },
-    { key: "sys", label: dash.logFilters.system },
-    { key: "net", label: dash.logFilters.network },
-    { key: "debug", label: dash.logFilters.debug },
-  ];
-
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
-
-      {/* ── TOP NAV ─────────────────────────────────────────────────────── */}
-      <header className="kl-topbar kl-topbar--dashboard">
-        <span
-          className="kl-logo"
-          onClick={() => router.push("/")}
-          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push("/"); } }}
-          role="link"
-          tabIndex={0}
-          style={{ display: "flex", alignItems: "center" }}
-        >
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 32, height: 32, objectFit: "contain" }} />
-        </span>
-        <div className="kl-topbar__stats" aria-label={dash.a11yStatsRegion}>
-          <span style={{ color: "var(--accent)", fontWeight: 800 }}>✦ XLM</span>
-          <span>{dash.topbar.gas("0.00001")}</span>
-          {usdcBalance !== null && (
-            <span>
-              {dash.topbar.bal}
-              {": "}
-              <span className="kl-stat-mono" style={{ color: usdcBalance > 1 ? "var(--green)" : "var(--yellow)" }}>{usdcBalance.toFixed(2)} XLM</span>
-            </span>
-          )}
-          <span className="kl-stat-pipe" aria-hidden>|</span>
-          <span>
-            {dash.topbar.tasks}
-            {": "}
-            <span className="kl-stat-mono" style={{ color: "var(--text-primary)" }}>{tasks.length}</span>
-          </span>
-          <span>
-            {dash.topbar.agents}
-            {": "}
-            <span className="kl-stat-mono" style={{ color: "var(--green)" }}>
-              {agentTotal.toLocaleString("en-US")}
-            </span>
-          </span>
-          <span>
-            {dash.topbar.x402}
-            {": "}
-            <span className="kl-stat-mono" style={{ color: "var(--accent)" }}>{totalX402.toFixed(4)} XLM</span>
-          </span>
+  const liveColumn = !selectedTask ? (
+    <section className={`ui-card ${s.col}`} aria-label={t({ en: "Live activity", tr: "Canlı akış" })}>
+      <header className={s.colHead}>
+        <div>
+          <div className="ui-h3" style={{ fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 20, padding: "0 8px", fontSize: 11 }}>{t({ en: "Live", tr: "Canlı" })}</span>
+            {t({ en: "Activity", tr: "Akış" })}
+          </div>
+          <div className="ui-small">{t({ en: "Submissions, judge scores and escrow events", tr: "Teslimler, hakem puanları ve escrow olayları" })}</div>
         </div>
-        <div className="kl-topbar__actions">
-          <button
-            type="button"
-            onClick={() => router.push("/projects")}
-            style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--accent-dim)", border: "1px solid var(--accent-border)", borderRadius: 4, cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", padding: "5px 11px", transition: "all 0.15s", fontWeight: 700 }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,86,37,0.14)"; e.currentTarget.style.borderColor = "var(--accent)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--accent-dim)"; e.currentTarget.style.borderColor = "var(--accent-border)"; }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>hub</span>
-            NEXUS
-          </button>
-          {connected && publicKey && (
-            <button
-              type="button"
-              className="kl-wallet-pill"
-              onClick={() => router.push(`/agent/${publicKey.toString()}`)}
-            >
-              {shortenAddress(publicKey.toString())}
-            </button>
-          )}
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <ConnectWallet />
+        <div className="ui-tabs" role="tablist">
+          {([["all", t({ en: "All", tr: "Tümü" })], ["net", t({ en: "Agents", tr: "Agent'lar" })], ["sys", t({ en: "System", tr: "Sistem" })]] as [LogFilterKey, string][]).map(([k, label]) => (
+            <button key={k} type="button" role="tab" className="ui-tab" aria-selected={logFilter === k} onClick={() => setLogFilter(k)} style={{ height: 28, padding: "0 10px", fontSize: 12 }}>{label}</button>
+          ))}
         </div>
       </header>
 
-      {/* ── BODY: sidebar + content ─────────────────────────────────────── */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-
-        {/* ── LEFT SIDEBAR (collapsible) ───────────────────────────── */}
-        <aside style={{ width: sidebarCollapsed ? 48 : 200, flexShrink: 0, background: "var(--bg-base)", borderRight: "1px solid var(--bg-border)", display: "flex", flexDirection: "column", height: "calc(100vh - 52px)", position: "sticky", top: 52, transition: "width 0.2s", zIndex: 40, overflow: "hidden" }}>
-          {/* Collapse toggle */}
-          <div style={{ height: 36, display: "flex", alignItems: "center", justifyContent: sidebarCollapsed ? "center" : "flex-end", padding: sidebarCollapsed ? 0 : "0 6px", borderBottom: "1px solid var(--bg-border)", flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={() => setSidebarCollapsed((p) => !p)}
-              style={{ width: 26, height: 26, background: "transparent", border: "none", cursor: "pointer", color: "rgba(var(--text-rgb),0.3)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 2, transition: "color 0.12s" }}
-              title={sidebarCollapsed ? dash.sidebarExpand : dash.sidebarCollapse}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.3)")}
-              aria-label={sidebarCollapsed ? dash.sidebarExpand : dash.sidebarCollapse}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>{sidebarCollapsed ? "chevron_right" : "chevron_left"}</span>
-            </button>
-          </div>
-
-          {/* Wallet card */}
-          {!sidebarCollapsed ? (
-            <div className="kl-sidebar-profile">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <img src="/logo.svg" alt="" style={{ width: 32, height: 32, objectFit: "contain", flexShrink: 0 }} />
-                <div style={{ overflow: "hidden" }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "0.04em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {publicKey ? shortenAddress(publicKey.toString(), 5) : "—"}
-                  </div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--green)", letterSpacing: "0.08em", marginTop: 2, display: "flex", alignItems: "center", gap: 5 }}>
-                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 8px rgba(64,225,131,0.5)" }} />
-                    {sf.connected.toUpperCase()}
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Agents in play + judges */}
+      <div className={s.strip}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="ui-small" style={{ marginBottom: 8 }}>{t({ en: "Agents in live tasks", tr: "Canlı görevlerdeki agent'lar" })}</div>
+          {activeAgents.length === 0 ? (
+            <div className="ui-small">{t({ en: "No agent is working on a live task right now.", tr: "Şu an canlı bir görevde çalışan agent yok." })}</div>
           ) : (
-            <div style={{ padding: "10px 0", display: "flex", justifyContent: "center", borderBottom: "1px solid var(--bg-border)" }}>
-              <img src="/logo.svg" alt="" style={{ width: 28, height: 28, objectFit: "contain" }} />
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {activeAgents.slice(0, 10).map((a, i) => (
+                <Link key={a.pubkey} href={`/agent/${a.pubkey}`} className={s.agentPill}>
+                  <span className={s.agentDot} style={{ background: a.color || AGENT_COLORS[i % AGENT_COLORS.length] }} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>{a.name}</span>
+                </Link>
+              ))}
+              {activeAgents.length > 10 && <span className="ui-small" style={{ alignSelf: "center" }}>+{activeAgents.length - 10}</span>}
             </div>
           )}
-
-          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <nav style={{ flexShrink: 0, paddingTop: 4 }}>
-            {[
-              { key: "agents", icon: "smart_toy",              label: dash.nav.agents,  tooltip: dash.nav.tipAgents },
-              { key: "tasks",  icon: "assignment",             label: dash.nav.tasks,  tooltip: ui.sidebar.taskTooltip },
-              { key: "logs",   icon: "terminal",               label: dash.nav.logs,   tooltip: dash.nav.tipLogs },
-              { key: "txfeed", icon: "account_balance_wallet", label: dash.nav.txfeed, tooltip: dash.nav.tipTx },
-            ].map((item) => {
-              const isActive = sidebarTab === item.key;
-              const isPanelOn = (item.key === "tasks" && missionsOpen)
-                             || (item.key === "logs"   && logsOpen)
-                             || (item.key === "txfeed" && txFeedOpen);
+        </div>
+        <div className={s.judges}>
+          <div className="ui-small" style={{ marginBottom: 8 }}>{t({ en: "Judge panel", tr: "Hakem paneli" })}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {JUDGE_NAMES.map((name) => {
+              const busy = judges[name] === "EVALUATING";
               return (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={`kl-nav-item ${isActive ? "active" : ""}`}
-                  title={item.tooltip}
-                  style={{ justifyContent: sidebarCollapsed ? "center" : undefined }}
-                  onClick={() => {
-                    setSidebarTab(item.key as any);
-                    if (item.key === "tasks")  setMissionsOpen((p) => !p || !isActive);
-                    if (item.key === "logs")   setLogsOpen((p)    => !p || !isActive);
-                    if (item.key === "txfeed") setTxFeedOpen((p)  => !p || !isActive);
-                  }}>
-                  <span className="material-symbols-outlined">{item.icon}</span>
-                  {!sidebarCollapsed && item.label}
-                  {!sidebarCollapsed && isPanelOn && (
-                    <span style={{ marginLeft: "auto", width: 5, height: 5, borderRadius: "50%", background: "var(--accent)", display: "inline-block", flexShrink: 0 }} />
-                  )}
-                </button>
+                <div key={name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, fontSize: 13 }}>
+                  <span style={{ color: "var(--text-secondary)" }}>{JUDGE_LABELS[name]}</span>
+                  <span className={busy ? "ui-badge ui-badge-blue ui-badge-dot ui-pulse" : "ui-badge ui-badge-live"} style={{ height: 20, fontSize: 11, padding: "0 8px" }}>
+                    {busy ? sf.evaluating : sf.ready}
+                  </span>
+                </div>
               );
             })}
-            </nav>
-
-            {sidebarTab === "agents" && (
-            <div style={{ padding: "0 0 4px", flex: 1, overflowY: "auto", minHeight: 0, WebkitOverflowScrolling: "touch" }}>
-              <div className="kl-sidebar-section-title">{sf.sectionAgents}</div>
-              {agents.map((agent) => {
-                const isWorking = agent.status.startsWith("WORKING");
-                const avg = agent.tasksCompleted > 0 ? Math.round(agent.totalScore / agent.tasksCompleted) : 0;
-                return (
-                  <div
-                    key={agent.name}
-                    className="kl-agent-card"
-                    onClick={() => router.push(`/agent/${agent.pubkey}`)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/agent/${agent.pubkey}`); } }}
-                    role="button"
-                    tabIndex={0}
-                    style={{
-                      borderLeft: `3px solid ${agent.color}`,
-                      boxShadow: `inset 0 0 0 1px ${agent.color}18`,
-                    }}
-                  >
-                    <div className="kl-agent-card-head">
-                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <div
-                          className={isWorking ? "pulse-dot pulse-dot-amber" : "pulse-dot"}
-                          style={{ width: 7, height: 7, flexShrink: 0, background: isWorking ? agent.color : "rgba(var(--white-rgb),0.15)" }}
-                        />
-                        <span className="kl-agent-name" style={{ color: agent.color }}>{agent.name.toLowerCase()}</span>
-                      </div>
-                    </div>
-                    <div className="kl-agent-pub" onClick={(e) => e.stopPropagation()}>
-                      <a href={explorerAddress(agent.pubkey)} target="_blank" rel="noopener noreferrer">
-                        {shortenAddress(agent.pubkey, 4)} ↗
-                      </a>
-                    </div>
-                    <div className="kl-agent-stats">
-                      <span>{sf.taskCount(agent.tasksCompleted)}</span>
-                      {avg > 0 && <span style={{ color: avg >= 70 ? "var(--green)" : "var(--yellow)", fontWeight: 600 }}>ø{avg}</span>}
-                      <span className="kl-agent-stat-usdc">{agent.x402Spending.toFixed(3)} XLM</span>
-                    </div>
-                    {avg > 0 && (
-                      <div className="score-bar-track" title={`~${avg}/100`}>
-                        <div className="score-bar-fill" style={{ width: `${Math.min(100, avg)}%`, background: avg >= 70 ? "var(--green)" : "var(--yellow)" }} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              <div className="kl-sidebar-section-title">{sf.sectionJury}</div>
-              {JUDGE_NAMES.map((name) => {
-                const isEval = judges[name] === "EVALUATING";
-                return (
-                  <div key={name} className="kl-judge-row">
-                    <span className="material-symbols-outlined" style={{ fontSize: 15, color: isEval ? "var(--blue)" : "var(--text-muted)", flexShrink: 0 }}>{JUDGE_ICONS[name]}</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.6)", flex: 1, fontWeight: 500 }}>{JUDGE_LABELS[name]}</span>
-                    <span className={`kl-judge-pill ${isEval ? "kl-judge-pill-busy" : "kl-judge-pill-ready"}`}>
-                      {isEval ? sf.evaluating : sf.ready}
-                    </span>
-                  </div>
-                );
-              })}
-
-              <div className="kl-sidebar-section-title">{sf.x402Section}</div>
-              <div className="kl-x402-table">
-                {agents.map((a) => (
-                  <div key={a.name} className="kl-x402-row">
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "rgba(var(--text-rgb),0.5)", textTransform: "lowercase" }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: a.color, flexShrink: 0, boxShadow: `0 0 6px ${a.color}99` }} aria-hidden />
-                      {a.name.replace(/^agent-/i, "")}
-                    </span>
-                    <span style={{ color: "var(--accent)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{a.x402Spending.toFixed(4)} XLM</span>
-                  </div>
-                ))}
-              </div>
-              <div className="kl-x402-total">
-                <span style={{ color: "rgba(var(--text-rgb),0.4)", textTransform: "uppercase", letterSpacing: "0.1em", fontSize: 8 }}>{sf.total}</span>
-                <span>{totalX402.toFixed(4)} XLM</span>
-              </div>
-            </div>
-            )}
           </div>
+        </div>
+      </div>
 
-          {/* Bottom actions */}
-          <div style={{ marginTop: "auto", flexShrink: 0 }}>
-            <div className="kl-sidebar-footer-row">
-              <a href="https://openclaw.ai" target="_blank" rel="noopener noreferrer"
-                style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", textDecoration: "none", letterSpacing: "0.06em", display: "inline-flex", alignItems: "center", gap: 4 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.3)")}>
-                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>open_in_new</span>
-                openclaw.ai
-              </a>
-              <button
-                type="button"
-                onClick={() => router.push("/agents")}
-                style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", background: "transparent", border: "none", cursor: "pointer", letterSpacing: "0.06em", display: "inline-flex", alignItems: "center", gap: 4, marginLeft: "auto" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.3)")}>
-                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>group</span>
-                {sf.registry.toUpperCase()}
-              </button>
-            </div>
-            <button
-              type="button"
-              className="kl-deploy-btn"
-              onClick={() => setShowPostModal(true)}
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add_task</span>
-              {sf.postTask.toUpperCase()}
-            </button>
+      <div className={s.colBody} style={{ padding: 0 }}>
+        {shownActivity.length === 0 ? (
+          <div className="ui-empty">{activity.length === 0 ? t({ en: "Waiting for the first submission or escrow event.", tr: "İlk teslim ya da escrow olayı bekleniyor." }) : dash.logFilterEmpty}</div>
+        ) : shownActivity.map((e, i) => (
+          <div key={e.id || i} className={s.feedRow}>
+            <span suppressHydrationWarning className="ui-mono ui-muted" style={{ fontSize: 12, flexShrink: 0, minWidth: 64 }}>
+              {e.timeStr && e.timeStr !== "--:--:--" ? e.timeStr : new Date(e.time).toLocaleTimeString(undefined, { hour12: false })}
+            </span>
+            <span className={e.icon === "tx" ? "ui-badge ui-badge-accent" : e.icon === "judge" ? "ui-badge ui-badge-blue" : "ui-badge"} style={{ height: 20, fontSize: 11, padding: "0 8px", flexShrink: 0 }}>
+              {e.icon === "tx" ? t({ en: "Escrow", tr: "Escrow" }) : e.icon === "judge" ? t({ en: "Judges", tr: "Hakem" }) : t({ en: "Agent", tr: "Agent" })}
+            </span>
+            <span style={{ fontSize: 13.5, color: "var(--text-primary)", lineHeight: 1.5, minWidth: 0, wordBreak: "break-word" }}>{e.message}</span>
           </div>
-        </aside>
-
-        {/* ── COL 2: ACTIVE_MISSIONS (collapsible + resizable) ─────────── */}
-        {missionsOpen && (
-          <section className="kl-missions-panel" style={{ width: missionsWidth, flexShrink: 0, borderRight: "1px solid var(--bg-border)", display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-surface)", position: "relative" }}>
-            <header className="kl-panel-header">
-              <div className="kl-panel-header__icon" aria-hidden>
-                <span className="material-symbols-outlined">assignment</span>
-              </div>
-              <span className="kl-panel-header__title">{pl.missions}</span>
-              <span className="kl-panel-header__badge" title={`${tasks.length}`}>{tasks.length}</span>
-              <button
-                type="button"
-                className="kl-btn-inline"
-                style={{ background: "var(--accent)", color: "var(--bg-base)" }}
-                onClick={() => setShowPostModal(true)}
-                title={pl.publish}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 10 }}>add</span>
-                {pl.publish}
-              </button>
-              <button
-                type="button"
-                className="kl-icon-btn-ghost"
-                title={pl.close}
-                aria-label={pl.close}
-                onClick={() => setMissionsOpen(false)}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: 15 }}>close</span>
-              </button>
-            </header>
-
-            {/* Task list */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
-              {tasks.length === 0 ? (
-                <div style={{ padding: "40px 12px", textAlign: "center" }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 28, color: "rgba(var(--text-rgb),0.1)", display: "block", marginBottom: 8 }}>assignment</span>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", letterSpacing: "0.06em" }}>{pl.emptyMissions}</div>
-                  <button type="button" className="btn-primary" style={{ marginTop: 12, fontSize: 9, padding: "5px 12px" }} onClick={() => setShowPostModal(true)}>{ui.sidebar.firstPost}</button>
-                </div>
-              ) : sortForPool(tasks).filter((t) => showEnded || !isEnded(t)).map((task) => {
-                const isStellarTask = true;
-                const taskCurr = "XLM";
-                const rew = (task.rewardUsdc ?? task.reward / 1e7).toFixed(4);
-                const isSelected = selectedTask?.id === task.id;
-                const isUrgent = task.status === "Disputed";
-                const shownStatus = displayStatus(task);
-                const badgeKey = shownStatus === "Open" ? "open" : shownStatus === "UnderReview" ? "review" : shownStatus === "AwaitingDecision" ? "awaiting" : shownStatus === "Settled" ? "settled" : shownStatus === "Disputed" ? "disputed" : "stopped";
-                const statusColor: Record<string, string> = { Open: "var(--green)", UnderReview: "#FFD166", AwaitingDecision: "var(--blue)", Settled: "var(--green)", Disputed: "var(--red)", Resolved: "var(--blue)", Stopped: "rgba(var(--text-rgb),0.15)" };
-                const taskTypeIcon: Record<string, string> = { question: "help_outline", research: "lab_research", code: "code", data: "analytics", web: "public", custom: "tune" };
-                const borderColor = statusColor[shownStatus] ?? "rgba(var(--white-rgb),0.08)";
-                return (
-                  <div key={task.id} style={{ position: "relative" }}>
-                    <div
-                      className={getTaskCardClass(shownStatus)}
-                      onClick={() => { setSelectedTask(task); setCenterTab("detail"); }}
-                      style={{ padding: "10px 10px 10px 12px", marginBottom: 6, background: isSelected ? "var(--bg-surface-high)" : "var(--bg-surface-low)", cursor: "pointer", transition: "background 0.12s, box-shadow 0.12s", borderRadius: "0 6px 6px 0", borderLeft: `2px solid ${borderColor}`, boxShadow: isSelected ? `inset 0 0 0 1px ${borderColor}22` : "none" }}
-                      onMouseEnter={(e) => { if (!isSelected) { e.currentTarget.style.background = "var(--bg-surface-high)"; e.currentTarget.style.boxShadow = `inset 0 0 0 1px ${borderColor}15`; } }}
-                      onMouseLeave={(e) => { if (!isSelected) { e.currentTarget.style.background = "var(--bg-surface-low)"; e.currentTarget.style.boxShadow = "none"; } }}>
-                      {/* Row 1: badge + task type + id + actions */}
-                      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
-                        <span className={isUrgent ? "badge badge-urgent" : `badge badge-${badgeKey}`}>
-                          {isUrgent ? (ui.status as Record<string, string>).Urgent : (ui.status as Record<string, string>)[shownStatus] || shownStatus}
-                        </span>
-                        {task.taskType && (
-                          <span title={task.taskType} style={{ display: "inline-flex", alignItems: "center", background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 3, padding: "1px 5px" }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: 10, color: "rgba(var(--text-rgb),0.4)" }}>{taskTypeIcon[task.taskType] ?? "tune"}</span>
-                          </span>
-                        )}
-                        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.22)", marginLeft: "auto" }}>#{task.id}</span>
-                        {/* Delete button */}
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setDeleteConfirm(deleteConfirm === task.id ? null : task.id); }}
-                          style={{ width: 20, height: 20, background: "transparent", border: "none", cursor: "pointer", color: "rgba(var(--text-rgb),0.15)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 2, transition: "color 0.12s" }}
-                          title={ui.sidebar.removeTitle}
-                          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--red)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.15)")}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 13 }}>delete</span>
-                        </button>
-                      </div>
-                      {/* Description */}
-                      <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: isSelected ? "var(--text-primary)" : "var(--text-secondary)", fontWeight: 500, marginBottom: 9, lineHeight: 1.55, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const }}>
-                        {task.description.substring(0, 80)}{task.description.length > 80 ? "…" : ""}
-                      </div>
-                      {/* Row 3 */}
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--accent)", display: "flex", alignItems: "center", gap: 3, fontWeight: 800 }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: 11 }}>{isStellarTask ? "star" : "currency_bitcoin"}</span>
-                          {rew} {taskCurr}
-                        </span>
-                        <Countdown deadline={task.deadline} />
-                      </div>
-                    </div>
-                    {/* Delete confirm inline */}
-                    {deleteConfirm === task.id && (
-                      <div style={{ background: "var(--bg-surface-high)", border: "1px solid rgba(255,77,77,0.3)", borderRadius: 4, padding: "8px 10px", marginBottom: 6, marginTop: -4 }}
-                        onClick={(e) => e.stopPropagation()}>
-                        <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.6)", marginBottom: 7 }}>{ui.sidebar.removeConfirm}</div>
-                        <div style={{ display: "flex", gap: 6 }}>
-                          <button
-                            type="button"
-                            onClick={() => deleteTask(task.id)}
-                            style={{ flex: 1, background: "rgba(255,77,77,0.15)", border: "1px solid rgba(255,77,77,0.4)", color: "var(--red)", fontFamily: "var(--font)", fontSize: 8, padding: "4px", cursor: "pointer", borderRadius: 2, letterSpacing: "0.06em", fontWeight: 700 }}
-                          >
-                            {dash.remove}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteConfirm(null)}
-                            style={{ flex: 1, background: "transparent", border: "1px solid var(--bg-border)", color: "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 8, padding: "4px", cursor: "pointer", borderRadius: 2, letterSpacing: "0.06em" }}
-                          >
-                            {dash.cancel}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {tasks.some(isEnded) && (
-                <button
-                  type="button"
-                  onClick={() => setShowEnded((v) => !v)}
-                  style={{ width: "100%", marginTop: 4, padding: "8px", background: "transparent", border: "1px dashed var(--bg-border)", borderRadius: 6, cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.08em", color: "rgba(var(--text-rgb),0.4)" }}
-                >
-                  {showEnded ? (locale === "tr" ? "BİTEN GÖREVLERİ GİZLE" : "HIDE ENDED TASKS") : (locale === "tr" ? `BİTEN ${tasks.filter(isEnded).length} GÖREVİ GÖSTER` : `SHOW ${tasks.filter(isEnded).length} ENDED TASKS`)}
-                </button>
-              )}
-            </div>
-
-            {/* Resize handle (sağ kenar) */}
-            <button
-              type="button"
-              className="kl-resize-handle"
-              style={{ right: 0, left: "auto" }}
-              onMouseDown={startMissionsDrag}
-              title={dash.resizeHandle}
-              aria-label={dash.resizeHandle}
-            />
-          </section>
-        )}
-
-        {/* missions kapalıysa küçük açma şeridi */}
-        {!missionsOpen && (
-          <div
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMissionsOpen(true); setSidebarTab("tasks"); } }}
-            className="kl-panel-strip"
-            onClick={() => { setMissionsOpen(true); setSidebarTab("tasks"); }}
-            title={ui.sidebar.taskListHint}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 12, color: "var(--accent)" }}>assignment</span>
-            <span className="kl-panel-strip__label">{pl.stripMissions}</span>
-            <span className="material-symbols-outlined" style={{ fontSize: 10, color: "rgba(var(--text-rgb),0.25)" }}>chevron_right</span>
+        ))}
+      </div>
+    </section>
+  ) : (
+    <section className={`ui-card ${s.col}`} aria-label={t({ en: "Task detail", tr: "Görev detayı" })}>
+      <header className={s.detailHead}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span className={statusBadge(displayStatus(selectedTask))}>{t(STATUS_LABEL[displayStatus(selectedTask)] ?? { en: selectedTask.status, tr: selectedTask.status })}</span>
+          <span className="ui-mono ui-muted" style={{ fontSize: 12 }}>#{selectedTask.id}</span>
+          <span className="ui-num" style={{ marginLeft: "auto", fontWeight: 700, fontSize: 18, color: "var(--text-primary)" }}>
+            {(selectedTask.rewardUsdc ?? selectedTask.reward / 1e7).toLocaleString("en-US", { maximumFractionDigits: 4 })} <span className="ui-muted" style={{ fontSize: 13, fontWeight: 500 }}>XLM</span>
+          </span>
+          <button type="button" className="ui-icon-btn" style={{ width: 32, height: 32 }} title={pl.close} aria-label={pl.close} onClick={() => { setSelectedTask(null); setCenterTab("detail"); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+        <p className={s.detailText}>{selectedTask.description}</p>
+        {selectedTask.criteria && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12, alignItems: "center" }}>
+            <span className="ui-small" style={{ marginRight: 2 }}>{t({ en: "Criteria", tr: "Kriterler" })}</span>
+            {selectedTask.criteria.split(/[;,]/).map((c) => c.trim()).filter(Boolean).slice(0, 8).map((chip) => (
+              <span key={chip} className="ui-badge" style={{ height: "auto", padding: "3px 10px", whiteSpace: "normal", fontWeight: 500 }}>{chip}</span>
+            ))}
           </div>
         )}
-
-        {/* ── COL 3: CENTER PANEL (flex 1) ────────────────────────────── */}
-        <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-base)", position: "relative" }}>
-          {/* LOGS overlay panel */}
-          {logsOpen && (
-            <div style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(var(--base-rgb),0.95)", display: "flex", flexDirection: "column" }}>
-              <header className="kl-panel-header">
-                <div className="kl-panel-header__icon" aria-hidden>
-                  <span className="material-symbols-outlined">terminal</span>
-                </div>
-                <span className="kl-panel-header__title">{pl.logs}</span>
-                <span className="kl-panel-header__meta">{pl.logsKicker}</span>
-                <button
-                  type="button"
-                  className="kl-icon-btn-ghost"
-                  title={pl.close}
-                  aria-label={pl.close}
-                  onClick={() => setLogsOpen(false)}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>close</span>
-                </button>
-              </header>
-              <div className="kl-chips-row" role="toolbar" aria-label={pl.logs}>
-                {logChipDefs.map((c) => (
-                  <button
-                    type="button"
-                    key={c.key}
-                    className={`kl-chip${logFilter === c.key ? " is-active" : ""}`}
-                    onClick={() => setLogFilter(c.key)}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-              <div style={{ flex: 1, overflowY: "auto", padding: "4px 0" }}>
-                {feed.length === 0 ? (
-                  <div style={{ padding: "40px", textAlign: "center", fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.2)" }}>{dash.logsWaiting}</div>
-                ) : filteredLogFeed.length === 0 ? (
-                  <div style={{ padding: "32px 14px", textAlign: "center", fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.22)" }}>{dash.logFilterEmpty}</div>
-                ) : filteredLogFeed.map((entry, i) => {
-                  const baseTag: Record<string, { label: string; color: string }> = {
-                    alpha: { label: "AGENT_01", color: agents[0]?.color ?? "#40e183" },
-                    beta:  { label: "AGENT_02", color: agents[1]?.color ?? "#adc6ff" },
-                    tx:    { label: "SYSTEM",   color: "var(--accent)" },
-                    net:   { label: "NETWORK",  color: "var(--yellow)" },
-                    debug: { label: "DEBUG",    color: "rgba(var(--text-rgb),0.35)" },
-                    sys:   { label: "SYSTEM",   color: "rgba(var(--text-rgb),0.5)" },
-                    judge: { label: "JURY",     color: "var(--blue)" },
-                  };
-                  const tag = baseTag[entry.icon] || { label: "SYS", color: "rgba(var(--text-rgb),0.3)" };
-                  const tagChipStyle: CSSProperties = tag.color.startsWith("#")
-                    ? { color: tag.color, background: `${tag.color}2a`, border: `1px solid ${tag.color}55` }
-                    : { color: tag.color, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border-bright)" };
-                  return (
-                    <div key={entry.id || i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "5px 14px", borderBottom: "1px solid rgba(var(--white-rgb),0.02)" }}>
-                      <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", flexShrink: 0, marginTop: 1, minWidth: 56 }}>[{entry.timeStr}]</span>
-                      <span
-                        style={{
-                          fontFamily: "var(--font)",
-                          fontSize: 8,
-                          fontWeight: 700,
-                          padding: "1px 6px",
-                          borderRadius: 2,
-                          flexShrink: 0,
-                          letterSpacing: "0.05em",
-                          marginTop: 1,
-                          ...tagChipStyle,
-                        }}
-                      >
-                        {tag.label}
-                      </span>
-                      <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.65)", lineHeight: 1.5 }}>{entry.message}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+          <div className="ui-tabs" role="tablist">
+            {(["detail", "agent", "court"] as const).map((tab) => (
+              <button key={tab} type="button" role="tab" className="ui-tab" aria-selected={centerTab === tab} onClick={() => setCenterTab(tab)}>
+                {tab === "detail" ? t({ en: "Scores", tr: "Puanlar" }) : tab === "agent" ? t({ en: "Agent run", tr: "Agent çalışması" }) : t({ en: "Dispute court", tr: "İtiraz mahkemesi" })}
+              </button>
+            ))}
+          </div>
+          <div style={{ flex: 1 }} />
+          <Link href={`/task/${selectedTask.id}`} className="ui-btn ui-btn-ghost ui-btn-sm">{t({ en: "Open task page", tr: "Görev sayfası" })} →</Link>
+          {selectedTask.status === "Open" && agentPanelTaskId !== selectedTask.id && (
+            <button type="button" onClick={() => handleAssignTask(selectedTask)} className="ui-btn ui-btn-secondary ui-btn-sm">{ui.taskDetail.assign}</button>
           )}
-          {!selectedTask ? (
-            /* HUD + Live Feed */
-            <div className="kl-center-feed">
-              <HudMap agents={agents} tasks={tasks} totalX402={totalX402} agentTotal={agentTotal} />
-              <div className="kl-feed-column-hdr">
-                <div className="kl-feed-column-hdr__icon" aria-hidden>
-                  <span className="material-symbols-outlined">grid_view</span>
-                </div>
-                <div>
-                  <div className="kl-feed-column-hdr__kicker">{dash.liveFeedKicker}</div>
-                  <div className="kl-feed-column-hdr__title">{dash.liveFeedTitle}</div>
-                </div>
+          {selectedTask.status === "AwaitingDecision" && (
+            <button type="button" onClick={() => setCenterTab("agent")} className="ui-btn ui-btn-primary ui-btn-sm">{dash.decisionFlow}</button>
+          )}
+          {(selectedTask.status === "Disputed" || selectedTask.status === "Resolved") && (
+            <button type="button" onClick={() => setCenterTab("court")} className="ui-btn ui-btn-sm" style={{ background: "var(--red-dim)", color: "var(--red)" }}>{ui.taskDetail.court}</button>
+          )}
+        </div>
+      </header>
+
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div style={{ display: centerTab === "detail" ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, overflowY: "auto", padding: 16, gap: 14 }}>
+          {(() => {
+            const ps = agentPanelStates[selectedTask.id]?.judgeScores ?? [];
+            const dv = ps.map((js, i) => ({ judgeId: i + 1, judgeName: js.name, agent: agents[0]?.pubkey || "", score: js.score, reasoning: js.comment }));
+            const verdicts = dv.length > 0 ? dv : (selectedTask.verdicts ?? []);
+            const isEval = selectedTask.status === "UnderReview" && verdicts.length < 3;
+            return <JudgePanel verdicts={verdicts} taskId={selectedTask.id} isEvaluating={isEval} />;
+          })()}
+          {selectedTask.submissions.length > 0 ? (
+            <div className="ui-card" style={{ boxShadow: "none", background: "var(--bg-surface-low)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--bg-border)", fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
+                {dash.submissions(selectedTask.submissions.length)}
               </div>
-              <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
-                <LiveTerminal entries={feed.length ? feed : activityFromTasks(tasks)} agents={agents} />
-              </div>
-              <div className="kl-terminal-bar">
-                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                  <span style={{ position: "absolute", left: 12, color: "var(--accent)", fontWeight: 700, fontSize: 14, pointerEvents: "none" }}>❯</span>
-                  <input
-                    type="text"
-                    className="kl-terminal-input"
-                    value={termInput}
-                    onChange={(e) => setTermInput(e.target.value)}
-                    placeholder={dash.terminalPlaceholder}
-                    onKeyDown={(e) => { if (e.key === "Enter") setTermInput(""); }}
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-label={dash.terminalPlaceholder}
-                  />
-                </div>
+              <div className="ui-table-wrap">
+                <table className="ui-table">
+                  <thead><tr><th>{t({ en: "Agent", tr: "Agent" })}</th><th>{t({ en: "Time", tr: "Süre" })}</th><th>{t({ en: "Result hash", tr: "Sonuç hash" })}</th></tr></thead>
+                  <tbody>
+                    {selectedTask.submissions.map((sub, i) => (
+                      <tr key={i}>
+                        <td><Link href={`/agent/${sub.agent}`} className="ui-mono" style={{ color: "var(--text-primary)", textDecoration: "none" }}>{shortenAddress(sub.agent)}</Link></td>
+                        <td className="ui-num">{dash.seconds(sub.timeTakenSeconds)}</td>
+                        <td className="ui-mono ui-muted" style={{ fontSize: 12 }}>{sub.resultHash.substring(0, 16)}…</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           ) : (
-            /* Task Detail Panel */
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {/* Task header */}
-              <div className="kl-panel-task">
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)" }}>#{selectedTask.id}</span>
-                  <span className={getTaskBadgeClass(selectedTask.status)}>{(ui.status as Record<string, string>)[selectedTask.status]}</span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 14, color: "var(--accent)", fontWeight: 800, marginLeft: "auto" }}>
-                    {(selectedTask.rewardUsdc ?? selectedTask.reward / 1e7).toFixed(4)}
-                    <span style={{ fontSize: 9, fontWeight: 400, color: "var(--text-muted)", marginLeft: 3 }}>{"XLM"}</span>
+            <div className="ui-empty">{selectedTask.status === "Open" ? ui.taskDetail.noSubmissions : ui.taskDetail.taskStopped}</div>
+          )}
+        </div>
+
+        <div style={{ display: centerTab === "agent" ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+          {agentPanelTaskId === selectedTask.id || selectedTask.status === "UnderReview" || selectedTask.status === "AwaitingDecision" ? (
+            <AgentWorkPanel
+              key={`panel-${agentPanelTaskId ?? selectedTask.id}`}
+              task={selectedTask}
+              agentA={{ name: agents[0]?.name?.toLowerCase() || "nova", pubkey: agents[0]?.pubkey || "" }}
+              agentB={{ name: agents[1]?.name?.toLowerCase() || "vega", pubkey: agents[1]?.pubkey || "" }}
+              onClose={() => setCenterTab("detail")}
+              onApprove={handleAgentApprove}
+              onReject={handleAgentReject}
+              onJudgesComplete={() => handleJudgesComplete(selectedTask.id)}
+              savedState={agentPanelStates[selectedTask.id] ?? null}
+              onSaveState={(st) => setAgentPanelStates((p) => ({ ...p, [selectedTask.id]: st }))}
+            />
+          ) : (
+            <div className="ui-empty">{ui.taskDetail.assignHint}</div>
+          )}
+        </div>
+
+        <div style={{ display: centerTab === "court" ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
+          <CourtRoom
+            key={`court-${selectedTask.id}`}
+            task={selectedTask}
+            onClose={() => setCenterTab("detail")}
+            prefillAgentResult={courtData?.agentResult ?? agentPanelStates[selectedTask.id]?.agentResult}
+            prefillDisputeReason={courtData?.disputeReason}
+            onVerdict={() => {
+              // Agent Court is an off-chain AI roleplay (on-chain resolution
+              // is a deferred deliverable): record the ruling in the feed,
+              // never a fabricated on-chain transaction.
+              const now = new Date(); const taskId = selectedTask.id;
+              const tloc = locale === "tr" ? "tr-TR" : "en-US";
+              setTasks((p) => p.map((x) => x.id === taskId ? { ...x, status: "Resolved" } : x));
+              setSelectedTask((p) => p?.id === taskId ? { ...p, status: "Resolved" } : p);
+              setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.court(taskId), icon: "judge", agent: "judge" }, ...p]);
+            }}
+          />
+        </div>
+      </div>
+    </section>
+  );
+
+  const txColumn = (
+    <section className={`ui-card ${s.col}`} aria-label={t({ en: "Escrow transactions", tr: "Escrow işlemleri" })}>
+      <header className={s.colHead}>
+        <div>
+          <div className="ui-h3" style={{ fontSize: 16 }}>{t({ en: "Escrow transactions", tr: "Escrow işlemleri" })}</div>
+          <div className="ui-small">{t({ en: "Read from the contract's own events", tr: "Kontratın kendi olaylarından" })}</div>
+        </div>
+      </header>
+      <div className={s.colBody} style={{ padding: 0 }}>
+        {txRows.length === 0 ? (
+          <div className="ui-empty">{ui.tx.emptyLine1}</div>
+        ) : txRows.map((tx, i) => (
+          <a key={tx.id || i} href={explorerTx(tx.hash)} target="_blank" rel="noopener noreferrer" className={`${s.txRow}${tx.highlight ? ` ${s.txNew}` : ""}`}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span className="ui-mono" style={{ fontSize: 13, fontWeight: 600, color: txColor(tx.type) }}>{tx.type}</span>
+              <span className="ui-num" style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{tx.amount || (tx.score !== undefined ? `${tx.score}/100` : "")}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 6 }}>
+              <span className="ui-small" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {tx.winner ? <span style={{ color: "var(--green)" }}>→ {tx.winner.length > 10 ? shortenAddress(tx.winner) : tx.winner}</span>
+                  : tx.agent ? tx.agent : tx.judge ? tx.judge : null}
+                {tx.taskId ? <span style={{ marginLeft: 8 }}>{t({ en: "task", tr: "görev" })} #{tx.taskId}</span> : null}
+              </span>
+              <span className="ui-mono ui-muted" style={{ fontSize: 11, flexShrink: 0 }}>{tx.hash ? `${tx.hash.slice(0, 6)}… ↗` : ""}</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+
+  return (
+    <PageShell footer={false}>
+      <div className={s.wrap}>
+        {/* Page head */}
+        <div className={s.head}>
+          <div>
+            <h1 className="ui-page-title" style={{ fontSize: "clamp(26px, 3vw, 34px)" }}>{t({ en: "Dashboard", tr: "Panel" })}</h1>
+            <p className="ui-small" style={{ marginTop: 6, fontSize: 14 }}>
+              {t({ en: "The live task pool, judging and escrow activity on Stellar mainnet.", tr: "Stellar mainnet'teki canlı görev havuzu, puanlama ve escrow hareketleri." })}
+            </p>
+          </div>
+          <div className={s.headActions}>
+            {connected && publicKey ? (
+              <>
+                {usdcBalance !== null && (
+                  <span className="ui-badge" style={{ height: 32, padding: "0 12px", fontSize: 13 }}>
+                    {t({ en: "Balance", tr: "Bakiye" })} <b className="ui-num" style={{ color: "var(--text-primary)" }}>{usdcBalance.toFixed(2)} XLM</b>
                   </span>
-                  <button
-                    type="button"
-                    className="kl-icon-btn-ghost"
-                    title={pl.close}
-                    aria-label={pl.close}
-                    onClick={() => { setSelectedTask(null); setCenterTab("detail"); }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: 15 }}>close</span>
-                  </button>
-                </div>
-                <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-primary)", lineHeight: 1.6, marginBottom: 6 }}>{selectedTask.description}</p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 2 }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", marginRight: 4, paddingTop: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>{dash.criteria}</span>
-                  {selectedTask.criteria.split(",").map((c) => c.trim()).filter(Boolean).map((chip) => (
-                    <span key={chip} style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", background: "var(--accent-dim)", border: "1px solid var(--accent-border)", padding: "1px 7px", borderRadius: 2, letterSpacing: "0.03em" }}>{chip}</span>
-                  ))}
-                </div>
+                )}
+                <button type="button" className="ui-btn ui-btn-secondary" onClick={() => router.push(`/agent/${publicKey.toString()}`)}>{t({ en: "My profile", tr: "Profilim" })}</button>
+                <button type="button" className="ui-btn ui-btn-ghost" onClick={() => router.push("/projects")}>{t({ en: "NEXUS projects", tr: "NEXUS projeleri" })}</button>
+                <button type="button" className="ui-btn ui-btn-primary" onClick={openPost}>{sf.postTask}</button>
+              </>
+            ) : (
+              <button type="button" className="ui-btn ui-btn-ghost" onClick={() => router.push("/projects")}>{t({ en: "NEXUS projects", tr: "NEXUS projeleri" })}</button>
+            )}
+          </div>
+        </div>
 
-                {/* Tab bar */}
-                <div style={{ display: "flex", alignItems: "center", marginTop: 10, borderTop: "1px solid var(--bg-border)", paddingTop: 8, flexWrap: "wrap", gap: 4 }}>
-                  {(["detail","agent","court"] as const).map((tab) => {
-                    const lbl = tab === "detail" ? dash.taskTabs.detail : tab === "agent" ? dash.taskTabs.agent : dash.taskTabs.court;
-                    const ico = tab === "detail" ? "info" : tab === "agent" ? "smart_toy" : "gavel";
-                    return (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => setCenterTab(tab)}
-                        style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, background: "none", border: "none", cursor: "pointer", padding: "5px 12px", letterSpacing: "0.08em", textTransform: "uppercase", color: centerTab === tab ? "var(--accent)" : "rgba(var(--text-rgb),0.3)", borderBottom: centerTab === tab ? "2px solid var(--accent)" : "2px solid transparent", transition: "color 0.12s" }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: 11 }}>{ico}</span>
-                        {lbl}
-                      </button>
-                    );
-                  })}
-                  <div style={{ flex: 1 }} />
-                  {selectedTask.status === "Open" && agentPanelTaskId !== selectedTask.id && (
-                    <button type="button" onClick={() => handleAssignTask(selectedTask)} className="btn-green" style={{ fontSize: 9, padding: "4px 12px" }}>{ui.taskDetail.assign}</button>
-                  )}
-                  {selectedTask.status === "AwaitingDecision" && (
-                    <button type="button" onClick={() => setCenterTab("agent")} className="btn-green" style={{ fontSize: 9, padding: "4px 12px" }}>{dash.decisionFlow}</button>
-                  )}
-                  {(selectedTask.status === "Disputed" || selectedTask.status === "Resolved") && (
-                    <button type="button" onClick={() => setCenterTab("court")} className="btn-danger" style={{ fontSize: 9, padding: "4px 12px" }}>{ui.taskDetail.court}</button>
-                  )}
-                </div>
-              </div>
-
-              {/* Tab content */}
-              <div style={{ flex: 1, overflow: "hidden" }}>
-                <div style={{ display: centerTab === "detail" ? "flex" : "none", flexDirection: "column", height: "100%", overflowY: "auto", padding: 14, gap: 12 }}>
-                  {(() => {
-                    const ps = agentPanelStates[selectedTask.id]?.judgeScores ?? [];
-                    const dv = ps.map((js, i) => ({ judgeId: i + 1, judgeName: js.name, agent: agents[0]?.pubkey || "", score: js.score, reasoning: js.comment }));
-                    const verdicts = dv.length > 0 ? dv : (selectedTask.verdicts ?? []);
-                    const isEval = selectedTask.status === "UnderReview" && verdicts.length < 3;
-                    return <JudgePanel verdicts={verdicts} taskId={selectedTask.id} isEvaluating={isEval} />;
-                  })()}
-                  {selectedTask.submissions.length > 0 && (
-                    <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 6, overflow: "hidden" }}>
-                      <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-                        {dash.submissions(selectedTask.submissions.length)}
-                      </div>
-                      {selectedTask.submissions.map((sub, i) => (
-                        <div key={i} style={{ padding: "8px 12px", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 10 }}>
-                          <div style={{ display: "flex", gap: 10, color: "var(--accent)", marginBottom: 3 }}>
-                            <span>{shortenAddress(sub.agent)}</span>
-                            <span style={{ color: "rgba(var(--text-rgb),0.3)" }}>{dash.seconds(sub.timeTakenSeconds)}</span>
-                          </div>
-                          <div style={{ color: "rgba(var(--text-rgb),0.25)" }}>{dash.hashLabel}: {sub.resultHash.substring(0, 20)}…</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {selectedTask.submissions.length === 0 && (
-                    <div style={{ padding: "32px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)" }}>
-                      {selectedTask.status === "Open" ? ui.taskDetail.noSubmissions : ui.taskDetail.taskStopped}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: centerTab === "agent" ? "flex" : "none", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-                  {agentPanelTaskId === selectedTask.id || selectedTask.status === "UnderReview" || selectedTask.status === "AwaitingDecision" ? (
-                    <AgentWorkPanel
-                      key={`panel-${agentPanelTaskId ?? selectedTask.id}`}
-                      task={selectedTask}
-                      agentA={{ name: agents[0]?.name?.toLowerCase() || "nova", pubkey: agents[0]?.pubkey || "" }}
-                      agentB={{ name: agents[1]?.name?.toLowerCase() || "vega", pubkey: agents[1]?.pubkey || "" }}
-                      onClose={() => setCenterTab("detail")}
-                      onApprove={handleAgentApprove}
-                      onReject={handleAgentReject}
-                      onJudgesComplete={() => handleJudgesComplete(selectedTask.id)}
-                      savedState={agentPanelStates[selectedTask.id] ?? null}
-                      onSaveState={(s) => setAgentPanelStates((p) => ({ ...p, [selectedTask.id]: s }))}
-                    />
-                  ) : (
-                    <div style={{ padding: 32, textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)" }}>
-                      {ui.taskDetail.assignHint}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: centerTab === "court" ? "flex" : "none", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-                  <CourtRoom
-                    key={`court-${selectedTask.id}`}
-                    task={selectedTask}
-                    onClose={() => setCenterTab("detail")}
-                    prefillAgentResult={courtData?.agentResult ?? agentPanelStates[selectedTask.id]?.agentResult}
-                    prefillDisputeReason={courtData?.disputeReason}
-                    onVerdict={() => {
-                      // Agent Court is an off-chain AI roleplay (on-chain resolution
-                      // is a deferred deliverable) — record the ruling in the feed,
-                      // never a fabricated on-chain transaction.
-                      const now = new Date(); const taskId = selectedTask.id;
-                      const tloc = locale === "tr" ? "tr-TR" : "en-US";
-                      setTasks((p) => p.map((t) => t.id === taskId ? { ...t, status: "Resolved" } : t));
-                      setSelectedTask((p) => p?.id === taskId ? { ...p, status: "Resolved" } : p);
-                      setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.court(taskId), icon: "judge", agent: "judge" }, ...p]);
-                    }}
-                  />
+        {!connected && (
+          <div className={`ui-card ${s.connect}`}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+              <span className={s.connectIcon} aria-hidden>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="13" rx="3" /><path d="M16 12.5h2M3 10h18" /></svg>
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 15 }}>{t({ en: "Connect a wallet to post a task", tr: "Görev yayınlamak için bir cüzdan bağla" })}</div>
+                <div className="ui-small" style={{ marginTop: 2 }}>
+                  {t({ en: "Everything below is public. Posting locks your XLM reward in the Soroban escrow and needs a Stellar wallet such as Freighter.", tr: "Aşağıdaki her şey herkese açık. Görev yayınlamak XLM ödülünü Soroban escrow'una kilitler ve Freighter gibi bir Stellar cüzdanı gerektirir." })}
                 </div>
               </div>
             </div>
-          )}
-        </main>
-
-        {/* TX_FEED kapalıysa küçük açma şeridi */}
-        {!txFeedOpen && (
-          <div
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTxFeedOpen(true); setSidebarTab("txfeed"); } }}
-            className="kl-panel-strip"
-            style={{ borderLeft: "1px solid var(--bg-border)" }}
-            onClick={() => { setTxFeedOpen(true); setSidebarTab("txfeed"); }}
-            title={dash.openTxStrip}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 12, color: "var(--accent)" }}>account_balance_wallet</span>
-            <span className="kl-panel-strip__label">{pl.stripTx}</span>
-            <span className="material-symbols-outlined" style={{ fontSize: 10, color: "rgba(var(--text-rgb),0.25)" }}>chevron_left</span>
+            <ConnectWallet />
           </div>
         )}
 
-        {/* ── COL 4: TX FEED (collapsible + resizable) ─────────────────── */}
-        {txFeedOpen && (
-          <aside className="kl-txfeed-panel" style={{ width: txFeedWidth, flexShrink: 0, borderLeft: "1px solid var(--bg-border)", display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-surface)", position: "relative" }}>
-            {/* Resize handle (sol kenar) */}
-            <button
-              type="button"
-              className="kl-resize-handle"
-              style={{ left: 0, right: "auto" }}
-              onMouseDown={startTxFeedDrag}
-              title={dash.resizeHandle}
-              aria-label={dash.resizeHandle}
-            />
-            <TxColumn
-              txLog={[...txLog, ...escrowTx.filter((e) => !txLog.some((t) => t.hash === e.hash))].map((e) => {
-                const site = tasks.find((t) => t.contractTaskId !== undefined && t.contractTaskId === e.taskId);
-                return site ? { ...e, taskId: site.id } : e.taskId !== undefined && e.taskId > 1e6 ? { ...e, taskId: undefined } : e;
-              })}
-              onClose={() => setTxFeedOpen(false)}
-            />
-          </aside>
-        )}
-      </div>
-
-      {/* ── STATUS BAR ─────────────────────────────────────────────────── */}
-      <div className="kl-statusbar" role="contentinfo">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, rowGap: 4 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--green)", display: "inline-block" }} />
-            {dash.statusBar.latency("42ms")}
-          </span>
-          <span>{dash.statusBar.nodes("1,422")}</span>
+        {/* Stats */}
+        <div className={s.stats}>
+          {[
+            { v: openCount.toLocaleString("en-US"), l: t({ en: "Live tasks", tr: "Canlı görev" }) },
+            { v: settledCount.toLocaleString("en-US"), l: t({ en: "Paid out", tr: "Ödenen" }) },
+            { v: agentTotal ? agentTotal.toLocaleString("en-US") : "…", l: t({ en: "Registered agents", tr: "Kayıtlı agent" }) },
+            { v: `${tasks.filter(isAcceptingSubmissions).reduce((sum, x) => sum + (x.rewardUsdc ?? x.reward / 1e7), 0).toLocaleString("en-US", { maximumFractionDigits: 2 })} XLM`, l: t({ en: "Locked in live tasks", tr: "Canlı görevlerde kilitli" }) },
+          ].map((st) => (
+            <div key={st.l} className={`ui-card ${s.stat}`}>
+              <div className="ui-stat-value" style={{ fontSize: 24 }}>{st.v}</div>
+              <div className="ui-stat-label">{st.l}</div>
+            </div>
+          ))}
         </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 16, rowGap: 4, justifyContent: "flex-end" }}>
-          <span>{dash.statusBar.version("0.8.4-ALPHA")}</span>
-          <span style={{ color: "var(--accent)" }}>{dash.statusBar.systemLoad("12.4%")}</span>
-          <span>{dash.statusBar.build("CGL_3321")}</span>
+
+        {/* Mobile switcher */}
+        <div className={s.mobileTabs}>
+          <div className="ui-tabs" role="tablist" style={{ width: "100%", justifyContent: "space-between" }}>
+            {([["tasks", t({ en: "Tasks", tr: "Görevler" })], ["live", selectedTask ? t({ en: "Detail", tr: "Detay" }) : t({ en: "Activity", tr: "Akış" })], ["tx", t({ en: "Escrow", tr: "Escrow" })]] as ["tasks" | "live" | "tx", string][]).map(([k, label]) => (
+              <button key={k} type="button" role="tab" className="ui-tab" aria-selected={mobileTab === k} onClick={() => setMobileTab(k)} style={{ flex: 1 }}>{label}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className={s.grid}>
+          <div className={s.area} data-show={mobileTab === "tasks"}>{tasksColumn}</div>
+          <div className={s.area} data-show={mobileTab === "live"}>{liveColumn}</div>
+          <div className={s.area} data-show={mobileTab === "tx"}>{txColumn}</div>
         </div>
       </div>
 
-      {showPostModal && <PostTaskModal onClose={() => setShowPostModal(false)} onTaskPosted={handleTaskPosted} />}
-    </div>
+      {showPostModal && connected && <PostTaskModal onClose={() => setShowPostModal(false)} onTaskPosted={handleTaskPosted} />}
+    </PageShell>
   );
 }

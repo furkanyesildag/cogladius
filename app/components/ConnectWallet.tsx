@@ -83,10 +83,10 @@ export default function ConnectWallet() {
             onClick={() => setDropdownOpen((v) => !v)}
             style={{
               fontFamily: "var(--font)",
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 600,
               padding: "8px 14px",
-              borderRadius: 10,
+              borderRadius: 999,
               cursor: "pointer",
               background: "var(--bg-surface-low)",
               color: "var(--text-primary)",
@@ -309,18 +309,8 @@ export default function ConnectWallet() {
       {!stellarConn && (
         <button
           onClick={() => setChooserOpen(true)}
-          style={{
-            fontFamily: "var(--font)",
-            fontSize: 11,
-            fontWeight: 600,
-            padding: "9px 18px",
-            borderRadius: 10,
-            cursor: "pointer",
-            background: "var(--accent)",
-            color: "#fff",
-            border: "none",
-            whiteSpace: "nowrap",
-          }}
+          className="ui-btn ui-btn-primary ui-btn-sm"
+          style={{ height: 36, padding: "0 16px" }}
         >
           Connect Wallet
         </button>

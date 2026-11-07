@@ -22,20 +22,20 @@ export default function TxFeed({ txLog }: TxFeedProps) {
       <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: "var(--bg-surface-low)", position: "sticky", top: 0, zIndex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--accent)" }}>receipt_long</span>
-          <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)", letterSpacing: "0.15em", textTransform: "uppercase" }}>TX_Feed</span>
+          <span style={{ fontFamily: "var(--font)", fontSize: 12, color: "var(--text-muted)", letterSpacing: "0.01em", textTransform: "none" }}>TX_Feed</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span className="pulse-dot" style={{ width: 5, height: 5 }} />
-          <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-ghost)", letterSpacing: "0.06em" }}>LIVE_TICKER</span>
+          <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "var(--text-ghost)", letterSpacing: "0.01em" }}>LIVE_TICKER</span>
         </div>
       </div>
 
       {/* List */}
       <div style={{ flex: 1, overflowY: "auto" }}>
         {txLog.length === 0 ? (
-          <div style={{ padding: "40px 16px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "var(--text-ghost)", lineHeight: 2 }}>
+          <div style={{ padding: "40px 16px", textAlign: "center", fontFamily: "var(--font)", fontSize: 13, color: "var(--text-ghost)", lineHeight: 2 }}>
             Henüz işlem yok<br />
-            <span style={{ fontSize: 10 }}>Agent aktivitesi bekleniyor...</span>
+            <span style={{ fontSize: 12 }}>Agent aktivitesi bekleniyor...</span>
           </div>
         ) : (
           txLog.map((tx, i) => (
@@ -48,10 +48,10 @@ export default function TxFeed({ txLog }: TxFeedProps) {
 
               {/* Row 1: type + amount */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                <span style={{ fontFamily: "var(--font)", fontSize: 11, color: getTxTypeColor(tx.type), fontWeight: 700 }}>
+                <span style={{ fontFamily: "var(--font)", fontSize: 13, color: getTxTypeColor(tx.type), fontWeight: 700 }}>
                   {tx.type}
                 </span>
-                <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 11, color: tx.type.includes("settle") || tx.type.includes("reward") ? "var(--green)" : "var(--accent)" }}>
+                <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 13, color: tx.type.includes("settle") || tx.type.includes("reward") ? "var(--green)" : "var(--accent)" }}>
                   {tx.amount || (tx.score !== undefined ? `${tx.score}/100` : "")}
                   {tx.scores && `ort: ${Math.round(tx.scores.reduce((a, b) => a + b, 0) / tx.scores.length)}`}
                 </span>
@@ -59,7 +59,7 @@ export default function TxFeed({ txLog }: TxFeedProps) {
 
               {/* Row 2: winner/agent/task */}
               {(tx.winner || tx.agent || tx.judge || tx.taskId) && (
-                <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)", marginBottom: 5, display: "flex", gap: 12 }}>
+                <div style={{ fontFamily: "var(--font)", fontSize: 12, color: "var(--text-muted)", marginBottom: 5, display: "flex", gap: 12 }}>
                   {tx.winner && (
                     <span>
                       <span style={{ color: "var(--text-ghost)" }}>→ </span>
@@ -74,7 +74,7 @@ export default function TxFeed({ txLog }: TxFeedProps) {
 
               {/* Row 3: slot + latency */}
               {(tx.slot || tx.ms) && (
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-ghost)", display: "flex", gap: 12, marginBottom: 6 }}>
+                <div style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "var(--text-ghost)", display: "flex", gap: 12, marginBottom: 6 }}>
                   {tx.slot && <span>slot {tx.slot.toLocaleString()}</span>}
                   {tx.ms && <span style={{ color: tx.ms < 400 ? "var(--green)" : "var(--yellow)" }}>{tx.ms}ms</span>}
                 </div>
@@ -83,7 +83,7 @@ export default function TxFeed({ txLog }: TxFeedProps) {
               {/* Row 4: hash */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <a href={tx.explorerUrl || explorerTx(tx.hash)} target="_blank" rel="noopener noreferrer"
-                  style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-ghost)", textDecoration: "none", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", transition: "color 0.15s" }}
+                  style={{ fontFamily: "var(--font)", fontSize: 12, color: "var(--text-ghost)", textDecoration: "none", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", transition: "color 0.15s" }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent-soft)")}
                   onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-ghost)")}>
                   {tx.hash.substring(0, 20)}...

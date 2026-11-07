@@ -18,9 +18,9 @@ type TxStatus =
 
 const label: React.CSSProperties = {
   fontFamily: "var(--font)",
-  fontSize: 10,
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
+  fontSize: 12,
+  letterSpacing: "0.01em",
+  textTransform: "none",
   color: "var(--text-muted)",
   marginBottom: 8,
   display: "block",
@@ -141,7 +141,7 @@ export default function StellarSendForm({
           <span
             style={{
               color: "var(--accent-soft)",
-              fontSize: 11,
+              fontSize: 13,
               marginTop: 6,
               display: "block",
             }}
@@ -170,7 +170,7 @@ export default function StellarSendForm({
             <span
               style={{
                 color: "var(--accent-soft)",
-                fontSize: 11,
+                fontSize: 13,
                 marginTop: 6,
                 display: "block",
               }}
@@ -248,7 +248,7 @@ export default function StellarSendForm({
             style={{
               marginTop: 8,
               fontFamily: "var(--font)",
-              fontSize: 11,
+              fontSize: 13,
               color: "var(--text-muted)",
               wordBreak: "break-all",
             }}

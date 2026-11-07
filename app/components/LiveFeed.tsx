@@ -27,10 +27,10 @@ export default function LiveFeed({ entries }: LiveFeedProps) {
       <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: "var(--bg-surface-low)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span className="material-symbols-outlined" style={{ fontSize: 14, color: "var(--accent)" }}>terminal</span>
-          <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)", letterSpacing: "0.15em", textTransform: "uppercase" }}>Canlı Akış</span>
+          <span style={{ fontFamily: "var(--font)", fontSize: 12, color: "var(--text-muted)", letterSpacing: "0.01em", textTransform: "none" }}>Canlı Akış</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-ghost)" }}>{entries.length} olay</span>
+          <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "var(--text-ghost)" }}>{entries.length} olay</span>
           <span className="pulse-dot" style={{ width: 5, height: 5 }} />
         </div>
       </div>
@@ -38,9 +38,9 @@ export default function LiveFeed({ entries }: LiveFeedProps) {
       {/* Feed */}
       <div ref={containerRef} style={{ flex: 1, overflowY: "auto", padding: "6px 0", fontFamily: "var(--font)" }}>
         {entries.length === 0 ? (
-          <div style={{ padding: "40px 20px", textAlign: "center", fontFamily: "var(--font)", fontSize: 11, color: "var(--text-ghost)", lineHeight: 2 }}>
+          <div style={{ padding: "40px 20px", textAlign: "center", fontFamily: "var(--font)", fontSize: 13, color: "var(--text-ghost)", lineHeight: 2 }}>
             Aktivite bekleniyor...<br />
-            <span style={{ fontSize: 10, color: "var(--text-muted)" }}>agent-simulator.js başlatın</span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>agent-simulator.js başlatın</span>
           </div>
         ) : (
           entries.map((entry, i) => {
@@ -52,7 +52,7 @@ export default function LiveFeed({ entries }: LiveFeedProps) {
                 style={{ display: "flex", gap: 10, padding: "5px 14px", alignItems: "flex-start" }}
               >
                 {/* Timestamp */}
-                <span suppressHydrationWarning style={{ fontSize: 10, color: "var(--text-ghost)", flexShrink: 0, minWidth: 58, paddingTop: 1 }}>
+                <span suppressHydrationWarning style={{ fontSize: 12, color: "var(--text-ghost)", flexShrink: 0, minWidth: 58, paddingTop: 1 }}>
                   {entry.timeStr && entry.timeStr !== "--:--:--"
                     ? entry.timeStr
                     : new Date(entry.time).getTime() === 0
@@ -66,7 +66,7 @@ export default function LiveFeed({ entries }: LiveFeedProps) {
                 </span>
 
                 {/* Message */}
-                <span style={{ fontSize: 11, color: "var(--text-primary)", lineHeight: 1.6, flex: 1, wordBreak: "break-word" }}>
+                <span style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.6, flex: 1, wordBreak: "break-word" }}>
                   {entry.message}
                 </span>
               </div>

@@ -1,44 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import ConnectWallet from "@/components/ConnectWallet";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
-import { useLocale, useMessages } from "@/lib/i18n";
-import { explorerTx, explorerAddress, shortenAddress, stroopsToUsdc } from "@/lib/constants";
+import PageShell from "@/components/site/PageShell";
+import { AgentChip, CopyCommand } from "@/components/site/bits";
+import { useT } from "@/lib/ui/copy";
+import { explorerTx, explorerAddress, stroopsToUsdc } from "@/lib/constants";
 import type { ReputationReport } from "@cogladius/agent-sdk/reputation/derive";
 
-const T = {
-  en: {
-    title: "Agent leaderboard",
-    sub: "Derived only from the escrow contract's on-chain events. Nothing here comes from the Cogladius database.",
-    rank: "#", agent: "Agent", won: "Won", earned: "Earned", mean: "Mean score", median: "Median", dist: "<70 · 70s · 80s · 90+", disputes: "Disputed", proof: "Settle txs",
-    posted: "Tasks posted", settled: "Settled", refunded: "Refunded", rate: "Settle rate", paid: "Paid to agents",
-    range: (a: number, b: number, n: number) => `Ledgers ${a.toLocaleString()} – ${b.toLocaleString()} · ${n} events · rule`,
-    verify: "Reproduce these numbers yourself:",
-    empty: "No agent has been paid by the escrow yet.",
-    loading: "Reading escrow events…",
-    rawEvents: "raw events",
-  },
-  tr: {
-    title: "Ajan sıralaması",
-    sub: "Yalnızca escrow kontratının zincir üstü olaylarından türetilir. Buradaki hiçbir veri Cogladius veritabanından gelmez.",
-    rank: "#", agent: "Ajan", won: "Kazanılan", earned: "Kazanç", mean: "Ort. puan", median: "Medyan", dist: "<70 · 70'ler · 80'ler · 90+", disputes: "İtirazlı", proof: "Ödeme tx'leri",
-    posted: "Açılan görev", settled: "Ödenen", refunded: "İade", rate: "Ödeme oranı", paid: "Ajanlara ödenen",
-    range: (a: number, b: number, n: number) => `Ledger ${a.toLocaleString()} – ${b.toLocaleString()} · ${n} olay · kural`,
-    verify: "Bu sayıları kendin yeniden hesapla:",
-    empty: "Escrow henüz hiçbir ajana ödeme yapmadı.",
-    loading: "Escrow olayları okunuyor…",
-    rawEvents: "ham olaylar",
-  },
-};
-
 export default function LeaderboardPage() {
-  const router = useRouter();
-  const { locale } = useLocale();
-  const ta = useMessages().ui.taskArenaPage;
-  const t = T[locale === "tr" ? "tr" : "en"];
+  const t = useT();
   const [report, setReport] = useState<ReputationReport | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,98 +19,131 @@ export default function LeaderboardPage() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  const cell: React.CSSProperties = { padding: "10px 12px", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 12, color: "var(--text-primary)", whiteSpace: "nowrap" };
-  const head: React.CSSProperties = { ...cell, fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(var(--text-rgb),0.45)" };
-  const xlm = (s: string) => `${stroopsToUsdc(s).toLocaleString(undefined, { maximumFractionDigits: 7 })} XLM`;
+  const xlm = (s: string) => `${stroopsToUsdc(s).toLocaleString("en-US", { maximumFractionDigits: 7 })} XLM`;
+
+  const tiles = report
+    ? [
+        { l: t({ en: "Tasks posted", tr: "Açılan görev" }), v: report.market.posted.toLocaleString("en-US") },
+        { l: t({ en: "Settled", tr: "Ödenen" }), v: report.market.settled.toLocaleString("en-US") },
+        { l: t({ en: "Refunded", tr: "İade" }), v: report.market.refunded.toLocaleString("en-US") },
+        { l: t({ en: "Settle rate", tr: "Ödeme oranı" }), v: `${(Number(report.market.settleRate) * 100).toFixed(1)}%` },
+        { l: t({ en: "Paid to agents", tr: "Agent'lara ödenen" }), v: xlm(report.market.totalPaid) },
+      ]
+    : [];
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
-      <header style={{ height: 48, background: "var(--bg-surface-low)", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", padding: "0 16px", position: "sticky", top: 0, zIndex: 100, overflowX: "auto" }}>
-        <span style={{ cursor: "pointer", marginRight: 24, display: "flex" }} onClick={() => router.push("/")}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 34, height: 34 }} />
-        </span>
-        {[
-          { label: ta.navTop.dashboard, href: "/dashboard" },
-          { label: ta.navTop.agents, href: "/agents" },
-          { label: ta.navTop.tasks, href: "/tasks" },
-          { label: t.title, href: "/leaderboard", active: true },
-        ].map((item) => (
-          <button key={item.href} onClick={() => router.push(item.href)}
-            style={{ background: "none", border: "none", borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent", color: item.active ? "var(--accent)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 12px", height: 48, cursor: "pointer", whiteSpace: "nowrap" }}>
-            {item.label}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <ConnectWallet />
-        </div>
-      </header>
+    <PageShell>
+      <div className="ui-container">
+        <header className="ui-page-head">
+          <span className="ui-eyebrow">{t({ en: "On-chain reputation", tr: "Zincir üstü itibar" })}</span>
+          <h1 className="ui-page-title" style={{ marginTop: 10 }}>{t({ en: "Agent leaderboard", tr: "Agent sıralaması" })}</h1>
+          <p className="ui-lead">
+            {t({
+              en: "Derived only from the escrow contract's on-chain events. Nothing here comes from the Cogladius database.",
+              tr: "Yalnızca escrow kontratının zincir üstü olaylarından türetilir. Buradaki hiçbir veri Cogladius veritabanından gelmez.",
+            })}
+          </p>
+        </header>
 
-      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 16px 64px" }}>
-        <h1 style={{ fontFamily: "var(--font-head)", fontSize: 28, color: "var(--text-primary)", margin: 0 }}>{t.title}</h1>
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 14, color: "var(--text-muted)", marginTop: 8, maxWidth: 680 }}>{t.sub}</p>
+        {error && <div className="ui-card ui-card-pad" style={{ color: "var(--red)" }}>{error}</div>}
 
-        {error && <div style={{ color: "var(--red)", fontFamily: "var(--font)", fontSize: 12, marginTop: 24 }}>{error}</div>}
-        {!report && !error && <div style={{ color: "var(--text-muted)", fontFamily: "var(--font)", fontSize: 12, marginTop: 24 }}>{t.loading}</div>}
+        {!report && !error && (
+          <>
+            <div className="ui-lb-tiles">
+              {[0, 1, 2, 3, 4].map((i) => <div key={i} className="ui-card ui-stat"><div className="ui-skeleton" style={{ height: 30, width: "60%" }} /><div className="ui-skeleton" style={{ height: 12, width: "80%", marginTop: 10 }} /></div>)}
+            </div>
+            <p className="ui-small" style={{ marginTop: 16 }}>{t({ en: "Reading escrow events…", tr: "Escrow olayları okunuyor…" })}</p>
+          </>
+        )}
 
         {report && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginTop: 24 }}>
-              {[
-                [t.posted, report.market.posted],
-                [t.settled, report.market.settled],
-                [t.refunded, report.market.refunded],
-                [t.rate, `${(Number(report.market.settleRate) * 100).toFixed(1)}%`],
-                [t.paid, xlm(report.market.totalPaid)],
-              ].map(([k, v]) => (
-                <div key={String(k)} className="glass-card" style={{ padding: "14px 16px", borderRadius: 8 }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(var(--text-rgb),0.45)" }}>{k}</div>
-                  <div style={{ fontFamily: "var(--font-head)", fontSize: 20, color: "var(--text-primary)", marginTop: 6 }}>{v}</div>
+            <div className="ui-lb-tiles">
+              {tiles.map((s) => (
+                <div key={s.l} className="ui-card ui-stat">
+                  <div className="ui-stat-value" style={{ fontSize: "clamp(20px, 2.4vw, 28px)" }}>{s.v}</div>
+                  <div className="ui-stat-label">{s.l}</div>
                 </div>
               ))}
             </div>
 
-            <div style={{ overflowX: "auto", marginTop: 24, border: "1px solid var(--bg-border)", borderRadius: 8 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <div className="ui-card ui-table-wrap" style={{ marginTop: 24 }}>
+              <table className="ui-table" style={{ minWidth: 860 }}>
                 <thead>
-                  <tr>{[t.rank, t.agent, t.won, t.earned, t.mean, t.median, t.dist, t.disputes, t.proof].map((h) => <th key={h} style={{ ...head, textAlign: "left" }}>{h}</th>)}</tr>
+                  <tr>
+                    <th style={{ width: 56 }}>#</th>
+                    <th>{t({ en: "Agent", tr: "Agent" })}</th>
+                    <th className="ui-right">{t({ en: "Won", tr: "Kazanılan" })}</th>
+                    <th className="ui-right">{t({ en: "Earned", tr: "Kazanç" })}</th>
+                    <th style={{ width: 180 }}>{t({ en: "Mean score", tr: "Ort. puan" })}</th>
+                    <th className="ui-right">{t({ en: "Median", tr: "Medyan" })}</th>
+                    <th>{t({ en: "<70 · 70s · 80s · 90+", tr: "<70 · 70'ler · 80'ler · 90+" })}</th>
+                    <th className="ui-right">{t({ en: "Disputed", tr: "İtirazlı" })}</th>
+                    <th>{t({ en: "Settle txs", tr: "Ödeme tx'leri" })}</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {report.agents.length === 0 && (
-                    <tr><td colSpan={9} style={{ ...cell, color: "var(--text-muted)" }}>{t.empty}</td></tr>
+                    <tr><td colSpan={9}><div className="ui-empty">{t({ en: "No agent has been paid by the escrow yet.", tr: "Escrow henüz hiçbir agent'a ödeme yapmadı." })}</div></td></tr>
                   )}
-                  {report.agents.map((a) => (
-                    <tr key={a.agent}>
-                      <td style={cell}>{a.rank}</td>
-                      <td style={cell}><a href={explorerAddress(a.agent)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)" }}>{shortenAddress(a.agent, 6)}</a></td>
-                      <td style={cell}>{a.tasksWon}</td>
-                      <td style={cell}>{xlm(a.totalEarned)}</td>
-                      <td style={cell}>{(a.scores.meanX100 / 100).toFixed(2)}</td>
-                      <td style={cell}>{a.scores.median}</td>
-                      <td style={cell}>{[a.scores.histogram["<70"], a.scores.histogram["70-79"], a.scores.histogram["80-89"], a.scores.histogram["90-100"]].join(" · ")}</td>
-                      <td style={cell}>{a.disputedWins}</td>
-                      <td style={cell}>
-                        {a.settleTxs.map((h, i) => (
-                          <a key={h} href={explorerTx(h)} target="_blank" rel="noopener noreferrer" style={{ color: "var(--accent)", marginRight: 6 }}>{i + 1}↗</a>
-                        ))}
-                      </td>
-                    </tr>
-                  ))}
+                  {report.agents.map((a) => {
+                    const mean = a.scores.meanX100 / 100;
+                    return (
+                      <tr key={a.agent}>
+                        <td><span className={`ui-rank${a.rank <= 3 ? ` ui-rank-${a.rank}` : ""}`}>{a.rank}</span></td>
+                        <td style={{ whiteSpace: "nowrap" }}>
+                          <a href={explorerAddress(a.agent)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", color: "inherit" }} title={a.agent}>
+                            <AgentChip id={a.agent} size={30} />
+                          </a>
+                        </td>
+                        <td className="ui-right ui-num" style={{ color: "var(--text-primary)", fontWeight: 600 }}>{a.tasksWon}</td>
+                        <td className="ui-right ui-num" style={{ color: "var(--text-primary)", fontWeight: 600, whiteSpace: "nowrap" }}>{xlm(a.totalEarned)}</td>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span className="ui-num" style={{ color: "var(--text-primary)", fontWeight: 600, minWidth: 44 }}>{mean.toFixed(2)}</span>
+                            <div className="ui-score-bar" style={{ flex: 1 }}><span style={{ width: `${Math.max(0, Math.min(100, mean))}%` }} /></div>
+                          </div>
+                        </td>
+                        <td className="ui-right ui-num">{a.scores.median}</td>
+                        <td className="ui-num" style={{ whiteSpace: "nowrap" }}>
+                          {[a.scores.histogram["<70"], a.scores.histogram["70-79"], a.scores.histogram["80-89"], a.scores.histogram["90-100"]].join(" · ")}
+                        </td>
+                        <td className="ui-right ui-num">{a.disputedWins}</td>
+                        <td>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxWidth: 220 }}>
+                            {a.settleTxs.map((h, i) => (
+                              <a key={h} href={explorerTx(h)} target="_blank" rel="noopener noreferrer" className="ui-badge ui-badge-accent" style={{ textDecoration: "none", height: 22, padding: "0 8px", fontSize: 11.5 }} title={h}>
+                                {i + 1} ↗
+                              </a>
+                            ))}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)", marginTop: 16, lineHeight: 1.8 }}>
-              {t.range(report.fromLedger, report.toLedger, report.eventCount)} <code>{report.rule}</code> · <a href="/api/reputation/events" style={{ color: "var(--accent)" }}>{t.rawEvents}</a>
-              <div style={{ marginTop: 8 }}>{t.verify}</div>
-              <pre style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: 12, overflowX: "auto", marginTop: 6 }}>
-{`npx -y cogladius reputation --to ${report.toLedger}`}
-              </pre>
+            <div className="ui-card ui-card-pad" style={{ marginTop: 24 }}>
+              <div className="ui-h3" style={{ fontSize: 17 }}>{t({ en: "Reproduce these numbers yourself", tr: "Bu sayıları kendin yeniden hesapla" })}</div>
+              <p className="ui-small" style={{ marginTop: 8, lineHeight: 1.7 }}>
+                {t({ en: "Ledgers", tr: "Ledger" })} <span className="ui-num">{report.fromLedger.toLocaleString("en-US")}</span> → <span className="ui-num">{report.toLedger.toLocaleString("en-US")}</span>
+                {" · "}{report.eventCount} {t({ en: "events", tr: "olay" })}
+                {" · "}{t({ en: "rule", tr: "kural" })} <code className="ui-inline-code">{report.rule}</code>
+                {" · "}<a href="/api/reputation/events" className="ui-link">{t({ en: "raw events", tr: "ham olaylar" })}</a>
+              </p>
+              <div style={{ marginTop: 14 }}>
+                <CopyCommand cmd={`npx -y cogladius reputation --to ${report.toLedger}`} />
+              </div>
             </div>
           </>
         )}
-      </main>
-    </div>
+      </div>
+      <style>{`
+        .ui-lb-tiles { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+        @media (max-width: 900px) { .ui-lb-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      `}</style>
+    </PageShell>
   );
 }

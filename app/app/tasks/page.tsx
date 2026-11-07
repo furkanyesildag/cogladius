@@ -1,245 +1,134 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import ConnectWallet from "@/components/ConnectWallet";
-import { useMessages, useLocale } from "@/lib/i18n";
-import type { AppLocale } from "@/lib/i18n/types";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+import PageShell from "@/components/site/PageShell";
+import { TaskStatusBadge } from "@/components/site/bits";
+import { useT } from "@/lib/ui/copy";
+import { useLocale } from "@/lib/i18n";
 import type { Task } from "@/lib/types";
-import { getMockTasks } from "@/lib/sampleTasks";
-import { shortenAddress, ESCROW_CONTRACT_ID, explorerContract } from "@/lib/constants";
+import { ESCROW_CONTRACT_ID, explorerContract } from "@/lib/constants";
+import {
+  countdown, formatXlm, isAcceptingSubmissions, rewardXlm, shortKey, standings, taskTitle, useJson, useNow,
+} from "@/lib/ui/tasks";
 
-function badgeClass(status: string): string {
-  if (status === "Open") return "badge badge-open";
-  if (status === "UnderReview") return "badge badge-review";
-  if (status === "AwaitingDecision") return "badge badge-awaiting";
-  if (status === "Settled") return "badge badge-settled";
-  if (status === "Disputed") return "badge badge-disputed";
-  if (status === "Resolved") return "badge badge-resolved";
-  return "badge badge-stopped";
-}
-
-function formatDeadline(ts: number, locale: AppLocale): string {
-  const loc = locale === "tr" ? "tr-TR" : "en-US";
-  return new Date(ts * 1000).toLocaleString(loc, { dateStyle: "short", timeStyle: "short" });
-}
+type Filter = "live" | "all" | "paid";
 
 export default function TasksListPage() {
-  const router = useRouter();
+  const t = useT();
   const { locale } = useLocale();
-  const ui = useMessages().ui;
-  const ta = ui.taskArenaPage;
-  const list = ui.tasksListPage;
-  const statusLabels = ui.status as Record<string, string>;
-  const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [usedFallback, setUsedFallback] = useState(false);
+  const now = useNow(1000);
+  const { data, error } = useJson<{ tasks: Task[] }>("/api/tasks", 30000);
+  const [filter, setFilter] = useState<Filter>("live");
+  const [q, setQ] = useState("");
 
-  const navItems = useMemo(
-    () => [
-      { label: ta.navTop.dashboard, href: "/dashboard" as const },
-      { label: ta.navTop.tasks, href: "/tasks" as const, active: true },
-      { label: ta.navTop.agents, href: "/agents" as const },
-    ],
-    [ta.navTop]
-  );
+  const tasks = useMemo(() => data?.tasks ?? [], [data]);
+  const liveCount = tasks.filter(isAcceptingSubmissions).length;
+  const paidCount = tasks.filter((x) => x.status === "Settled" || x.status === "Resolved").length;
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/tasks");
-        if (!res.ok) throw new Error("bad status");
-        const d = await res.json();
-        if (cancelled) return;
-        if (Array.isArray(d.tasks)) {
-          setTasks(d.tasks);
-          return;
-        }
-      } catch {
-        if (cancelled) return;
-        setUsedFallback(true);
-        setTasks(getMockTasks());
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const shown = useMemo(() => {
+    let list = tasks;
+    if (filter === "live") list = list.filter(isAcceptingSubmissions);
+    if (filter === "paid") list = list.filter((x) => x.status === "Settled" || x.status === "Resolved");
+    const needle = q.trim().toLowerCase();
+    if (needle) list = list.filter((x) => `${x.id} ${x.description} ${x.criteria}`.toLowerCase().includes(needle));
+    return [...list].sort((a, b) => {
+      const la = isAcceptingSubmissions(a) ? 0 : 1, lb = isAcceptingSubmissions(b) ? 0 : 1;
+      if (la !== lb) return la - lb;
+      return la === 0 ? a.deadline - b.deadline : b.id - a.id;
+    });
+  }, [tasks, filter, q]);
+
+  const fmtDate = (sec: number) =>
+    new Date(sec * 1000).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { dateStyle: "medium", timeStyle: "short" });
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
-      <header
-        style={{
-          height: 48,
-          background: "var(--bg-surface-low)",
-          borderBottom: "1px solid var(--bg-border)",
-          display: "flex",
-          alignItems: "center",
-          padding: "0 20px",
-          gap: 0,
-          flexShrink: 0,
-          position: "sticky",
-          top: 0,
-          zIndex: 100,
-        }}
-      >
-        <span style={{ cursor: "pointer", marginRight: 32, display: "flex", alignItems: "center" }} onClick={() => router.push("/")}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 34, height: 34, objectFit: "contain" }} />
-        </span>
-        {navItems.map((item) => (
-          <button
-            key={item.href}
-            onClick={() => router.push(item.href)}
-            style={{
-              background: "none",
-              border: "none",
-              borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent",
-              color: item.active ? "var(--accent)" : "rgba(var(--text-rgb),0.4)",
-              fontFamily: "var(--font)",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              padding: "0 16px",
-              height: 48,
-              cursor: "pointer",
-              transition: "color 0.12s",
-            }}
-          >
-            {item.label}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <ConnectWallet />
+    <PageShell>
+      <section className="ui-container ui-page-head">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-end", justifyContent: "space-between" }}>
+          <div>
+            <h1 className="ui-page-title">{t({ en: "Tasks", tr: "Görevler" })}</h1>
+            <p className="ui-lead">
+              {t({
+                en: "Every reward here is locked in the Soroban escrow. Pick a live task, submit your agent's answer and let the judges decide.",
+                tr: "Buradaki her ödül Soroban escrow'unda kilitli. Canlı bir görev seç, agent'ının cevabını teslim et, kararı hakemler versin.",
+              })}
+            </p>
+          </div>
+          <a href={explorerContract(ESCROW_CONTRACT_ID)} target="_blank" rel="noopener noreferrer" className="ui-btn ui-btn-secondary">
+            {t({ en: "View escrow contract", tr: "Escrow kontratını gör" })} ↗
+          </a>
         </div>
-      </header>
+      </section>
 
-      <main style={{ flex: 1, padding: "28px 32px", maxWidth: 1100, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
-        <h1 style={{ fontFamily: "var(--font-head)", fontSize: 22, color: "var(--text-primary)", margin: "0 0 8px" }}>{list.title}</h1>
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", margin: "0 0 24px", lineHeight: 1.6 }}>
-          {list.subtitle}
-        </p>
-        {usedFallback && (
-          <div
-            style={{
-              fontFamily: "var(--font)",
-              fontSize: 11,
-              color: "var(--yellow)",
-              marginBottom: 16,
-              padding: "10px 14px",
-              background: "var(--bg-surface-low)",
-              border: "1px solid var(--bg-border)",
-              borderRadius: 6,
-            }}
-          >
-            {list.loadError}
+      <section className="ui-container">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div className="ui-tabs" role="tablist">
+            {([
+              ["live", t({ en: "Live", tr: "Canlı" }), liveCount],
+              ["all", t({ en: "All", tr: "Tümü" }), tasks.length],
+              ["paid", t({ en: "Paid", tr: "Ödenen" }), paidCount],
+            ] as [Filter, string, number][]).map(([k, label, n]) => (
+              <button key={k} role="tab" className="ui-tab" aria-selected={filter === k} onClick={() => setFilter(k)}>
+                {label} <span className="ui-muted ui-num" style={{ marginLeft: 4 }}>{data ? n : ""}</span>
+              </button>
+            ))}
           </div>
-        )}
+          <input
+            className="ui-input"
+            style={{ maxWidth: 320 }}
+            placeholder={t({ en: "Search tasks", tr: "Görev ara" })}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label={t({ en: "Search tasks", tr: "Görev ara" })}
+          />
+        </div>
 
-        {tasks === null ? (
-          <div style={{ fontFamily: "var(--font)", fontSize: 12, color: "rgba(var(--text-rgb),0.35)" }}>{ta.loading}</div>
-        ) : tasks.length === 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "72px 24px 48px", gap: 18 }}>
-            <div style={{ width: 66, height: 66, borderRadius: 18, background: "var(--accent-dim)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 32, color: "var(--accent)" }}>inventory_2</span>
+        <div className="ui-card" style={{ overflow: "hidden" }}>
+          {!data && !error && [0, 1, 2, 3].map((i) => (
+            <div key={i} style={{ padding: 22, borderBottom: "1px solid var(--bg-border)" }}><div className="ui-skeleton" style={{ height: 46 }} /></div>
+          ))}
+          {error && !data && (
+            <div className="ui-empty">{t({ en: "Tasks could not be loaded. Refresh in a moment.", tr: "Görevler yüklenemedi. Birazdan yenile." })}</div>
+          )}
+          {data && shown.length === 0 && (
+            <div className="ui-empty">
+              {filter === "live"
+                ? t({ en: "No live tasks right now. Check All for past tasks.", tr: "Şu an canlı görev yok. Geçmiş görevler için Tümü'ne bak." })
+                : t({ en: "Nothing matches.", tr: "Eşleşen görev yok." })}
             </div>
-            <div>
-              <div style={{ fontFamily: "var(--font-head)", fontSize: 19, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>{list.empty}</div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", maxWidth: 440, lineHeight: 1.65, margin: "0 auto" }}>
-                {locale === "tr"
-                  ? "İlk görevi yayınla — XLM ödülü, bir karar verilene kadar canlı bir Soroban escrow kontratında kilitlenir. Hiçbir platform cüzdanı fonları tutmaz."
-                  : "Post the first task — its XLM reward is locked in a live Soroban escrow contract until a verdict is reached. No platform wallet holds the funds."}
-              </div>
-            </div>
-            {ESCROW_CONTRACT_ID && (
-              <a href={explorerContract(ESCROW_CONTRACT_ID)} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)", textDecoration: "none", background: "var(--bg-surface)", border: "1px solid var(--bg-border-bright)", borderRadius: 999, padding: "7px 14px", letterSpacing: "0.04em" }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)", boxShadow: "0 0 6px var(--green)" }} />
-                {locale === "tr" ? "Canlı Soroban escrow" : "Live Soroban escrow"} · {shortenAddress(ESCROW_CONTRACT_ID, 5)} ↗
-              </a>
-            )}
-            <button onClick={() => router.push("/dashboard")} className="btn-primary"
-              style={{ marginTop: 4, justifyContent: "center", padding: "12px 22px", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add_task</span>
-              {locale === "tr" ? "Görev yayınlamak için panele git" : "Open dashboard to post a task"}
-            </button>
-          </div>
-        ) : (
-          <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, overflow: "hidden" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0,1fr) 100px 120px 140px",
-                gap: 12,
-                padding: "12px 18px",
-                borderBottom: "1px solid var(--bg-border)",
-                fontFamily: "var(--font)",
-                fontSize: 9,
-                color: "var(--text-muted)",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              <span>{list.colSummary}</span>
-              <span>{list.colReward}</span>
-              <span>{list.colStatus}</span>
-              <span>{list.colDeadline}</span>
-            </div>
-            {tasks.map((task) => {
-              const curr = "XLM";
-              const rewardNum = task.rewardUsdc ?? task.reward / 1e7;
-              const summary = task.description.length > 120 ? `${task.description.slice(0, 117)}…` : task.description;
-              const statusKey = task.status;
-              const statusText = statusLabels[statusKey] ?? statusKey;
-              return (
-                <div
-                  key={task.id}
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => router.push(`/task/${task.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      router.push(`/task/${task.id}`);
-                    }
-                  }}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "minmax(0,1fr) 100px 120px 140px",
-                    gap: 12,
-                    padding: "14px 18px",
-                    borderBottom: "1px solid var(--bg-border)",
-                    cursor: "pointer",
-                    alignItems: "center",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--bg-surface-high)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <div>
-                    <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", letterSpacing: "0.06em", marginBottom: 4 }}>
-                      #{task.id} · {shortenAddress(task.poster)}
-                    </div>
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-primary)", lineHeight: 1.45 }}>{summary}</div>
+          )}
+          {shown.map((task) => {
+            const live = isAcceptingSubmissions(task);
+            const top = standings(task)[0];
+            const left = live ? countdown(task.deadline, now) : null;
+            return (
+              <Link key={task.id} href={`/task/${task.id}`} className="ui-task-row">
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <span className="ui-mono ui-muted" style={{ fontSize: 12.5 }}>#{task.id}</span>
+                    <TaskStatusBadge task={task} />
+                    {task.gladiatorOnly && <span className="ui-badge ui-badge-gold">{t({ en: "League final", tr: "Lig finali" })}</span>}
                   </div>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--accent)" }}>{rewardNum.toFixed(4)} {curr}</span>
-                  <span className={badgeClass(task.status)} style={{ justifySelf: "start" }}>
-                    {statusText}
-                  </span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.45)" }}>{formatDeadline(task.deadline, locale)}</span>
+                  <div className="ui-task-title">{taskTitle(task, 120)}</div>
+                  <div className="ui-small" style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 8 }}>
+                    <span>{t({ en: "by", tr: "veren" })} <span className="ui-mono">{shortKey(task.poster)}</span></span>
+                    <span>{task.submissions?.length ?? 0} {t({ en: "submissions", tr: "teslim" })}</span>
+                    {top && <span>{t({ en: "top score", tr: "en yüksek" })} <b style={{ color: "var(--text-primary)" }}>{top.avg}</b></span>}
+                    {!live && <span>{fmtDate(task.deadline)}</span>}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
-    </div>
+                <div className="ui-task-side">
+                  <div className="ui-num" style={{ fontFamily: "var(--font-head)", fontWeight: 700, fontSize: 20, color: "var(--text-primary)" }}>
+                    {formatXlm(rewardXlm(task), 4)} <span style={{ fontSize: 13, color: "var(--text-muted)", fontWeight: 600 }}>XLM</span>
+                  </div>
+                  {left && <div className="ui-mono ui-num" style={{ fontSize: 13, color: "var(--accent)", marginTop: 4 }}>{t({ en: "closes in", tr: "kapanışa" })} {left}</div>}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+    </PageShell>
   );
 }

@@ -245,8 +245,8 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               <span className="material-symbols-outlined" style={{ fontSize: 28, color: "var(--green)" }}>check_circle</span>
             </div>
             <div style={{ fontFamily: "var(--font-head)", fontSize: 18, fontWeight: 700, color: "var(--text-primary)", marginBottom: 6 }}>{L.successTitle}</div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 10, color: def.color, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 4 }}>
-              {def.label.toUpperCase()} · #{taskId} · {rewardUsdc.toFixed(4)} XLM
+            <div style={{ fontFamily: "var(--font)", fontSize: 12, color: def.color, letterSpacing: "0.01em", textTransform: "none", marginBottom: 4 }}>
+              {def.label} · #{taskId} · {rewardUsdc.toFixed(4)} XLM
             </div>
           </div>
           <div style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", textAlign: "center", lineHeight: 1.7, marginBottom: 20 }}>
@@ -258,9 +258,9 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
             )}
           </div>
           <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 6, padding: "12px 14px", marginBottom: 20 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-ghost)", letterSpacing: "0.1em", marginBottom: 8 }}>{L.txHashLabel}</div>
+            <div style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "var(--text-ghost)", letterSpacing: "0.01em", marginBottom: 8 }}>{L.txHashLabel}</div>
             <a href={EXPLORER_TX(txHash)} target="_blank" rel="noopener noreferrer"
-              style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", textDecoration: "none", wordBreak: "break-all", lineHeight: 1.6 }}>
+              style={{ fontFamily: "var(--font)", fontSize: 12, color: "var(--accent)", textDecoration: "none", wordBreak: "break-all", lineHeight: 1.6 }}>
               {txHash}
             </a>
           </div>
@@ -288,7 +288,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
             <span style={{ fontFamily: "var(--font-head)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{L.newTitle}</span>
           </div>
           <button onClick={onClose}
-            style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "1px solid var(--bg-border-bright)", borderRadius: 4, cursor: "pointer", color: "var(--text-muted)" }}
+            style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: "transparent", border: "1px solid var(--bg-border-bright)", borderRadius: 8, cursor: "pointer", color: "var(--text-muted)" }}
             onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-surface-high)"; e.currentTarget.style.color = "var(--text-primary)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}>
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
@@ -302,7 +302,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
             <span style={{ fontSize: 18, color: "var(--accent)" }}>✦</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--text-primary)" }}>Stellar · Soroban Escrow</div>
-              <div style={{ fontFamily: "var(--font)", fontSize: 9, color: ready ? "var(--green)" : "var(--yellow)" }}>
+              <div style={{ fontFamily: "var(--font)", fontSize: 11.5, color: ready ? "var(--green)" : "var(--yellow)" }}>
                 {conn
                   ? (ready ? "Wallet ready · XLM reward locked in the escrow contract on publish" : `Switch Freighter to ${IS_MAINNET ? "Mainnet" : "Testnet"} to continue`)
                   : "Connect Freighter below to lock a XLM reward"}
@@ -315,7 +315,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
 
           {/* ── Task Type Grid ─────────────────────────────────── */}
           <div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>
               {L.taskTypeSection}
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
@@ -349,10 +349,10 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                     <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: active ? d.color : "var(--text-primary)", marginBottom: 2, transition: "color 0.15s" }}>
                       {d.label}
                     </div>
-                    <div style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "var(--text-muted)", lineHeight: 1.4 }}>
+                    <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>
                       {d.sub}
                     </div>
-                    <div style={{ fontFamily: "var(--font)", fontSize: 9, color: active ? d.color : "rgba(var(--text-rgb),0.2)", marginTop: 8, letterSpacing: "0.04em" }}>
+                    <div style={{ fontFamily: "var(--font)", fontSize: 11.5, color: active ? d.color : "rgba(var(--text-rgb),0.2)", marginTop: 8, letterSpacing: "0.04em" }}>
                       {d.rewardRange[0]}–{d.rewardRange[1]} XLM
                     </div>
                   </button>
@@ -367,10 +367,10 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
           {/* ── Description ──────────────────────────────────── */}
           <div>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+              <label style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)" }}>
                 {L.fieldLabel}
               </label>
-              <span style={{ fontFamily: "var(--font)", fontSize: 9, color: description.length > 450 ? "var(--yellow)" : "rgba(var(--text-rgb),0.2)" }}>
+              <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: description.length > 450 ? "var(--yellow)" : "rgba(var(--text-rgb),0.2)" }}>
                 {description.length}/1000
               </span>
             </div>
@@ -386,7 +386,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
 
           {/* ── Output Format ─────────────────────────────── */}
           <div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 10 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>
               {L.expectedOutput}
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -404,10 +404,10 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                       padding: "6px 12px",
                       background: active ? `${def.color}18` : "transparent",
                       border: `1px solid ${active ? def.color : "var(--bg-border)"}`,
-                      borderRadius: 4,
+                      borderRadius: 8,
                       cursor: "pointer",
                       fontFamily: "var(--font)",
-                      fontSize: 10,
+                      fontSize: 12,
                       color: active ? def.color : "var(--text-muted)",
                       transition: "all 0.15s",
                       fontWeight: active ? 700 : 400,
@@ -426,33 +426,33 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
           {/* ── Criteria chips ─────────────────────────────── */}
           <div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+              <label style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)" }}>
                 {L.criteriaSection}
               </label>
-              <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)" }}>{criteriaChips.length}/8</span>
+              <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.2)" }}>{criteriaChips.length}/8</span>
             </div>
-            <div style={{ minHeight: 42, background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 4, padding: "7px 8px", display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
+            <div style={{ minHeight: 42, background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 8, padding: "7px 8px", display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 8 }}>
               {criteriaChips.map((chip) => (
-                <span key={chip} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: `${def.color}18`, border: `1px solid ${def.color}55`, color: def.color, fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, padding: "3px 8px 3px 10px", borderRadius: 2, letterSpacing: "0.04em", transition: "background 0.2s" }}>
+                <span key={chip} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: `${def.color}18`, border: `1px solid ${def.color}55`, color: def.color, fontFamily: "var(--font)", fontSize: 11.5, fontWeight: 700, padding: "3px 8px 3px 10px", borderRadius: 8, letterSpacing: "0.04em", transition: "background 0.2s" }}>
                   {chip}
                   <button type="button" onClick={() => removeChip(chip)}
                     style={{ background: "transparent", border: "none", cursor: "pointer", color: def.color, lineHeight: 1, padding: 0, display: "flex", alignItems: "center", opacity: 0.5 }}
                     onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
                     onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.5")}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 11 }}>close</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>close</span>
                   </button>
                 </span>
               ))}
-              {criteriaChips.length === 0 && <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.2)" }}>{L.criteriaEmptyHint}</span>}
+              {criteriaChips.length === 0 && <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(var(--text-rgb),0.2)" }}>{L.criteriaEmptyHint}</span>}
             </div>
             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
               <input type="text" value={chipInput}
                 onChange={(e) => setChipInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === "," || e.key === "Tab") { e.preventDefault(); addChip(chipInput); } }}
                 placeholder={L.criteriaPlaceholder}
-                style={{ fontFamily: "var(--font-body)", fontSize: 11, paddingRight: 64 }} />
+                style={{ fontFamily: "var(--font-body)", fontSize: 13, paddingRight: 64 }} />
               <button type="button" onClick={() => addChip(chipInput)}
-                style={{ position: "absolute", right: 8, fontFamily: "var(--font)", fontSize: 8, color: chipInput.trim() ? def.color : "rgba(var(--text-rgb),0.2)", background: "transparent", border: "none", cursor: chipInput.trim() ? "pointer" : "default", letterSpacing: "0.06em", fontWeight: 700 }}>
+                style={{ position: "absolute", right: 8, fontFamily: "var(--font)", fontSize: 11, color: chipInput.trim() ? def.color : "rgba(var(--text-rgb),0.2)", background: "transparent", border: "none", cursor: chipInput.trim() ? "pointer" : "default", letterSpacing: "0.01em", fontWeight: 700 }}>
                 {L.addChip}
               </button>
             </div>
@@ -465,10 +465,10 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
             <div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
-                <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.14em", textTransform: "uppercase" }}>
+                <label style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)" }}>
                   {L.rewardLabel}
                 </label>
-                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)" }}>
+                <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.3)" }}>
                   {L.suggestPrefix} {def.rewardRange[0]}–{def.rewardRange[1]}
                 </span>
               </div>
@@ -477,7 +477,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                 placeholder="0" required
                 style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: def.color }} />
               {usdcBalance !== null && (
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: balanceOk ? "rgba(var(--text-rgb),0.3)" : "var(--red)", marginTop: 4 }}>
+                <div style={{ fontFamily: "var(--font)", fontSize: 11.5, color: balanceOk ? "rgba(var(--text-rgb),0.3)" : "var(--red)", marginTop: 4 }}>
                   {L.balancePrefix} {usdcBalance.toFixed(4)} XLM {!balanceOk && L.insufficientSuffix}
                 </div>
               )}
@@ -485,7 +485,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
 
             {/* Deadline presets */}
             <div>
-              <label style={{ display: "block", fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>
+              <label style={{ display: "block", fontSize: 13.5, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
                 {L.durationLabel}
               </label>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
@@ -498,9 +498,9 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
                       padding: "6px 10px",
                       background: deadlineMin === p.value ? `${def.color}18` : "transparent",
                       border: `1px solid ${deadlineMin === p.value ? def.color : "var(--bg-border)"}`,
-                      borderRadius: 3,
+                      borderRadius: 8,
                       fontFamily: "var(--font)",
-                      fontSize: 9,
+                      fontSize: 11.5,
                       color: deadlineMin === p.value ? def.color : "var(--text-muted)",
                       cursor: "pointer",
                       fontWeight: deadlineMin === p.value ? 700 : 400,
@@ -526,19 +526,19 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
               [L.summaryLabels.network, "Stellar Mainnet", "var(--green)"],
             ].map(([label, val, color], i) => (
               <div key={label} style={{ flex: 1, paddingLeft: i > 0 ? 14 : 0, borderLeft: i > 0 ? "1px solid var(--bg-border)" : "none", marginLeft: i > 0 ? 14 : 0 }}>
-                <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-ghost)", letterSpacing: "0.1em", marginBottom: 4 }}>{label}</div>
-                <div style={{ fontFamily: "var(--font)", fontSize: 10, color, fontWeight: 700 }}>{val}</div>
+                <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-ghost)", letterSpacing: "0.01em", marginBottom: 4 }}>{label}</div>
+                <div style={{ fontFamily: "var(--font)", fontSize: 12, color, fontWeight: 700 }}>{val}</div>
               </div>
             ))}
           </div>
 
           {/* League final: who may enter. Signed with the record, so nobody else can change it. */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: "var(--font)", fontSize: 13, color: "var(--text-muted)" }}>
               <input type="checkbox" checked={gladiatorOnly} onChange={(e) => setGladiatorOnly(e.target.checked)} />
               {locale === "tr" ? "Yalnızca Gladiator sahipleri (doğrulanmış cüzdan)" : "Gladiator holders only (verified wallet)"}
             </label>
-            <label style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font)", fontSize: 13, color: "var(--text-muted)" }}>
               {locale === "tr" ? "En düşük lig eleme puanı (isteğe bağlı, 1-100)" : "Minimum League qualifier score (optional, 1-100)"}
               <input type="text" inputMode="numeric" value={minScoreInput} placeholder="–"
                 onChange={(e) => { if (/^\d{0,3}$/.test(e.target.value)) setMinScoreInput(e.target.value); }}
@@ -548,7 +548,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
 
           {/* Fee sponsorship */}
           {sponsorAvailable && (
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: "var(--font)", fontSize: 13, color: "var(--text-muted)" }}>
               <input type="checkbox" checked={sponsored} onChange={(e) => setSponsored(e.target.checked)} />
               {locale === "tr"
                 ? "Ağ ücretini Cogladius ödesin (yalnızca yetkilendirmeyi imzalarsın, cüzdanından sadece ödül çıkar)"
@@ -558,7 +558,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
 
           {/* Error */}
           {error && (
-            <div style={{ background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.3)", borderRadius: 4, padding: "10px 14px", fontFamily: "var(--font)", fontSize: 11, color: "var(--red)", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.3)", borderRadius: 8, padding: "10px 14px", fontFamily: "var(--font)", fontSize: 13, color: "var(--red)", display: "flex", alignItems: "center", gap: 8 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>warning</span>
               {error}
             </div>
@@ -567,7 +567,7 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
           {/* Submit */}
           {!networkConnected ? (
             <div style={{ textAlign: "center", paddingTop: 4 }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-muted)", marginBottom: 12 }}>
+              <div style={{ fontFamily: "var(--font)", fontSize: 13, color: "var(--text-muted)", marginBottom: 12 }}>
                 Connect Freighter to lock a XLM reward
               </div>
               <ConnectWallet />

@@ -69,7 +69,7 @@ function CopyButton({ text }: { text: string }) {
         setDidCopy(true);
         setTimeout(() => setDidCopy(false), 1500);
       }}
-      style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: didCopy ? "var(--green)" : "rgba(var(--text-rgb),0.35)", letterSpacing: "0.06em", padding: "2px 6px", transition: "color 0.15s" }}
+      style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 11.5, color: didCopy ? "var(--green)" : "rgba(var(--text-rgb),0.35)", letterSpacing: "0.01em", padding: "2px 6px", transition: "color 0.15s" }}
     >
       {didCopy ? aw.copied : aw.copy}
     </button>
@@ -80,12 +80,12 @@ function CodeBlock({ lang, code }: { lang: string; code: string }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(0,0,0,0.4)", borderRadius: "4px 4px 0 0", padding: "5px 12px", borderBottom: "1px solid rgba(var(--white-rgb),0.06)" }}>
-        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.4)", letterSpacing: "0.08em" }}>
+        <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "rgba(var(--text-rgb),0.4)", letterSpacing: "0.01em" }}>
           {lang || "code"}
         </span>
         <CopyButton text={code} />
       </div>
-      <pre style={{ margin: 0, background: "rgba(0,0,0,0.35)", borderRadius: "0 0 4px 4px", padding: "12px 14px", overflowX: "auto", fontFamily: "var(--font)", fontSize: 11, color: "#E8F0FE", lineHeight: 1.65, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+      <pre style={{ margin: 0, background: "rgba(0,0,0,0.35)", borderRadius: "0 0 4px 4px", padding: "12px 14px", overflowX: "auto", fontFamily: "var(--font)", fontSize: 13, color: "#E8F0FE", lineHeight: 1.65, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
         {code.trim()}
       </pre>
     </div>
@@ -98,10 +98,10 @@ function JsonBlock({ raw }: { raw: string }) {
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,209,102,0.06)", borderRadius: "4px 4px 0 0", padding: "5px 12px", borderBottom: "1px solid rgba(255,209,102,0.15)" }}>
-        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(255,209,102,0.6)", letterSpacing: "0.08em" }}>json</span>
+        <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "rgba(255,209,102,0.6)", letterSpacing: "0.01em" }}>json</span>
         <CopyButton text={pretty} />
       </div>
-      <pre style={{ margin: 0, background: "rgba(255,209,102,0.04)", borderRadius: "0 0 4px 4px", padding: "12px 14px", overflowX: "auto", fontFamily: "var(--font)", fontSize: 11, color: "#FFD166", lineHeight: 1.65, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+      <pre style={{ margin: 0, background: "rgba(255,209,102,0.04)", borderRadius: "0 0 4px 4px", padding: "12px 14px", overflowX: "auto", fontFamily: "var(--font)", fontSize: 13, color: "#FFD166", lineHeight: 1.65, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
         {pretty}
       </pre>
     </div>
@@ -195,7 +195,7 @@ function ResultRenderer({
               // **Bold-only line** → treat as section header
               if (/^\*\*[^*]+\*\*$/.test(line.trim())) {
                 return (
-                  <div key={li} style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "0.04em", marginTop: 12, marginBottom: 4, textTransform: "uppercase" }}>
+                  <div key={li} style={{ fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "0.04em", marginTop: 12, marginBottom: 4, textTransform: "none" }}>
                     {line.replace(/\*\*/g, "")}
                   </div>
                 );
@@ -206,10 +206,10 @@ function ResultRenderer({
                 const isNum = /^\d/.test(listM[1]);
                 return (
                   <div key={li} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 5, paddingLeft: 4 }}>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: "var(--accent)", flexShrink: 0, minWidth: 18, marginTop: 3 }}>
+                    <span style={{ fontFamily: "var(--font)", fontSize: 11.5, fontWeight: 700, color: "var(--accent)", flexShrink: 0, minWidth: 18, marginTop: 3 }}>
                       {isNum ? listM[1] : "▸"}
                     </span>
-                    <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.78)", lineHeight: 1.75 }}>
+                    <span style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(var(--text-rgb),0.78)", lineHeight: 1.75 }}>
                       <RichLine text={listM[2]} />
                     </span>
                   </div>
@@ -219,14 +219,14 @@ function ResultRenderer({
               if (URL_RE.test(line)) {
                 URL_RE.lastIndex = 0;
                 return (
-                  <p key={li} style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.65)", lineHeight: 1.8, marginBottom: 4 }}>
+                  <p key={li} style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(var(--text-rgb),0.65)", lineHeight: 1.8, marginBottom: 4 }}>
                     <RichLine text={line} />
                   </p>
                 );
               }
               // Normal paragraph
               return (
-                <p key={li} style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.65)", lineHeight: 1.8, marginBottom: 4 }}>
+                <p key={li} style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(var(--text-rgb),0.65)", lineHeight: 1.8, marginBottom: 4 }}>
                   <RichLine text={line} />
                 </p>
               );
@@ -494,7 +494,7 @@ export default function AgentWorkPanel({
           }}
         />
 
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, marginTop: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginTop: 8 }}>
           <span style={{ color: S.tm }}>
             {aw.headerTaskLine(task.id)}<span style={{ color: S.accent }}>{(task.rewardUsdc ?? 0).toFixed(4)} XLM</span>
             {avgScore !== null && <span style={{ marginLeft: 10, color: avgScore >= 70 ? S.green : S.yellow }}>{aw.judgeAvgSuffix(avgScore)}</span>}
@@ -502,14 +502,14 @@ export default function AgentWorkPanel({
           <button onClick={onClose} style={{ background: "none", border: "none", color: S.tm, cursor: "pointer", fontSize: 13, lineHeight: 1 }}>×</button>
         </div>
         {phase === "racing" && (
-          <div style={{ fontSize: 9, color: S.tm, marginTop: 3 }}>
+          <div style={{ fontSize: 11.5, color: S.tm, marginTop: 3 }}>
             {aw.racingHint}
           </div>
         )}
         {apiWarning && (
-          <div style={{ marginTop: 8, background: S.yellowD, border: `1px solid ${S.yellow}`, padding: "5px 10px", fontSize: 10, color: S.yellow, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 8, background: S.yellowD, border: `1px solid ${S.yellow}`, padding: "5px 10px", fontSize: 12, color: S.yellow, lineHeight: 1.5 }}>
             ⚠ {aw.mockModePrefix} {apiWarning}
-            <div style={{ color: S.tm, fontSize: 9, marginTop: 2 }}>{aw.mockModeHint}</div>
+            <div style={{ color: S.tm, fontSize: 11.5, marginTop: 2 }}>{aw.mockModeHint}</div>
           </div>
         )}
       </div>
@@ -525,17 +525,17 @@ export default function AgentWorkPanel({
                 {/* Submission header */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--bg-surface-high)", border: `1px solid ${S.accent}`, borderBottom: "none", padding: "7px 14px", borderRadius: "4px 4px 0 0" }}>
                   <span style={{ width: 7, height: 7, borderRadius: "50%", background: S.accent, display: "inline-block", flexShrink: 0 }} />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: S.accent, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 11.5, fontWeight: 700, color: S.accent, letterSpacing: "0.01em", textTransform: "none" }}>
                     {m.speaker ?? winnerAgent.name}
                   </span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.05em" }}>{aw.submissionDelivered}</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.01em" }}>{aw.submissionDelivered}</span>
                   {fmeta && (
-                    <span style={{ marginLeft: 4, display: "inline-flex", alignItems: "center", gap: 4, background: `${fmeta.color}14`, border: `1px solid ${fmeta.color}44`, borderRadius: 3, padding: "1px 7px", fontFamily: "var(--font)", fontSize: 8, color: fmeta.color, letterSpacing: "0.06em" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 10 }}>{fmeta.icon}</span>
+                    <span style={{ marginLeft: 4, display: "inline-flex", alignItems: "center", gap: 4, background: `${fmeta.color}14`, border: `1px solid ${fmeta.color}44`, borderRadius: 8, padding: "1px 7px", fontFamily: "var(--font)", fontSize: 11, color: fmeta.color, letterSpacing: "0.01em" }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>{fmeta.icon}</span>
                       {fmeta.label}
                     </span>
                   )}
-                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)" }}>{m.ts}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)" }}>{m.ts}</span>
                   <CopyButton text={m.content} />
                 </div>
                 {/* Submission body — smart rendering */}
@@ -552,14 +552,14 @@ export default function AgentWorkPanel({
             return (
               <div key={i} style={{ animation: "fadeIn 0.3s ease", background: "var(--bg-surface-high)", border: `1px solid var(--bg-border)`, borderLeft: `2px solid ${c}`, borderRadius: "0 3px 3px 0", padding: "7px 12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: S.yellow, letterSpacing: "0.06em", textTransform: "uppercase" }}>◈ {js.name}</span>
-                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: c }}>{js.score}<span style={{ fontSize: 8, color: "rgba(var(--text-rgb),0.3)", fontWeight: 400 }}>/100</span></span>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)" }}>{m.ts}</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 11.5, fontWeight: 700, color: S.yellow, letterSpacing: "0.01em", textTransform: "none" }}>◈ {js.name}</span>
+                  <span style={{ marginLeft: "auto", fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: c }}>{js.score}<span style={{ fontSize: 11, color: "rgba(var(--text-rgb),0.3)", fontWeight: 400 }}>/100</span></span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)" }}>{m.ts}</span>
                 </div>
                 <div style={{ background: "var(--bg-border)", height: 2, marginBottom: 5, overflow: "hidden" }}>
                   <div style={{ width: barW, height: "100%", background: c, transition: "width 0.8s ease" }} />
                 </div>
-                <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.5)" }}>{js.comment}</span>
+                <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.5)" }}>{js.comment}</span>
               </div>
             );
           }
@@ -569,8 +569,8 @@ export default function AgentWorkPanel({
             const color     = isSuccess ? S.green : isDanger ? S.red : S.ts;
             return (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", borderTop: `1px solid ${S.border}`, animation: "fadeIn 0.3s ease" }}>
-                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)", flexShrink: 0 }}>{m.ts}</span>
-                <span style={{ fontFamily: "var(--font)", fontSize: 10, color }}>{m.content}</span>
+                <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.2)", flexShrink: 0 }}>{m.ts}</span>
+                <span style={{ fontFamily: "var(--font)", fontSize: 12, color }}>{m.content}</span>
               </div>
             );
           }
@@ -581,12 +581,12 @@ export default function AgentWorkPanel({
             <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", animation: "fadeIn 0.2s ease" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
                 {!isUser && <span style={{ width: 5, height: 5, borderRadius: "50%", background: agentColor, display: "inline-block" }} />}
-                <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isUser ? "rgba(var(--text-rgb),0.3)" : agentColor }}>
+                <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: isUser ? "rgba(var(--text-rgb),0.3)" : agentColor }}>
                   {isUser ? aw.youLabel : m.speaker ?? agentA.name}
                 </span>
-                <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)" }}>{m.ts}</span>
+                <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.2)" }}>{m.ts}</span>
               </div>
-              <div style={{ background: isUser ? S.accentD : "var(--bg-surface-high)", border: `1px solid ${isUser ? "rgba(255,86,37,0.3)" : S.borderB}`, borderRadius: isUser ? "4px 4px 0 4px" : "0 4px 4px 4px", padding: "8px 12px", maxWidth: "88%", fontFamily: "var(--font-body)", fontSize: 11, color: S.tp, lineHeight: 1.7 }}>
+              <div style={{ background: isUser ? S.accentD : "var(--bg-surface-high)", border: `1px solid ${isUser ? "rgba(255,86,37,0.3)" : S.borderB}`, borderRadius: isUser ? "4px 4px 0 4px" : "0 4px 4px 4px", padding: "8px 12px", maxWidth: "88%", fontFamily: "var(--font-body)", fontSize: 13, color: S.tp, lineHeight: 1.7 }}>
                 {m.content}
               </div>
             </div>
@@ -595,13 +595,13 @@ export default function AgentWorkPanel({
 
         {/* Reject form */}
         {rejectMode && phase !== "rejected" && (
-          <div style={{ marginTop: 4, background: S.redD, border: `1px solid ${S.red}`, padding: "12px 14px", borderRadius: 4, animation: "fadeIn 0.2s ease" }}>
-            <div style={{ fontSize: 10, color: S.red, letterSpacing: "0.08em", marginBottom: 8 }}>{aw.rejectTitle}</div>
+          <div style={{ marginTop: 4, background: S.redD, border: `1px solid ${S.red}`, padding: "12px 14px", borderRadius: 8, animation: "fadeIn 0.2s ease" }}>
+            <div style={{ fontSize: 12, color: S.red, letterSpacing: "0.01em", marginBottom: 8 }}>{aw.rejectTitle}</div>
             <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder={aw.rejectPlaceholder} rows={3} autoFocus
-              style={{ width: "100%", resize: "vertical", background: S.bg, border: "1px solid rgba(239,68,68,0.4)", color: S.tp, padding: "8px 10px", fontSize: 11, fontFamily: "var(--font)", lineHeight: 1.7, outline: "none", boxSizing: "border-box" }} />
+              style={{ width: "100%", resize: "vertical", background: S.bg, border: "1px solid rgba(239,68,68,0.4)", color: S.tp, padding: "8px 10px", fontSize: 13, fontFamily: "var(--font)", lineHeight: 1.7, outline: "none", boxSizing: "border-box" }} />
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              <button onClick={() => setRejectMode(false)} style={{ background: "none", border: `1px solid ${S.border}`, color: S.ts, padding: "5px 12px", fontSize: 10, cursor: "pointer", fontFamily: "var(--font)" }}>{aw.cancel}</button>
-              <button onClick={handleRejectSubmit} disabled={!rejectReason.trim()} style={{ flex: 1, background: "none", border: `1px solid ${S.red}`, color: S.red, padding: "5px 12px", fontSize: 10, cursor: "pointer", fontFamily: "var(--font)", opacity: !rejectReason.trim() ? 0.4 : 1 }}>
+              <button onClick={() => setRejectMode(false)} style={{ background: "none", border: `1px solid ${S.border}`, color: S.ts, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)" }}>{aw.cancel}</button>
+              <button onClick={handleRejectSubmit} disabled={!rejectReason.trim()} style={{ flex: 1, background: "none", border: `1px solid ${S.red}`, color: S.red, padding: "5px 12px", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)", opacity: !rejectReason.trim() ? 0.4 : 1 }}>
                 {aw.rejectSubmit}
               </button>
             </div>
@@ -616,10 +616,10 @@ export default function AgentWorkPanel({
           <input value={input} onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
             placeholder={phase === "racing" ? aw.inputPlaceholderRacing : aw.inputPlaceholderWinner}
-            style={{ flex: 1, background: S.bg, border: `1px solid ${S.borderB}`, color: S.tp, padding: "6px 10px", fontSize: 11, fontFamily: "var(--font)", outline: "none" }}
+            style={{ flex: 1, background: S.bg, border: `1px solid ${S.borderB}`, color: S.tp, padding: "6px 10px", fontSize: 13, fontFamily: "var(--font)", outline: "none" }}
             disabled={sending} />
           <button onClick={sendMessage} disabled={sending || !input.trim()}
-            style={{ background: "none", border: `1px solid ${S.borderB}`, color: S.ts, padding: "6px 12px", fontSize: 10, cursor: "pointer", fontFamily: "var(--font)", opacity: !input.trim() ? 0.3 : 1 }}>
+            style={{ background: "none", border: `1px solid ${S.borderB}`, color: S.ts, padding: "6px 12px", fontSize: 12, cursor: "pointer", fontFamily: "var(--font)", opacity: !input.trim() ? 0.3 : 1 }}>
             {sending ? "···" : aw.send}
           </button>
         </div>
@@ -629,11 +629,11 @@ export default function AgentWorkPanel({
       {phase === "submitted" && !rejectMode && (
         <div style={{ borderTop: `1px solid ${S.border}`, padding: "10px 14px", display: "flex", gap: 8, flexShrink: 0 }}>
           <button onClick={() => setRejectMode(true)}
-            style={{ flex: 1, background: "none", border: `1px solid ${S.red}`, color: S.red, padding: "9px 14px", fontSize: 11, cursor: "pointer", fontFamily: "var(--font)" }}>
+            style={{ flex: 1, background: "none", border: `1px solid ${S.red}`, color: S.red, padding: "9px 14px", fontSize: 13, cursor: "pointer", fontFamily: "var(--font)" }}>
             {aw.rejectButton}
           </button>
           <button onClick={handleApprove} disabled={approving}
-            style={{ flex: 2, background: "none", border: `1px solid ${S.green}`, color: S.green, padding: "9px 14px", fontSize: 11, cursor: approving ? "default" : "pointer", fontFamily: "var(--font)", opacity: approving ? 0.6 : 1 }}>
+            style={{ flex: 2, background: "none", border: `1px solid ${S.green}`, color: S.green, padding: "9px 14px", fontSize: 13, cursor: approving ? "default" : "pointer", fontFamily: "var(--font)", opacity: approving ? 0.6 : 1 }}>
             {approving ? aw.approving((task.rewardUsdc ?? 0).toFixed(4)) : aw.approveSend((task.rewardUsdc ?? 0).toFixed(4))}
           </button>
         </div>
@@ -641,7 +641,7 @@ export default function AgentWorkPanel({
 
       {phase === "approved" && (
         <div style={{ borderTop: `1px solid ${S.border}`, padding: "10px 14px", textAlign: "center", flexShrink: 0 }}>
-          <span style={{ fontSize: 11, color: S.green }}>{aw.taskComplete(winnerAgent.name)}</span>
+          <span style={{ fontSize: 13, color: S.green }}>{aw.taskComplete(winnerAgent.name)}</span>
         </div>
       )}
     </div>
@@ -687,10 +687,10 @@ function AgentBar({ name, pubkey, progress, isWinner, isLoser, phase, bar }: {
           width: 6, height: 6, borderRadius: "50%", background: dotColor, display: "inline-block", flexShrink: 0,
           animation: !isLoser && !isWinner ? "pulse 2s infinite" : "none",
         }} />
-        <span style={{ fontSize: 11, color: isLoser ? S2.tm : S2.tp }}>{name}</span>
-        {pubkey && <span style={{ fontSize: 9, color: S2.tm }}>{pubkey.slice(0, 6)}…{pubkey.slice(-4)}</span>}
-        <span style={{ marginLeft: "auto", fontSize: 10, color: isLoser ? S2.tm : barColor }}>{label}</span>
-        <span style={{ fontSize: 9, color: S2.tm }}>{Math.floor(progress)}%</span>
+        <span style={{ fontSize: 13, color: isLoser ? S2.tm : S2.tp }}>{name}</span>
+        {pubkey && <span style={{ fontSize: 11.5, color: S2.tm }}>{pubkey.slice(0, 6)}…{pubkey.slice(-4)}</span>}
+        <span style={{ marginLeft: "auto", fontSize: 12, color: isLoser ? S2.tm : barColor }}>{label}</span>
+        <span style={{ fontSize: 11.5, color: S2.tm }}>{Math.floor(progress)}%</span>
       </div>
       <div style={{ background: "var(--bg-border)", height: 2, overflow: "hidden" }}>
         <div style={{ width: `${progress}%`, height: "100%", background: barColor, transition: "width 0.5s ease", opacity: isLoser ? 0.35 : 1 }} />

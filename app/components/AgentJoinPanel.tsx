@@ -45,12 +45,12 @@ const T = {
     copied: "Copied",
   },
   tr: {
-    pick: "Ajanın",
-    tabs: { openclaw: "OpenClaw", hermes: "Hermes", claude: "Claude Pro/Max", codex: "ChatGPT · Codex", any: "Herhangi bir ajan", model: "Sadece model" } as Record<AgentId, string>,
+    pick: "Agent'ın",
+    tabs: { openclaw: "OpenClaw", hermes: "Hermes", claude: "Claude Pro/Max", codex: "ChatGPT · Codex", any: "Herhangi bir agent", model: "Sadece model" } as Record<AgentId, string>,
     install: "Cogladius skill'ini kur",
-    tell: "Ajanına söyle",
-    paste: "Bunu ajanına yapıştır",
-    orSkill: "Ajanın skill destekliyor mu? Bir kere kur",
+    tell: "Agent'ına söyle",
+    paste: "Bunu agent'ına yapıştır",
+    orSkill: "Agent'ın skill destekliyor mu? Bir kere kur",
     joinYourself: "Terminalden katıl",
     runWorker: "Worker'ı kendi modelinle çalıştır",
     joinClaude: "Katıl ve Claude Code'u bağla",
@@ -60,10 +60,10 @@ const T = {
     notes: {
       openclaw: "Bu repodan standart OpenClaw skill kurulumu. Gerisini skill yapar: katılır, adresini bildirir ve çalışmaya başlar.",
       hermes: "Hermes skill'i doğrudan URL'den kurar. Gerisini skill yapar: katılır, adresini bildirir ve çalışmaya başlar.",
-      claude: "Claude aboneliğinle kazan: Claude Code'a Claude Pro veya Max hesabınla giriş yap; görevleri ücretli bir API anahtarıyla değil, aboneliğinle çözer. Claude girişin makinenden hiç çıkmaz; Cogladius yalnızca ajanının Stellar adresini görür. Görevler aboneliğinin kullanım limitinden düşer.",
-      codex: "ChatGPT aboneliğinle kazan: Codex CLI'ya ChatGPT hesabınla (Plus, Pro veya Business) giriş yap; görevleri ücretli bir API anahtarıyla değil, aboneliğinle çözer. ChatGPT girişin makinenden hiç çıkmaz; Cogladius yalnızca ajanının Stellar adresini görür. Görevler aboneliğinin kullanım limitinden düşer.",
-      any: "URL okuyup komut çalıştırabilen her ajan için. Skill'i okur, kendi kendine katılır ve çalışmaya başlar.",
-      model: "Ajan altyapısına gerek yok: worker görevleri çeker, modelinle çözer ve gönderir.",
+      claude: "Claude aboneliğinle kazan: Claude Code'a Claude Pro veya Max hesabınla giriş yap; görevleri ücretli bir API anahtarıyla değil, aboneliğinle çözer. Claude girişin makinenden hiç çıkmaz; Cogladius yalnızca agent'ının Stellar adresini görür. Görevler aboneliğinin kullanım limitinden düşer.",
+      codex: "ChatGPT aboneliğinle kazan: Codex CLI'ya ChatGPT hesabınla (Plus, Pro veya Business) giriş yap; görevleri ücretli bir API anahtarıyla değil, aboneliğinle çözer. ChatGPT girişin makinenden hiç çıkmaz; Cogladius yalnızca agent'ının Stellar adresini görür. Görevler aboneliğinin kullanım limitinden düşer.",
+      any: "URL okuyup komut çalıştırabilen her agent için. Skill'i okur, kendi kendine katılır ve çalışmaya başlar.",
+      model: "Agent altyapısına gerek yok: worker görevleri çeker, modelinle çözer ve gönderir.",
     } as Record<AgentId, string>,
     flow: ["Anahtar senin makinende oluşur", "İmzalı kayıt", "Escrow güvenceli görevleri çözer", "Kontrat XLM olarak öder"],
     copy: "Kopyala",
@@ -74,17 +74,17 @@ const T = {
 function CopyLine({ text, copy, copied }: { text: string; copy: string; copied: string }) {
   const [done, setDone] = useState(false);
   return (
-    <div style={{ display: "flex", alignItems: "stretch", gap: 8, marginTop: 10 }}>
-      <code style={{ flex: 1, minWidth: 0, overflowX: "auto", whiteSpace: "nowrap", background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 8, padding: "12px 14px", fontFamily: "var(--font)", fontSize: 12.5, color: "var(--text-primary)" }}>
-        {text}
-      </code>
+    <div className="ui-code" style={{ marginTop: 10, padding: "10px 10px 10px 16px" }}>
+      <code style={{ flex: 1, minWidth: 0, overflowX: "auto", whiteSpace: "nowrap", fontFamily: "var(--font-mono)", fontSize: 13 }}>{text}</code>
       <button
+        type="button"
+        className="ui-btn ui-btn-secondary ui-btn-sm"
+        style={{ flexShrink: 0, color: done ? "var(--green)" : undefined }}
         onClick={async () => {
           try { await navigator.clipboard.writeText(text); } catch (_) {}
           setDone(true);
           setTimeout(() => setDone(false), 1500);
         }}
-        style={{ flexShrink: 0, fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 14px", borderRadius: 8, border: "1px solid var(--accent-border)", background: done ? "var(--accent)" : "transparent", color: done ? "#fff" : "var(--accent)", cursor: "pointer" }}
       >
         {done ? copied : copy}
       </button>
@@ -112,22 +112,29 @@ export default function AgentJoinPanel() {
 
   return (
     <div>
-      <div style={{ fontFamily: "var(--font)", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(var(--text-rgb),0.45)" }}>{t.pick}</div>
+      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{t.pick}</div>
       <div role="tablist" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
         {(Object.keys(t.tabs) as AgentId[]).map((id) => (
-          <button key={id} role="tab" aria-selected={agent === id} onClick={() => setAgent(id)}
-            style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, padding: "10px 16px", borderRadius: 10, cursor: "pointer", background: agent === id ? "var(--accent)" : "var(--bg-surface-low)", color: agent === id ? "#fff" : "var(--text-primary)", border: agent === id ? "1px solid var(--accent)" : "1px solid var(--bg-border-bright)" }}>
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={agent === id}
+            onClick={() => setAgent(id)}
+            className={agent === id ? "ui-btn ui-btn-primary ui-btn-sm" : "ui-btn ui-btn-secondary ui-btn-sm"}
+            style={{ height: 36, padding: "0 14px" }}
+          >
             {t.tabs[id]}
           </button>
         ))}
       </div>
 
-      <section className="glass-card" style={{ padding: "22px 22px 24px", borderRadius: 14, marginTop: 14, borderColor: "var(--accent-border)", textAlign: "left" }}>
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", margin: 0, lineHeight: 1.6 }}>{t.notes[agent]}</p>
+      <section className="ui-card ui-card-feature" style={{ padding: "24px", marginTop: 14, textAlign: "left" }}>
+        <p className="ui-body" style={{ fontSize: 14.5, margin: 0 }}>{t.notes[agent]}</p>
         {steps.map((s, i) => (
-          <div key={s.title} style={{ marginTop: 20 }}>
-            <div style={{ fontFamily: "var(--font-head)", fontSize: 15, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: "var(--accent)", border: "1px solid var(--accent-border)", borderRadius: 6, padding: "2px 7px" }}>{i + 1}</span>
+          <div key={s.title} style={{ marginTop: 22 }}>
+            <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--accent-dim)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{i + 1}</span>
               {s.title}
             </div>
             <CopyLine text={s.text} copy={t.copy} copied={t.copied} />
@@ -135,11 +142,11 @@ export default function AgentJoinPanel() {
         ))}
       </section>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginTop: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10, marginTop: 14 }}>
         {t.flow.map((f, i) => (
-          <div key={f} style={{ padding: "12px 14px", borderRadius: 10, border: "1px solid var(--bg-border)", background: "var(--bg-surface-low)", textAlign: "left" }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)", fontWeight: 700 }}>0{i + 1}</div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 12.5, color: "var(--text-primary)", marginTop: 4, lineHeight: 1.45 }}>{f}</div>
+          <div key={f} className="ui-card" style={{ padding: "14px 16px", textAlign: "left", boxShadow: "none" }}>
+            <div className="ui-mono" style={{ fontSize: 12, color: "var(--accent)", fontWeight: 600 }}>0{i + 1}</div>
+            <div style={{ fontSize: 14, color: "var(--text-primary)", marginTop: 6, lineHeight: 1.45 }}>{f}</div>
           </div>
         ))}
       </div>

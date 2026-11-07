@@ -29,9 +29,9 @@ type Status =
 
 const label: React.CSSProperties = {
   fontFamily: "var(--font)",
-  fontSize: 10,
-  letterSpacing: "0.1em",
-  textTransform: "uppercase",
+  fontSize: 12,
+  letterSpacing: "0.01em",
+  textTransform: "none",
   color: "var(--text-muted)",
   marginBottom: 8,
   display: "block",
@@ -53,7 +53,7 @@ const row: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   fontFamily: "var(--font)",
-  fontSize: 11,
+  fontSize: 13,
   color: "var(--text-muted)",
   marginTop: 6,
 };
@@ -130,7 +130,7 @@ export default function SwapForm({ initialFrom = "USDC" }: { initialFrom?: SwapA
             style={{
               flex: 1,
               fontFamily: "var(--font)",
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 600,
               padding: "9px",
               borderRadius: 9,
@@ -236,7 +236,7 @@ export default function SwapForm({ initialFrom = "USDC" }: { initialFrom?: SwapA
           {status.message}
         </p>
       )}
-      <p style={{ ...row, justifyContent: "center", marginTop: 14, fontSize: 10 }}>
+      <p style={{ ...row, justifyContent: "center", marginTop: 14, fontSize: 12 }}>
         Routed by Soroswap across Soroswap, Aqua, Phoenix and the Stellar DEX.
       </p>
     </div>

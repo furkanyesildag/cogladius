@@ -2,10 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useWallet } from "@/lib/useWallet";
-import ConnectWallet from "@/components/ConnectWallet";
-import { useRouter } from "next/navigation";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import PageShell from "@/components/site/PageShell";
+import s from "./projects.module.css";
 import { useMessages, useLocale } from "@/lib/i18n";
 import type {
   Project, OrchestratorBreakdown, AgentSpecialty,
@@ -127,19 +125,17 @@ function pad(n: number) { return String(n).padStart(2, "0"); }
 function nowStr() { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
 
 function StatusBadge({ status }: { status: Project["status"] }) {
-  const map: Record<string, [string, string]> = {
-    draft:       ["TASLAK",       "rgba(var(--text-rgb),0.3)"],
-    analyzing:   ["ANALİZ",       "#FFD166"],
-    squadFormed: ["PLAN HAZIR",   "#7C9EFF"],
-    active:      ["AKTİF",        "#40E183"],
-    completed:   ["TAMAMLANDI",   "#B97DFF"],
+  const { locale } = useLocale();
+  const tr = locale === "tr";
+  const map: Record<string, [string, string, string]> = {
+    draft:       ["Draft", "Taslak", "ui-badge"],
+    analyzing:   ["Analyzing", "Analiz", "ui-badge ui-badge-gold ui-badge-dot ui-pulse"],
+    squadFormed: ["Plan ready", "Plan hazır", "ui-badge ui-badge-blue"],
+    active:      ["Active", "Aktif", "ui-badge ui-badge-live ui-badge-dot"],
+    completed:   ["Completed", "Tamamlandı", "ui-badge ui-badge-accent"],
   };
-  const [label, color] = map[status] ?? ["?", "gray"];
-  return (
-    <span style={{ fontFamily: "var(--font)", fontSize: 8, fontWeight: 700, color, letterSpacing: "0.1em", background: `${color}18`, border: `1px solid ${color}44`, borderRadius: 3, padding: "2px 7px" }}>
-      {label}
-    </span>
-  );
+  const [en, trl, cls] = map[status] ?? ["?", "?", "ui-badge"];
+  return <span className={cls} style={{ height: 22, fontSize: 11.5 }}>{tr ? trl : en}</span>;
 }
 
 // ── Markdown-lite renderer (reuse from other pages) ──────────────────────────
@@ -172,7 +168,7 @@ function AgentMessageBody({ text }: { text: string }) {
           const isNum = /^\d/.test(listM[1]);
           return (
             <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
-              <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 10, flexShrink: 0, marginTop: 2 }}>{isNum ? listM[1] : "▸"}</span>
+              <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 12, flexShrink: 0, marginTop: 2 }}>{isNum ? listM[1] : "▸"}</span>
               <span><RenderLine text={listM[2]} /></span>
             </div>
           );
@@ -218,7 +214,7 @@ function BreakdownCard({
     <div style={{ border: "1px solid var(--accent-border)", borderRadius: 6, overflow: "hidden", marginTop: 12 }}>
       <div style={{ padding: "10px 14px", background: "var(--accent-dim)", display: "flex", alignItems: "center", gap: 8 }}>
         <span className="material-symbols-outlined" style={{ fontSize: 15, color: "var(--accent)" }}>hub</span>
-        <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.08em" }}>PROJE PLANI — {totalBudget} XLM</span>
+        <span style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: "var(--accent)" }}>Proje planı · {totalBudget} XLM</span>
       </div>
       {breakdown.map((b, i) => {
         const meta = SPECIALTY_META[b.specialty as AgentSpecialty];
@@ -227,31 +223,31 @@ function BreakdownCard({
           <div key={b.specialty} style={{ padding: "12px 14px", borderTop: i > 0 ? "1px solid var(--bg-border)" : "none", background: i % 2 === 0 ? "var(--bg-base)" : "transparent" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 14, color: meta.color }}>{meta.icon}</span>
-              <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 800, color: meta.color, flex: 1, letterSpacing: "0.06em" }}>{meta.label.toUpperCase()}</span>
-              <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)" }}>{b.budgetUsdc.toFixed(3)} XLM</span>
+              <span style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: meta.color, flex: 1 }}>{meta.label}</span>
+              <span style={{ fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{b.budgetUsdc.toFixed(3)} XLM</span>
             </div>
             {/* Progress bar + pct controls */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <div style={{ flex: 1, height: 3, background: "var(--bg-border)", borderRadius: 2, overflow: "hidden" }}>
+              <div style={{ flex: 1, height: 3, background: "var(--bg-border)", borderRadius: 8, overflow: "hidden" }}>
                 <div style={{ width: `${b.workloadPct}%`, height: "100%", background: meta.color, transition: "width 0.3s" }} />
               </div>
               {editable ? (
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <button type="button" onClick={() => adjust(i, -5)} style={{ width: 18, height: 18, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 2, cursor: "pointer", color: "var(--text-muted)", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: "var(--text-primary)", minWidth: 28, textAlign: "center" }}>{b.workloadPct}%</span>
-                  <button type="button" onClick={() => adjust(i, 5)} style={{ width: 18, height: 18, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 2, cursor: "pointer", color: "var(--text-muted)", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                  <button type="button" onClick={() => adjust(i, -5)} style={{ width: 18, height: 18, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 8, cursor: "pointer", color: "var(--text-muted)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--text-primary)", minWidth: 28, textAlign: "center" }}>{b.workloadPct}%</span>
+                  <button type="button" onClick={() => adjust(i, 5)} style={{ width: 18, height: 18, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 8, cursor: "pointer", color: "var(--text-muted)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                 </div>
               ) : (
-                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)" }}>{b.workloadPct}%</span>
+                <span style={{ fontFamily: "var(--font)", fontSize: 12, color: "var(--text-muted)" }}>{b.workloadPct}%</span>
               )}
             </div>
             {/* Reasoning */}
-            {b.reasoning && <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", margin: "0 0 6px", lineHeight: 1.5 }}>{b.reasoning}</p>}
+            {b.reasoning && <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.4)", margin: "0 0 6px", lineHeight: 1.5 }}>{b.reasoning}</p>}
             {/* Technologies */}
             {(b as any).technologies?.length > 0 && (
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {(b as any).technologies.map((t: string) => (
-                  <span key={t} style={{ fontFamily: "var(--font)", fontSize: 8, color: meta.color, background: `${meta.color}12`, border: `1px solid ${meta.color}40`, borderRadius: 2, padding: "1px 6px" }}>{t}</span>
+                  <span key={t} style={{ fontFamily: "var(--font)", fontSize: 11, color: meta.color, background: `${meta.color}12`, border: `1px solid ${meta.color}40`, borderRadius: 8, padding: "1px 6px" }}>{t}</span>
                 ))}
               </div>
             )}
@@ -259,10 +255,10 @@ function BreakdownCard({
             {b.agents?.length > 0 && (
               <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
                 {b.agents.slice(0, 2).map((a) => (
-                  <div key={a.pubkey} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 3, padding: "3px 8px" }}>
+                  <div key={a.pubkey} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "var(--bg-surface-high)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "3px 8px" }}>
                     <span style={{ width: 5, height: 5, borderRadius: "50%", background: meta.color, display: "inline-block" }} />
-                    <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-secondary)" }}>{a.name}</span>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.3)" }}>◈ {a.avgScore}</span>
+                    <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "var(--text-secondary)" }}>{a.name}</span>
+                    <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.3)" }}>◈ {a.avgScore}</span>
                   </div>
                 ))}
               </div>
@@ -297,7 +293,7 @@ function ApiKeyModal({ onSave, onSkip }: { onSave: (key: string) => void; onSkip
           style={{ fontFamily: "var(--font)", fontSize: 12, marginBottom: 12 }}
         />
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onSkip} className="btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 10 }}>Şimdi değil</button>
+          <button onClick={onSkip} className="btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 12 }}>Şimdi değil</button>
           <button
             disabled={!key.startsWith("sk-")}
             onClick={() => onSave(key.trim())}
@@ -478,9 +474,9 @@ function PostProjectModal({
                   {n.modalTitle}
                 </h2>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", fontWeight: 800, letterSpacing: "0.14em", textTransform: "uppercase" }}>NEXUS</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "var(--accent)", fontWeight: 800, letterSpacing: "0.01em", textTransform: "none" }}>NEXUS</span>
                   <span style={{ width: 4, height: 4, borderRadius: "50%", background: "rgba(var(--text-rgb),0.2)" }} />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.38)", letterSpacing: "0.12em", textTransform: "uppercase" }}>{n.step1} · {n.step2} · {n.step3}</span>
+                  <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "rgba(var(--text-rgb),0.38)", letterSpacing: "0.01em", textTransform: "none" }}>{n.step1} · {n.step2} · {n.step3}</span>
                 </div>
               </div>
             </div>
@@ -520,7 +516,7 @@ function PostProjectModal({
                 />
               </div>
               {fieldErrors.title && (
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font)", fontSize: 10, color: "var(--red)", display: "flex", alignItems: "center", gap: 6 }}>
+                <p style={{ margin: "8px 0 0", fontFamily: "var(--font)", fontSize: 12, color: "var(--red)", display: "flex", alignItems: "center", gap: 6 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>error</span>
                   {fieldErrors.title}
                 </p>
@@ -542,11 +538,11 @@ function PostProjectModal({
                   style={{ minHeight: 168, padding: "14px 14px 40px", fontFamily: "var(--font-body)", fontSize: 13, lineHeight: 1.75 }}
                 />
               </div>
-              <p style={{ margin: "10px 0 0", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.42)", lineHeight: 1.65 }}>
+              <p style={{ margin: "10px 0 0", fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(var(--text-rgb),0.42)", lineHeight: 1.65 }}>
                 {n.modalDescHelper}
               </p>
               {fieldErrors.desc && (
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font)", fontSize: 10, color: "var(--red)", display: "flex", alignItems: "center", gap: 6 }}>
+                <p style={{ margin: "8px 0 0", fontFamily: "var(--font)", fontSize: 12, color: "var(--red)", display: "flex", alignItems: "center", gap: 6 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>error</span>
                   {fieldErrors.desc}
                 </p>
@@ -575,9 +571,9 @@ function PostProjectModal({
                     step={0.1}
                     style={{ fontFamily: "var(--font)", fontSize: 24, fontWeight: 900, color: "var(--accent)", padding: "12px 46px 12px 14px", borderRadius: 10 }}
                   />
-                  <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)", opacity: 0.55 }}>XLM</span>
+                  <span style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: "var(--accent)", opacity: 0.55 }}>XLM</span>
                 </div>
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.36)", lineHeight: 1.5 }}>{n.modalBudgetSub}</p>
+                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.36)", lineHeight: 1.5 }}>{n.modalBudgetSub}</p>
               </div>
 
               <div>
@@ -598,7 +594,7 @@ function PostProjectModal({
                     </button>
                   ))}
                 </div>
-                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.36)", lineHeight: 1.5 }}>{n.modalDurationSub}</p>
+                <p style={{ margin: "8px 0 0", fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.36)", lineHeight: 1.5 }}>{n.modalDurationSub}</p>
               </div>
             </div>
 
@@ -610,7 +606,7 @@ function PostProjectModal({
             </div>
 
             {error && (
-              <div style={{ marginTop: 14, background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.28)", borderRadius: 10, padding: "12px 14px", fontFamily: "var(--font)", fontSize: 11, color: "var(--red)", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ marginTop: 14, background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.28)", borderRadius: 10, padding: "12px 14px", fontFamily: "var(--font)", fontSize: 13, color: "var(--red)", display: "flex", alignItems: "center", gap: 8 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 15 }}>warning</span>
                 {error}
               </div>
@@ -618,7 +614,7 @@ function PostProjectModal({
           </div>
 
           <div className="nexus-modal-footer">
-            <p style={{ margin: "0 0 12px", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.38)", textAlign: "center", lineHeight: 1.55 }}>
+            <p style={{ margin: "0 0 12px", fontFamily: "var(--font-body)", fontSize: 13, color: "rgba(var(--text-rgb),0.38)", textAlign: "center", lineHeight: 1.55 }}>
               {n.modalCtaHint}
             </p>
             <button type="submit" disabled={loading} className="nexus-modal-submit">
@@ -801,7 +797,7 @@ function OrchestratorChat({
                 <span key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block", animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }} />
               ))}
             </div>
-            <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-muted)" }}>{msgs.nexusSection.s1Title}…</span>
+            <span style={{ fontFamily: "var(--font)", fontSize: 12, color: "var(--text-muted)" }}>{msgs.nexusSection.s1Title}…</span>
           </div>
         )}
 
@@ -812,7 +808,7 @@ function OrchestratorChat({
               {/* Speaker label */}
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {isAgent && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block" }} />}
-                <span style={{ fontFamily: "var(--font)", fontSize: 9, color: isAgent ? "var(--accent)" : "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em" }}>
+                <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: isAgent ? "var(--accent)" : "rgba(var(--text-rgb),0.3)", letterSpacing: "0.01em" }}>
                   {isAgent ? "NEXUS" : msgs.common.or === "VEYA" ? "SİZ" : "YOU"} · {msg.ts}
                 </span>
               </div>
@@ -843,7 +839,7 @@ function OrchestratorChat({
                 <button
                   onClick={() => setShowPayment(true)}
                   className="btn-green"
-                  style={{ alignSelf: "flex-start", padding: "10px 20px", fontSize: 11, marginTop: 4 }}
+                  style={{ alignSelf: "flex-start", padding: "10px 20px", fontSize: 13, marginTop: 4 }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 14 }}>check_circle</span>
                   {msgs.nexusSection.chatPlanApprove}
@@ -856,7 +852,7 @@ function OrchestratorChat({
         {/* Sending indicator (mid-conversation) */}
         {sending && messages.length > 0 && (
           <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
-            <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.06em" }}>NEXUS</span>
+            <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: "var(--accent)", letterSpacing: "0.01em" }}>NEXUS</span>
             <div style={{ display: "flex", gap: 4, padding: "10px 14px", background: "var(--bg-surface)", border: "1px solid var(--bg-border-bright)", borderRadius: "0 8px 8px 8px" }}>
               {[0, 1, 2].map((i) => (
                 <span key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block", animation: `pulse 1.2s ease-in-out ${i * 0.25}s infinite` }} />
@@ -866,7 +862,7 @@ function OrchestratorChat({
         )}
 
         {error && (
-          <div style={{ background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.3)", borderRadius: 4, padding: "10px 14px", fontFamily: "var(--font)", fontSize: 11, color: "var(--red)", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.3)", borderRadius: 8, padding: "10px 14px", fontFamily: "var(--font)", fontSize: 13, color: "var(--red)", display: "flex", alignItems: "center", gap: 8 }}>
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>warning</span>
             {error}
           </div>
@@ -875,7 +871,7 @@ function OrchestratorChat({
         {isActive && (
           <div style={{ padding: "12px 16px", background: "var(--green-dim)", border: "1px solid rgba(64,225,131,0.3)", borderRadius: 6, display: "flex", alignItems: "center", gap: 8 }}>
             <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--green)" }}>check_circle</span>
-            <span style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--green)" }}>{msgs.nexusSection.chatActive}</span>
+            <span style={{ fontFamily: "var(--font)", fontSize: 13, color: "var(--green)" }}>{msgs.nexusSection.chatActive}</span>
           </div>
         )}
 
@@ -892,13 +888,13 @@ function OrchestratorChat({
             placeholder={msgs.nexusSection.chatPlaceholder}
             rows={2}
             disabled={sending || !chatBootDone}
-            style={{ flex: 1, resize: "none", fontFamily: "var(--font-body)", fontSize: 12, lineHeight: 1.6, background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 4, padding: "8px 12px", color: "var(--text-primary)", outline: "none" }}
+            style={{ flex: 1, resize: "none", fontFamily: "var(--font-body)", fontSize: 12, lineHeight: 1.6, background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 8, padding: "8px 12px", color: "var(--text-primary)", outline: "none" }}
           />
           <button
             onClick={() => { if (input.trim()) sendMessage(input.trim()); }}
             disabled={sending || !chatBootDone || !input.trim()}
             className="btn-primary"
-            style={{ alignSelf: "flex-end", padding: "9px 18px", fontSize: 11, opacity: (!input.trim() || sending || !chatBootDone) ? 0.4 : 1 }}
+            style={{ alignSelf: "flex-end", padding: "9px 18px", fontSize: 13, opacity: (!input.trim() || sending || !chatBootDone) ? 0.4 : 1 }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 15 }}>send</span>
           </button>
@@ -922,90 +918,48 @@ function OrchestratorChat({
 // ── Empty state ───────────────────────────────────────────────────────────────
 function EmptyState({ onNew }: { onNew: () => void }) {
   const m = useMessages();
-  const steps: { label: string; color: string; icon: string }[] = [
-    { label: m.nexusSection.step1, color: "#B97DFF", icon: "psychology" },
-    { label: m.nexusSection.step2, color: "#FF5625", icon: "hub" },
-    { label: m.nexusSection.step3, color: "#40E183", icon: "currency_bitcoin" },
-    { label: m.nexusSection.step4, color: "#7C9EFF", icon: "check_circle" },
+  const steps: { label: string; tone: string }[] = [
+    { label: m.nexusSection.step1, tone: "var(--blue)" },
+    { label: m.nexusSection.step2, tone: "var(--accent)" },
+    { label: m.nexusSection.step3, tone: "var(--gold)" },
+    { label: m.nexusSection.step4, tone: "var(--green)" },
   ];
 
   const specs: AgentSpecialty[] = ["frontend","backend","blockchain","design","finance","ai_ml","devops","security","data","mobile"];
+  const [line1, line2] = m.nexusSection.emptyHeadline.split("\n");
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-      {/* Ambient glow */}
-      <div style={{ position: "absolute", top: "40%", left: "50%", transform: "translate(-50%,-50%)", width: 500, height: 400, background: "radial-gradient(ellipse, rgba(255,86,37,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
-
-      <div style={{ position: "relative", maxWidth: 520, width: "100%" }}>
-
-        {/* NEXUS icon mark */}
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-          <div style={{ position: "relative" }}>
-            {/* Outer glow ring */}
-            <div style={{ position: "absolute", inset: -10, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,86,37,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ width: 72, height: 72, borderRadius: 20, background: "linear-gradient(135deg, rgba(255,86,37,0.2) 0%, rgba(255,86,37,0.05) 100%)", border: "1px solid rgba(255,86,37,0.35)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 36, color: "var(--accent)" }}>hub</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Badge */}
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 14px", background: "var(--accent-dim)", border: "1px solid var(--accent-border)", borderRadius: 20, fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 20 }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--accent)", display: "inline-block", animation: "pulse 2s infinite" }} />
-          NEXUS · Orchestrator
-        </div>
-
-        {/* Headline */}
-        <h1 style={{ fontFamily: "var(--font-head)", fontSize: "clamp(22px, 4vw, 32px)", fontWeight: 900, color: "var(--text-primary)", letterSpacing: "-0.03em", lineHeight: 1.15, margin: "0 0 14px" }}>
-          {m.nexusSection.emptyHeadline.split("\n")[0]}<br />
-          <span style={{ color: "var(--accent)" }}>{m.nexusSection.emptyHeadline.split("\n")[1]}</span>
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 24px", textAlign: "center" }}>
+      <div style={{ maxWidth: 560, width: "100%" }}>
+        <span className="ui-badge ui-badge-accent ui-badge-dot">NEXUS orchestrator</span>
+        <h1 className="ui-page-title" style={{ marginTop: 20 }}>
+          {line1}{line2 ? <><br /><span className="ui-gradient-text">{line2}</span></> : null}
         </h1>
+        <p className="ui-lead" style={{ marginTop: 14, maxWidth: 440, marginInline: "auto" }}>{m.nexusSection.emptySub}</p>
 
-        {/* Subtitle */}
-        <p style={{ fontFamily: "var(--font-body)", fontSize: 13, color: "var(--text-muted)", lineHeight: 1.8, maxWidth: 380, margin: "0 auto 36px" }}>
-          {m.nexusSection.emptySub}
-        </p>
-
-        {/* 4-step flow */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, marginBottom: 36, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 10, overflow: "hidden", width: "fit-content", margin: "0 auto 36px" }}>
-          {steps.map((s, i) => (
-            <div key={s.label} style={{ display: "flex", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 16px", borderRight: i < steps.length - 1 ? "1px solid var(--bg-border)" : "none" }}>
-                <div style={{ width: 24, height: 24, borderRadius: 6, background: `${s.color}16`, border: `1px solid ${s.color}40`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 13, color: s.color }}>{s.icon}</span>
-                </div>
-                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)", fontWeight: 600, whiteSpace: "nowrap" }}>{s.label}</span>
-              </div>
-              {i < steps.length - 1 && (
-                <span style={{ fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.15)", padding: "0 0", marginLeft: -8, display: "block" }}>›</span>
-              )}
-            </div>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 28 }}>
+          {steps.map((st, i) => (
+            <span key={st.label} className="ui-badge" style={{ height: 32, padding: "0 14px", fontSize: 13, gap: 8 }}>
+              <span className="ui-mono" style={{ color: st.tone, fontSize: 12 }}>0{i + 1}</span>
+              {st.label}
+            </span>
           ))}
         </div>
 
-        {/* Specialty pills */}
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", justifyContent: "center", marginBottom: 36 }}>
-          {specs.map((s) => {
-            const meta = SPECIALTY_META[s];
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", marginTop: 20 }}>
+          {specs.map((sp) => {
+            const meta = SPECIALTY_META[sp];
             return (
-              <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: `${meta.color}0c`, border: `1px solid ${meta.color}30`, borderRadius: 20, padding: "4px 10px", fontFamily: "var(--font)", fontSize: 8, color: meta.color, letterSpacing: "0.04em" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 10 }}>{meta.icon}</span>
+              <span key={sp} className="ui-badge" style={{ color: meta.color, background: `${meta.color}14`, fontWeight: 500 }}>
                 {meta.label}
               </span>
             );
           })}
         </div>
 
-        {/* CTA */}
-        <button onClick={onNew} className="btn-primary" style={{ padding: "14px 36px", fontSize: 12, borderRadius: 10 }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
-          {m.nexusSection.emptyStart}
+        <button type="button" onClick={onNew} className="ui-btn ui-btn-primary ui-btn-lg" style={{ marginTop: 32 }}>
+          + {m.nexusSection.emptyStart}
         </button>
-
-        {/* Subtle footnote */}
-        <p style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.2)", marginTop: 20, letterSpacing: "0.06em" }}>
-          Cogladius · NEXUS Orchestrator · Stellar Mainnet
-        </p>
       </div>
     </div>
   );
@@ -1014,7 +968,6 @@ function EmptyState({ onNew }: { onNew: () => void }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function ProjectsPage() {
   const { publicKey } = useWallet();
-  const router = useRouter();
   const m = useMessages();
   const { locale } = useLocale();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -1072,117 +1025,98 @@ export default function ProjectsPage() {
     setProjects((prev) => prev.map((p) => p.id === updated.id ? updated : p));
   }
 
+  const tr = locale === "tr";
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
-
-      {/* ── TOP NAV ────────────────────────────────────────────── */}
-      <header style={{ height: 52, background: "var(--bg-surface-low)", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", padding: "0 20px", gap: 16, position: "sticky", top: 0, zIndex: 100, flexShrink: 0 }}>
-        <span style={{ cursor: "pointer", display: "flex", alignItems: "center" }} onClick={() => router.push("/")}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 32, height: 32, objectFit: "contain" }} />
-        </span>
-        <div style={{ width: 1, height: 20, background: "var(--bg-border)" }} />
-        <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.1em" }}>ORCHESTRATOR</span>
-        <div style={{ flex: 1 }} />
-        {[{ label: "DASHBOARD", href: "/dashboard" }, { label: "AGENTS", href: "/agents" }].map((l) => (
-          <button key={l.href} onClick={() => router.push(l.href)} style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", letterSpacing: "0.08em", textTransform: "uppercase" }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--accent)")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(var(--text-rgb),0.4)")}>
-            {l.label} ↗
-          </button>
-        ))}
-        <span style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", background: "var(--accent-dim)", border: "1px solid var(--accent-border)", borderRadius: 3, padding: "2px 8px" }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 11 }}>hub</span>
-          NEXUS
-        </span>
-        <LanguageSwitcher />
-        <ThemeToggle />
-        <ConnectWallet />
-      </header>
-
-      {/* ── BODY ───────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-
-        {/* LEFT SIDEBAR */}
-        <aside className="projects-sidebar" style={{ width: 250, flexShrink: 0, background: "var(--bg-base)", borderRight: "1px solid var(--bg-border)", display: "flex", flexDirection: "column", height: "calc(100vh - 52px)", position: "sticky", top: 52, overflowY: "auto" }}>
-          <div style={{ padding: "12px 12px 8px" }}>
-            <button onClick={() => setShowModal(true)} className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "9px 0", fontSize: 10 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
-              {m.nexusSection.emptyStart}
-            </button>
+    <PageShell footer={false}>
+      <div className={s.wrap}>
+        <div className={s.head}>
+          <div>
+            <h1 className="ui-page-title" style={{ fontSize: "clamp(26px, 3vw, 34px)" }}>{tr ? "NEXUS projeleri" : "NEXUS projects"}</h1>
+            <p className="ui-small" style={{ marginTop: 6, fontSize: 14 }}>
+              {tr ? "Çok disiplinli bir projeyi tarif et; NEXUS onu alt görevlere böler, bütçeyi dağıtır, sen onaylarsın." : "Describe a multi-discipline project; NEXUS splits it into sub-tasks, allocates the budget, and you approve."}
+            </p>
           </div>
-          <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.22)", letterSpacing: "0.14em", textTransform: "uppercase", padding: "4px 12px 6px" }}>
-            {m.common.or === "VEYA" ? "Projelerim" : "My Projects"} ({projects.length})
-          </div>
-          {projects.length === 0 ? (
-            <div style={{ padding: "16px 12px", fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.22)", textAlign: "center" }}>Henüz proje yok</div>
-          ) : (
-            projects.map((p) => (
-              <button key={p.id} onClick={() => {
-                setSelectedId(p.id);
-                if (typeof window !== "undefined" && publicKey) {
-                  try {
-                    localStorage.setItem(nexusLastProjectKey(publicKey.toString()), String(p.id));
-                  } catch {
-                    /* ignore */
-                  }
-                }
-              }}
-                style={{ width: "100%", background: selectedId === p.id ? "var(--bg-surface)" : "transparent", border: "none", borderLeft: `2px solid ${selectedId === p.id ? "var(--accent)" : "transparent"}`, padding: "9px 12px", cursor: "pointer", textAlign: "left", transition: "background 0.12s" }}
-                onMouseEnter={(e) => { if (selectedId !== p.id) e.currentTarget.style.background = "rgba(var(--white-rgb),0.03)"; }}
-                onMouseLeave={(e) => { if (selectedId !== p.id) e.currentTarget.style.background = "transparent"; }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
-                  <StatusBadge status={p.status} />
-                  <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.2)", marginLeft: "auto" }}>#{p.id}</span>
-                </div>
-                <div style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: selectedId === p.id ? "var(--text-primary)" : "var(--text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{p.title}</div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)" }}>{p.totalBudgetUsdc.toFixed(2)} XLM</span>
-                  {p.subTasks.length > 0 && (
-                    <div style={{ display: "flex", gap: 2 }}>
-                      {p.subTasks.slice(0, 5).map((st) => <span key={st.id} style={{ width: 5, height: 5, borderRadius: "50%", background: SPECIALTY_META[st.specialty]?.color ?? "var(--bg-border)", display: "inline-block" }} title={SPECIALTY_META[st.specialty]?.label} />)}
+          <button type="button" onClick={() => setShowModal(true)} className="ui-btn ui-btn-primary">+ {m.nexusSection.emptyStart}</button>
+        </div>
+
+        <div className={s.grid}>
+          {/* Project list */}
+          <aside className={`ui-card ${s.list}`}>
+            <div className={s.listHead}>
+              <span style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 15 }}>{publicKey ? (tr ? "Projelerim" : "My projects") : (tr ? "Projeler" : "Projects")}</span>
+              <span className="ui-badge" style={{ height: 22 }}>{projects.length}</span>
+            </div>
+            <div className={s.listBody}>
+              {projects.length === 0 ? (
+                <div className="ui-empty" style={{ padding: "32px 16px" }}>{tr ? "Henüz proje yok." : "No projects yet."}</div>
+              ) : (
+                projects.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`${s.item}${selectedId === p.id ? ` ${s.itemOn}` : ""}`}
+                    onClick={() => {
+                      setSelectedId(p.id);
+                      if (typeof window !== "undefined" && publicKey) {
+                        try {
+                          localStorage.setItem(nexusLastProjectKey(publicKey.toString()), String(p.id));
+                        } catch {
+                          /* ignore */
+                        }
+                      }
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                      <StatusBadge status={p.status} />
+                      <span className="ui-mono ui-muted" style={{ fontSize: 12, marginLeft: "auto" }}>#{p.id}</span>
                     </div>
-                  )}
-                </div>
-              </button>
-            ))
-          )}
-        </aside>
+                    <div className={s.itemTitle}>{p.title}</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+                      <span className="ui-num" style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{p.totalBudgetUsdc.toFixed(2)} XLM</span>
+                      {p.subTasks.length > 0 && (
+                        <div style={{ display: "flex", gap: 3 }}>
+                          {p.subTasks.slice(0, 5).map((st) => <span key={st.id} style={{ width: 7, height: 7, borderRadius: "50%", background: SPECIALTY_META[st.specialty]?.color ?? "var(--bg-border)", display: "inline-block" }} title={SPECIALTY_META[st.specialty]?.label} />)}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </aside>
 
-        {/* MAIN CONTENT */}
-        <main style={{ flex: 1, height: "calc(100vh - 52px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {selectedProject ? (
-            <>
-              {/* Project header bar */}
-              <div style={{ padding: "14px 24px", borderBottom: "1px solid var(--bg-border)", background: "var(--bg-surface)", flexShrink: 0, display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                    <h2 style={{ fontFamily: "var(--font-head)", fontSize: 16, fontWeight: 800, color: "var(--text-primary)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedProject.title}</h2>
-                    <StatusBadge status={selectedProject.status} />
+          {/* Main */}
+          <section className={`ui-card ${s.main}`}>
+            {selectedProject ? (
+              <>
+                <div className={s.projHead}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <h2 className="ui-h3" style={{ margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{selectedProject.title}</h2>
+                      <StatusBadge status={selectedProject.status} />
+                    </div>
+                    <p className="ui-small" style={{ marginTop: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedProject.description.slice(0, 160)}</p>
                   </div>
-                  <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "var(--text-muted)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedProject.description.slice(0, 120)}…</p>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div className="ui-num" style={{ fontFamily: "var(--font-head)", fontSize: 22, fontWeight: 700, color: "var(--text-primary)" }}>{selectedProject.totalBudgetUsdc.toFixed(2)} XLM</div>
+                    <div className="ui-small">{tr ? "Toplam bütçe" : "Total budget"}</div>
+                  </div>
                 </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 20, fontWeight: 900, color: "var(--accent)", letterSpacing: "-0.02em" }}>{selectedProject.totalBudgetUsdc.toFixed(2)} XLM</div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)" }}>TOPLAM BÜTÇE</div>
+                <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 0 }}>
+                  <OrchestratorChat
+                    key={selectedProject.id}
+                    project={selectedProject}
+                    onPlanConfirmed={handlePlanConfirmed}
+                  />
                 </div>
-              </div>
-
-              {/* Chat */}
-              <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                <OrchestratorChat
-                  key={selectedProject.id}
-                  project={selectedProject}
-                  onPlanConfirmed={handlePlanConfirmed}
-                />
-              </div>
-            </>
-          ) : (
-            <EmptyState onNew={() => setShowModal(true)} />
-          )}
-        </main>
+              </>
+            ) : (
+              <EmptyState onNew={() => setShowModal(true)} />
+            )}
+          </section>
+        </div>
       </div>
 
-      {/* ── MODALS ─────────────────────────────────────────────── */}
       {showModal && mounted && (
         <PostProjectModal
           onClose={() => setShowModal(false)}
@@ -1190,6 +1124,6 @@ export default function ProjectsPage() {
           posterPubkey={publicKey?.toString() ?? "anonymous"}
         />
       )}
-    </div>
+    </PageShell>
   );
 }

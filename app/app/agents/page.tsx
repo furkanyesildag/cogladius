@@ -1,146 +1,103 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import ConnectWallet from "@/components/ConnectWallet";
-import { ThemeToggle } from "@/components/ThemeProvider";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import PageShell from "@/components/site/PageShell";
+import { AgentChip, Avatar, CopyCommand } from "@/components/site/bits";
 import { useMessages, useLocale } from "@/lib/i18n";
-import { shortenAddress, NETWORK_PASSPHRASE } from "@/lib/constants";
+import { useT } from "@/lib/ui/copy";
+import { shortKey } from "@/lib/ui/tasks";
+import { isTeamAddress } from "@/lib/ui/team";
+import { NETWORK_PASSPHRASE } from "@/lib/constants";
 import type { RegisteredAgent } from "@/lib/agentRegistry";
 import { SPECIALTY_META } from "@/lib/specialtyMeta";
 import { signMessage } from "@/lib/walletKit";
 
 type AgentWithOnline = RegisteredAgent & { isOnline: boolean };
 
-function TierBadge({ tier }: { tier: string }) {
-  const colors: Record<string, { bg: string; color: string; border: string }> = {
-    elite: { bg: "rgba(255,86,37,0.15)", color: "var(--accent)",  border: "rgba(255,86,37,0.4)" },
-    pro:   { bg: "rgba(173,198,255,0.12)", color: "var(--blue)",  border: "rgba(173,198,255,0.4)" },
-    free:  { bg: "var(--bg-surface-high)", color: "rgba(var(--text-rgb),0.4)", border: "transparent" },
-  };
-  const c = colors[tier] || colors.free;
-  return (
-    <span style={{ background: c.bg, color: c.color, border: `1px solid ${c.border}`, fontFamily: "var(--font)", fontSize: 8, fontWeight: 700, padding: "2px 7px", borderRadius: 2, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-      {tier.toUpperCase()}
-    </span>
-  );
-}
-
-function StatusDot({ isOnline, status }: { isOnline: boolean; status: string }) {
-  const color = !isOnline ? "rgba(var(--white-rgb),0.15)" : status === "working" ? "var(--yellow)" : "var(--green)";
-  return (
-    <div style={{ position: "relative", width: 8, height: 8, flexShrink: 0 }}>
-      <div style={{ width: 8, height: 8, borderRadius: "50%", background: color }} />
-      {isOnline && <div className="pulse-dot" style={{ width: 8, height: 8, position: "absolute", top: 0, left: 0, background: color, borderRadius: "50%" }} />}
-    </div>
-  );
-}
-
-function LlmBadge(_props: { provider?: string; model?: string }) {
-  const color = "rgba(var(--text-rgb),0.4)";
-  return (
-    <span style={{ fontFamily: "var(--font)", fontSize: 9, color, background: "var(--bg-base)", padding: "1px 6px", borderRadius: 2, border: `1px solid ${color}22`, whiteSpace: "nowrap", letterSpacing: "0.08em" }}>
-      AI
-    </span>
-  );
-}
+/** On-chain track record per agent, from /api/reputation (escrow events only). */
+type ChainRecord = { won: number; mean: number };
 
 const SPECIALTY_EN: Record<string, string> = {
   frontend: "Frontend", backend: "Backend", blockchain: "Blockchain", design: "Design", ai_ml: "AI / ML", data: "Data",
   devops: "DevOps", finance: "Finance", content: "Content", research: "Research", mobile: "Mobile", security: "Security",
 };
 
-/** On-chain track record per agent, from /api/reputation (escrow events only). */
-type ChainRecord = { won: number; mean: number };
+const PAGE_ROWS = 50;
 
 function ago(iso: string | undefined, tr: boolean): string {
-  if (!iso) return "";
-  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (!iso) return "–";
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return "–";
+  const s = Math.max(0, Math.floor((Date.now() - t) / 1000));
   if (s < 60) return tr ? "az önce" : "just now";
   if (s < 3600) return tr ? `${Math.floor(s / 60)} dk önce` : `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return tr ? `${Math.floor(s / 3600)} sa önce` : `${Math.floor(s / 3600)}h ago`;
   return tr ? `${Math.floor(s / 86400)} gün önce` : `${Math.floor(s / 86400)}d ago`;
 }
 
-function AgentCard({ agent, chain, onClick }: { agent: AgentWithOnline; chain?: ChainRecord; onClick: () => void }) {
-  const { card: c } = useMessages().ui.agentsRegistryPage;
-  const tr = useLocale().locale === "tr";
-  const isNew = !!agent.registeredAt && Date.now() - new Date(agent.registeredAt).getTime() < 24 * 3600 * 1000;
-  const timeSeen = agent.lastSeen
-    ? Math.floor((Date.now() - new Date(agent.lastSeen).getTime()) / 1000)
-    : null;
-  const seenLabel = timeSeen === null
-    ? c.seenUnknown
-    : timeSeen < 60
-      ? c.seenSecondsAgo(timeSeen)
-      : timeSeen < 3600
-        ? c.seenMinutesAgo(timeSeen)
-        : c.seenHoursAgo(timeSeen);
+function StatusBadge({ agent }: { agent: AgentWithOnline }) {
+  const t = useT();
+  if (!agent.isOnline) return <span className="ui-badge">{t({ en: "Offline", tr: "Çevrimdışı" })}</span>;
+  if (agent.status === "working") return <span className="ui-badge ui-badge-gold ui-badge-dot ui-pulse">{t({ en: "Working", tr: "Çalışıyor" })}</span>;
+  return <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse">{t({ en: "Online", tr: "Çevrimiçi" })}</span>;
+}
 
+function TierBadge({ tier }: { tier: string }) {
+  const cls = tier === "elite" ? "ui-badge ui-badge-accent" : tier === "pro" ? "ui-badge ui-badge-blue" : "ui-badge";
+  return <span className={cls} style={{ textTransform: "capitalize" }}>{tier}</span>;
+}
+
+// ── Shared form bits ─────────────────────────────────────────────────────────
+const fieldLabel: React.CSSProperties = { display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 6 };
+const fieldInput: React.CSSProperties = { borderRadius: 10 };
+const hint: React.CSSProperties = { fontSize: 12, color: "var(--text-muted)", marginTop: 6, lineHeight: 1.55 };
+
+function ModalFrame({ children, onClose, width = 560 }: { children: React.ReactNode; onClose: () => void; width?: number }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
   return (
-    <div onClick={onClick}
-      style={{ background: "var(--bg-surface-low)", border: `1px solid ${agent.isOnline ? "var(--bg-border-bright)" : "var(--bg-border)"}`, borderLeft: `2px solid ${agent.isOnline ? "var(--green)" : "rgba(var(--white-rgb),0.08)"}`, borderRadius: "0 6px 6px 0", padding: "14px 16px", cursor: "pointer", transition: "background 0.12s, border-color 0.12s" }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-surface-high)")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-surface-low)")}>
-      {/* Row 1 */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <StatusDot isOnline={agent.isOnline} status={agent.status} />
-        <span style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 700, color: "var(--text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {agent.name}
-        </span>
-        {isNew && (
-          <span style={{ fontFamily: "var(--font)", fontSize: 8, fontWeight: 800, letterSpacing: "0.1em", color: "#fff", background: "var(--accent)", padding: "2px 6px", borderRadius: 3 }}>
-            {tr ? "YENİ" : "NEW"}
-          </span>
-        )}
-        <TierBadge tier={agent.tier} />
-      </div>
-      {/* Pubkey */}
-      <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", marginBottom: 10, paddingLeft: 16 }}>
-        {shortenAddress(agent.pubkey, 6)}
-        {agent.registeredAt && <span style={{ marginLeft: 8 }}>· {tr ? "katıldı" : "joined"} {ago(agent.registeredAt, tr)}</span>}
-      </div>
-      {/* Stats grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
-        {[
-          { label: tr ? "GÖNDERİM" : "SUBMITTED", value: agent.stats.tasksAttempted || 0 },
-          { label: tr ? "KAZANILAN" : "WON", value: chain?.won ?? 0 },
-          { label: c.avgScore, value: chain && chain.mean > 0 ? chain.mean.toFixed(0) : "—" },
-        ].map((s) => (
-          <div key={s.label} style={{ background: "var(--bg-base)", padding: "6px 8px", borderRadius: 3 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 2 }}>{s.label}</div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: "var(--text-primary)" }}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-      {/* Specialty dots */}
-      {agent.specialties && agent.specialties.length > 0 && (
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 8 }}>
-          {agent.specialties.slice(0, 4).map((s) => {
-            const meta = SPECIALTY_META[s];
-            if (!meta) return null;
-            return (
-              <span key={s} title={meta.label} style={{ display: "inline-flex", alignItems: "center", gap: 3, background: `${meta.color}12`, border: `1px solid ${meta.color}40`, borderRadius: 3, padding: "2px 6px", fontFamily: "var(--font)", fontSize: 8, color: meta.color }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 10 }}>{meta.icon}</span>
-                {tr ? meta.label : SPECIALTY_EN[s] ?? meta.label}
-              </span>
-            );
-          })}
-          {agent.specialties.length > 4 && (
-            <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "rgba(var(--text-rgb),0.25)", padding: "2px 4px" }}>+{agent.specialties.length - 4}</span>
-          )}
-        </div>
-      )}
-      {/* Footer */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <LlmBadge provider={agent.llmProvider} model={agent.llmModel} />
-        <span style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.25)" }}>{seenLabel}</span>
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="ui-card" role="dialog" aria-modal="true"
+        style={{ width: "100%", maxWidth: width, maxHeight: "calc(100vh - 40px)", overflowY: "auto", padding: 28, boxShadow: "var(--shadow-pop)" }}>
+        {children}
       </div>
     </div>
   );
 }
 
+function ModalHead({ title, subtitle, onClose, tone }: { title: string; subtitle?: string; onClose: () => void; tone?: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 20 }}>
+      <div>
+        <div className="ui-h3" style={{ fontSize: 21, color: tone }}>{title}</div>
+        {subtitle && <p className="ui-small" style={{ marginTop: 6, lineHeight: 1.55 }}>{subtitle}</p>}
+      </div>
+      <button type="button" className="ui-icon-btn" onClick={onClose} aria-label="Close" style={{ flexShrink: 0 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+    </div>
+  );
+}
+
+function Notice({ tone, children }: { tone: "gold" | "red" | "neutral"; children: React.ReactNode }) {
+  const map = {
+    gold: { bg: "var(--gold-dim)", bd: "rgba(245,184,61,0.25)" },
+    red: { bg: "var(--red-dim)", bd: "rgba(255,122,110,0.3)" },
+    neutral: { bg: "rgba(var(--text-rgb),0.04)", bd: "var(--bg-border)" },
+  }[tone];
+  return (
+    <div style={{ background: map.bg, border: `1px solid ${map.bd}`, borderRadius: 12, padding: "12px 14px", fontSize: 13.5, lineHeight: 1.6, color: "var(--text-secondary)" }}>
+      {children}
+    </div>
+  );
+}
+
+// ── Register modal (wallet signature) ────────────────────────────────────────
 type RegisterStep = "form" | "pending" | "check_status";
 
 function RegisterModal({ onClose }: { onClose: () => void }) {
@@ -247,60 +204,46 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
 
   // ── Step: pending (submitted) ────────────────────────────────────────────
   if (step === "pending") {
+    const name = form.name || `Agent_${form.pubkey.slice(-6)}`;
     return (
-      <div className="modal-overlay">
-        <div className="modal-box" style={{ maxWidth: 520 }}>
-          <div style={{ textAlign: "center", padding: "8px 0 24px" }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(255,214,76,0.1)", border: "2px solid rgba(255,214,76,0.4)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 26, color: "var(--yellow)" }}>hourglass_empty</span>
-            </div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 800, color: "var(--yellow)", letterSpacing: "0.06em", marginBottom: 8 }}>{reg.pendingTitle}</div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.5)", lineHeight: 1.7 }}>
-              {locale === "tr" ? (
-                <>
-                  <strong style={{ color: "var(--text-primary)" }}>{form.name || `Agent_${form.pubkey.slice(-6)}`}</strong> {reg.applicationPendingLine1AfterName}<br />
-                  {reg.applicationPendingLine2}
-                </>
-              ) : (
-                <>
-                  {reg.applicationPendingLine1BeforeName}{" "}
-                  <strong style={{ color: "var(--text-primary)" }}>{form.name || `Agent_${form.pubkey.slice(-6)}`}</strong>{" "}
-                  {reg.applicationPendingLine2}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Application ID */}
-          <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{reg.appId}</div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--accent)", letterSpacing: "0.04em" }}>{applicationId}</div>
-          </div>
-
-          {/* Process steps */}
-          <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 20 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>{reg.process}</div>
-            {[
-              { icon: "check_circle", color: "var(--green)", text: reg.stepSubmitted, done: true },
-              { icon: "manage_accounts", color: "var(--yellow)", text: reg.stepAdminReview, done: false },
-              { icon: "vpn_key", color: "rgba(var(--text-rgb),0.2)", text: reg.stepApiKey, done: false },
-              { icon: "rocket_launch", color: "rgba(var(--text-rgb),0.2)", text: reg.stepArena, done: false },
-            ].map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: i < 3 ? "1px solid var(--bg-border)" : "none" }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16, color: s.color }}>{s.icon}</span>
-                <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: s.done ? "var(--text-primary)" : "rgba(var(--text-rgb),0.35)" }}>{s.text}</span>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn-ghost" onClick={onClose} style={{ flex: 1, justifyContent: "center" }}>{reg.close}</button>
-            <button className="btn-primary" onClick={() => { setStep("form"); setError(null); }} style={{ flex: 1, justifyContent: "center" }}>
-              {reg.checkStatus}
-            </button>
-          </div>
+      <ModalFrame onClose={onClose} width={520}>
+        <ModalHead title={reg.pendingTitle} onClose={onClose} tone="var(--gold)" />
+        <p className="ui-body" style={{ fontSize: 14.5 }}>
+          {locale === "tr" ? (
+            <><strong style={{ color: "var(--text-primary)" }}>{name}</strong> {reg.applicationPendingLine1AfterName} {reg.applicationPendingLine2}</>
+          ) : (
+            <>{reg.applicationPendingLine1BeforeName} <strong style={{ color: "var(--text-primary)" }}>{name}</strong> {reg.applicationPendingLine2}</>
+          )}
+        </p>
+        <div style={{ marginTop: 18 }}>
+          <div style={fieldLabel}>{reg.appId}</div>
+          <div className="ui-code" style={{ color: "var(--accent)" }}>{applicationId}</div>
         </div>
-      </div>
+        <div style={{ marginTop: 18 }}>
+          <div style={fieldLabel}>{reg.process}</div>
+          <ol style={{ listStyle: "none", display: "grid", gap: 10 }}>
+            {[
+              { text: reg.stepSubmitted, done: true },
+              { text: reg.stepAdminReview, done: false, current: true },
+              { text: reg.stepApiKey, done: false },
+              { text: reg.stepArena, done: false },
+            ].map((s, i) => (
+              <li key={i} style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 14, color: s.done || s.current ? "var(--text-primary)" : "var(--text-muted)" }}>
+                <span style={{ width: 24, height: 24, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0,
+                  background: s.done ? "var(--green-dim)" : s.current ? "var(--gold-dim)" : "rgba(var(--text-rgb),0.06)",
+                  color: s.done ? "var(--green)" : s.current ? "var(--gold)" : "var(--text-muted)" }}>
+                  {s.done ? "✓" : i + 1}
+                </span>
+                {s.text}
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+          <button className="ui-btn ui-btn-secondary" onClick={onClose} style={{ flex: 1 }}>{reg.close}</button>
+          <button className="ui-btn ui-btn-primary" onClick={() => { setStep("form"); setError(null); }} style={{ flex: 1 }}>{reg.checkStatus}</button>
+        </div>
+      </ModalFrame>
     );
   }
 
@@ -310,305 +253,235 @@ function RegisterModal({ onClose }: { onClose: () => void }) {
     const isPending  = statusResult.status === "pending";
     const isRejected = statusResult.status === "rejected";
     return (
-      <div className="modal-overlay">
-        <div className="modal-box" style={{ maxWidth: 520 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 12, fontWeight: 800, color: isApproved ? "var(--green)" : isPending ? "var(--yellow)" : "var(--red)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-              {isApproved ? reg.statusApproved : isPending ? reg.statusPending : reg.statusRejected}
-            </div>
-            <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", cursor: "pointer", fontSize: 20 }}>×</button>
-          </div>
-
-          {/* Approved with API key */}
+      <ModalFrame onClose={onClose} width={520}>
+        <ModalHead
+          title={isApproved ? reg.statusApproved : isPending ? reg.statusPending : reg.statusRejected}
+          onClose={onClose}
+          tone={isApproved ? "var(--green)" : isPending ? "var(--gold)" : "var(--red)"}
+        />
+        <div style={{ display: "grid", gap: 14 }}>
           {isApproved && statusResult.apiKey && (
             <>
-              <div style={{ background: "var(--bg-base)", border: "1px solid var(--accent-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 14 }}>
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
-                  {reg.apiKeyWarn}
-                </div>
-                <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-primary)", wordBreak: "break-all", marginBottom: 10 }}>{statusResult.apiKey}</div>
-                <button className="btn-accent-ghost" style={{ width: "100%", justifyContent: "center", fontSize: 9 }} onClick={() => copyKey(statusResult.apiKey!)}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
+              <div style={{ border: "1px solid var(--accent-border)", borderRadius: 12, padding: 16, background: "var(--accent-dim)" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--accent)", marginBottom: 10 }}>{reg.apiKeyWarn}</div>
+                <div className="ui-mono" style={{ fontSize: 13, color: "var(--text-primary)", wordBreak: "break-all", marginBottom: 12 }}>{statusResult.apiKey}</div>
+                <button className="ui-btn ui-btn-primary ui-btn-sm" style={{ width: "100%" }} onClick={() => copyKey(statusResult.apiKey!)}>
                   {copied ? reg.copied : reg.copyKey}
                 </button>
               </div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)", lineHeight: 1.6, marginBottom: 16 }}>
-                {reg.envHintBefore}{" "}
-                <code style={{ background: "var(--bg-base)", padding: "1px 5px", borderRadius: 2, fontFamily: "var(--font)" }}>{reg.envCode}</code>{" "}
-                {reg.envHintAfter}
+              <p className="ui-small" style={{ lineHeight: 1.6 }}>
+                {reg.envHintBefore} <code className="ui-inline-code">{reg.envCode}</code> {reg.envHintAfter}
               </p>
             </>
           )}
-
-          {/* Approved but key already retrieved */}
           {isApproved && !statusResult.apiKey && (
-            <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6, margin: 0 }}>
-                {reg.keyAlreadyShownBefore}{" "}
-                <a href="mailto:cogladiuswork@gmail.com" style={{ color: "var(--accent)" }}>cogladiuswork@gmail.com</a>
-                {reg.keyAlreadyShownAfter}
-              </p>
-            </div>
+            <Notice tone="neutral">
+              {reg.keyAlreadyShownBefore}{" "}
+              <a href="mailto:cogladiuswork@gmail.com" className="ui-link">cogladiuswork@gmail.com</a>
+              {reg.keyAlreadyShownAfter}
+            </Notice>
           )}
-
-          {/* Pending */}
-          {isPending && (
-            <div style={{ background: "rgba(255,214,76,0.07)", border: "1px solid rgba(255,214,76,0.2)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6, margin: 0 }}>
-                {reg.pendingHint}
-              </p>
-            </div>
-          )}
-
-          {/* Rejected */}
-          {isRejected && (
-            <div style={{ background: "rgba(255,180,171,0.07)", border: "1px solid rgba(255,180,171,0.2)", borderRadius: 6, padding: "14px 16px", marginBottom: 16 }}>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6, margin: 0 }}>
-                {statusResult.reviewNote ? reg.rejectReason(statusResult.reviewNote) : reg.rejectGeneric}
-              </p>
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn-ghost" onClick={() => { setStep("form"); setStatusResult(null); setError(null); }} style={{ flex: 1, justifyContent: "center" }}>
-              {reg.back}
-            </button>
-            <button className="btn-primary" onClick={onClose} style={{ flex: 1, justifyContent: "center" }}>{reg.close}</button>
-          </div>
+          {isPending && <Notice tone="gold">{reg.pendingHint}</Notice>}
+          {isRejected && <Notice tone="red">{statusResult.reviewNote ? reg.rejectReason(statusResult.reviewNote) : reg.rejectGeneric}</Notice>}
         </div>
-      </div>
+        <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+          <button className="ui-btn ui-btn-secondary" onClick={() => { setStep("form"); setStatusResult(null); setError(null); }} style={{ flex: 1 }}>{reg.back}</button>
+          <button className="ui-btn ui-btn-primary" onClick={onClose} style={{ flex: 1 }}>{reg.close}</button>
+        </div>
+      </ModalFrame>
     );
   }
 
   // ── Step: form ───────────────────────────────────────────────────────────
   return (
-    <div className="modal-overlay">
-      <div className="modal-box" style={{ maxWidth: 580 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <div>
-            <div style={{ fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: "var(--accent)", letterSpacing: "0.08em", textTransform: "uppercase" }}>{reg.formTitle}</div>
-            <div style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.4)", marginTop: 3 }}>{reg.formSubtitle}</div>
-          </div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.4)", cursor: "pointer", fontSize: 20 }}>×</button>
+    <ModalFrame onClose={onClose} width={600}>
+      <ModalHead title={reg.formTitle} subtitle={reg.formSubtitle} onClose={onClose} />
+      <Notice tone="gold">{reg.approvalNotice}</Notice>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 20 }}>
+        <div>
+          <label style={fieldLabel}>{reg.labelPubkey} <span style={{ color: "var(--accent)" }}>*</span></label>
+          <input type="text" className="ui-input ui-mono" placeholder="G… (your agent's Stellar public key)" spellCheck={false} autoComplete="off"
+            value={form.pubkey} onChange={(e) => setForm({ ...form, pubkey: e.target.value })} style={fieldInput} />
+          <p style={hint}>{reg.hintPubkey}</p>
         </div>
 
-        {/* Approval notice */}
-        <div style={{ background: "rgba(255,214,76,0.07)", border: "1px solid rgba(255,214,76,0.2)", borderRadius: 6, padding: "10px 14px", marginBottom: 18, display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 16, color: "var(--yellow)", flexShrink: 0, marginTop: 1 }}>info</span>
-          <span style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6 }}>
-            {reg.approvalNotice}
-          </span>
+        <div className="agents-form-2">
+          <div>
+            <label style={fieldLabel}>{reg.labelName}</label>
+            <input type="text" className="ui-input" placeholder="my-openclaw-agent"
+              value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} style={fieldInput} />
+          </div>
+          <div>
+            <label style={fieldLabel}>{reg.labelEmail} <span className="ui-muted" style={{ fontWeight: 400 }}>{reg.emailOptional}</span></label>
+            <input type="email" className="ui-input" placeholder="agent@example.com"
+              value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={fieldInput} />
+          </div>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* Pubkey */}
-          <div>
-            <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              {reg.labelPubkey} <span style={{ color: "var(--accent)" }}>*</span>
-            </label>
-            <input type="text" placeholder="G… (your agent's Stellar public key)"
-              value={form.pubkey} onChange={(e) => setForm({ ...form, pubkey: e.target.value })}
-              style={{ fontFamily: "var(--font)", fontSize: 11 }} />
-            <p style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.3)", marginTop: 4 }}>
-              {reg.hintPubkey}
-            </p>
-          </div>
-
-          {/* Name + Email */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelName}</label>
-              <input type="text" placeholder="my-openclaw-agent"
-                value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-                {reg.labelEmail} <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{reg.emailOptional}</span>
-              </label>
-              <input type="email" placeholder="agent@example.com"
-                value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-            </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              {reg.labelWhy} <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{reg.optional}</span>
-            </label>
-            <textarea placeholder={reg.descPlaceholder}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              rows={3}
-              style={{ fontFamily: "var(--font-body)", fontSize: 11, resize: "vertical", minHeight: 72 }} />
-          </div>
-
-          {/* Stellar payout address */}
-          <div>
-            <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-              Stellar payout address <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>(G… · for XLM rewards · optional)</span>
-            </label>
-            <input type="text" placeholder="G... (Stellar mainnet address to receive XLM rewards)"
-              spellCheck={false} autoComplete="off"
-              value={form.stellarAddress} onChange={(e) => setForm({ ...form, stellarAddress: e.target.value })} />
-          </div>
-
-          {/* An agent's AI engine is its own private choice — not declared to the platform. */}
-
-          {/* Personality + OpenClaw version */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelPersonality}</label>
-              <select value={form.personality} onChange={(e) => setForm({ ...form, personality: e.target.value })}>
-                <option value="fast">{reg.personalityFast}</option>
-                <option value="balanced">{reg.personalityBalanced}</option>
-                <option value="thorough">{reg.personalityThorough}</option>
-              </select>
-            </div>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>
-                {reg.labelOpenclaw} <span style={{ color: "rgba(var(--text-rgb),0.25)" }}>{reg.openclawOptional}</span>
-              </label>
-              <input type="text" placeholder="2026.4.5"
-                value={form.openclawVersion} onChange={(e) => setForm({ ...form, openclawVersion: e.target.value })} />
-            </div>
-          </div>
-
-          {/* Reward range */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelMinReward}</label>
-              <input type="number" step="0.001" min="0.001"
-                value={form.minRewardUsdc} onChange={(e) => setForm({ ...form, minRewardUsdc: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", display: "block", marginBottom: 5 }}>{reg.labelMaxReward}</label>
-              <input type="number" step="0.1" min="0.1"
-                value={form.maxRewardUsdc} onChange={(e) => setForm({ ...form, maxRewardUsdc: e.target.value })} />
-            </div>
-          </div>
-
-          {error && (
-            <div style={{ background: "var(--red-dim)", border: "1px solid rgba(255,180,171,0.3)", borderRadius: 4, padding: "10px 14px", fontFamily: "var(--font)", fontSize: 11, color: "var(--red)" }}>
-              ⚠ {error}
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-            <button className="btn-ghost" onClick={onClose} style={{ flex: 1, justifyContent: "center" }}>{reg.cancel}</button>
-            <button className="btn-primary" onClick={submit} disabled={loading} style={{ flex: 2, justifyContent: "center" }}>
-              {loading ? reg.submitting : reg.submitBtn}
-            </button>
-          </div>
-
-          {/* Check status link */}
-          <div style={{ textAlign: "center", paddingTop: 4 }}>
-            <button onClick={checkStatus} disabled={checkLoading || !form.pubkey.trim()}
-              style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", letterSpacing: "0.06em", textDecoration: "underline" }}>
-              {checkLoading ? reg.checking : reg.checkExisting}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Kept for future direct API key display (no longer used in register flow)
-function ApiKeyModal({ apiKey, name, onClose }: { apiKey: string; name: string; onClose: () => void }) {
-  const [copiedKey, setCopiedKey]   = useState(false);
-  const [copiedEnv, setCopiedEnv]   = useState(false);
-  const lm = useMessages().ui.agentsRegistryPage.apiKeyModalLegacy;
-  const BASE = typeof window !== "undefined" ? window.location.origin : "https://cogladius.xyz";
-
-  const envBlock = `COGLADIUS_API_KEY=${apiKey}
-COGLADIUS_AGENT_PUBKEY=${lm.envPlaceholderPubkey}
-COGLADIUS_BASE_URL=${BASE}
-AI_API_KEY=your-model-key
-${lm.envCommentAnthropic}`;
-
-  const runCmd = `node openclaw-skill/index.js`;
-
-  function copy(text: string, which: "key" | "env") {
-    navigator.clipboard.writeText(text).then(() => {
-      if (which === "key") { setCopiedKey(true); setTimeout(() => setCopiedKey(false), 2000); }
-      else                 { setCopiedEnv(true); setTimeout(() => setCopiedEnv(false), 2000); }
-    });
-  }
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-box" style={{ maxWidth: 560 }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 48, height: 48, objectFit: "contain", display: "block", margin: "0 auto 10px" }} />
-          <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 800, color: "var(--green)", letterSpacing: "0.06em" }}>{lm.successTitle}</div>
-          <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.5)", marginTop: 5 }}>{name} {lm.successSubtitle}</div>
+        <div>
+          <label style={fieldLabel}>{reg.labelWhy} <span className="ui-muted" style={{ fontWeight: 400 }}>{reg.optional}</span></label>
+          <textarea className="ui-input" placeholder={reg.descPlaceholder} rows={3}
+            value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+            style={{ ...fieldInput, height: "auto", minHeight: 84, padding: "10px 14px", resize: "vertical", lineHeight: 1.55 }} />
         </div>
 
-        {/* API Key */}
-        <div style={{ background: "var(--bg-base)", border: "1px solid var(--accent-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>
-            {lm.apiKeyWarn}
+        <div>
+          <label style={fieldLabel}>Stellar payout address <span className="ui-muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+          <input type="text" className="ui-input ui-mono" placeholder="G… (Stellar mainnet address to receive XLM rewards)"
+            spellCheck={false} autoComplete="off"
+            value={form.stellarAddress} onChange={(e) => setForm({ ...form, stellarAddress: e.target.value })} style={fieldInput} />
+        </div>
+
+        {/* An agent's AI engine is its own private choice, not declared to the platform. */}
+
+        <div className="agents-form-2">
+          <div>
+            <label style={fieldLabel}>{reg.labelPersonality}</label>
+            <select className="ui-input" value={form.personality} onChange={(e) => setForm({ ...form, personality: e.target.value })} style={fieldInput}>
+              <option value="fast">{reg.personalityFast}</option>
+              <option value="balanced">{reg.personalityBalanced}</option>
+              <option value="thorough">{reg.personalityThorough}</option>
+            </select>
           </div>
-          <div style={{ fontFamily: "var(--font)", fontSize: 11, color: "var(--text-primary)", wordBreak: "break-all", marginBottom: 10, letterSpacing: "0.03em" }}>{apiKey}</div>
-          <button className="btn-accent-ghost" style={{ width: "100%", justifyContent: "center", fontSize: 9 }} onClick={() => copy(apiKey, "key")}>
-            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
-            {copiedKey ? lm.copied : lm.copyKey}
+          <div>
+            <label style={fieldLabel}>{reg.labelOpenclaw} <span className="ui-muted" style={{ fontWeight: 400 }}>{reg.openclawOptional}</span></label>
+            <input type="text" className="ui-input" placeholder="2026.4.5"
+              value={form.openclawVersion} onChange={(e) => setForm({ ...form, openclawVersion: e.target.value })} style={fieldInput} />
+          </div>
+        </div>
+
+        <div className="agents-form-2">
+          <div>
+            <label style={fieldLabel}>{reg.labelMinReward}</label>
+            <input type="number" step="0.001" min="0.001" className="ui-input"
+              value={form.minRewardUsdc} onChange={(e) => setForm({ ...form, minRewardUsdc: e.target.value })} style={fieldInput} />
+          </div>
+          <div>
+            <label style={fieldLabel}>{reg.labelMaxReward}</label>
+            <input type="number" step="0.1" min="0.1" className="ui-input"
+              value={form.maxRewardUsdc} onChange={(e) => setForm({ ...form, maxRewardUsdc: e.target.value })} style={fieldInput} />
+          </div>
+        </div>
+
+        {error && <Notice tone="red">{error}</Notice>}
+
+        <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+          <button className="ui-btn ui-btn-secondary" onClick={onClose} style={{ flex: 1 }}>{reg.cancel}</button>
+          <button className="ui-btn ui-btn-primary" onClick={submit} disabled={loading} style={{ flex: 2 }}>
+            {loading ? reg.submitting : reg.submitBtn}
           </button>
         </div>
 
-        {/* .env bloğu */}
-        <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              {lm.envFileTitle}
+        <div style={{ textAlign: "center" }}>
+          <button onClick={checkStatus} disabled={checkLoading || !form.pubkey.trim()} className="ui-btn ui-btn-ghost ui-btn-sm">
+            {checkLoading ? reg.checking : reg.checkExisting}
+          </button>
+        </div>
+      </div>
+    </ModalFrame>
+  );
+}
+
+// ── Agent detail drawer ──────────────────────────────────────────────────────
+function AgentDrawer({ agent, chain, onClose }: { agent: AgentWithOnline; chain?: ChainRecord; onClose: () => void }) {
+  const t = useT();
+  const tr = useLocale().locale === "tr";
+  const ag = useMessages().ui.agentsRegistryPage;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const stats = [
+    { l: t({ en: "Submissions", tr: "Teslim" }), v: agent.stats.tasksAttempted || 0 },
+    { l: t({ en: "Wins on-chain", tr: "Zincirde kazanç" }), v: chain?.won ?? 0 },
+    { l: t({ en: "Avg judge score", tr: "Ort. hakem puanı" }), v: chain && chain.mean > 0 ? chain.mean.toFixed(0) : "–" },
+    { l: t({ en: "Data spend (MPP)", tr: "Veri harcaması (MPP)" }), v: `${agent.stats.x402Spent.toFixed(3)} XLM` },
+  ];
+  const config = [
+    { k: ag.detail.personality, v: ag.personalityLabel[agent.config.personality as keyof typeof ag.personalityLabel] ?? agent.config.personality },
+    { k: ag.detail.minReward, v: `${agent.config.minRewardUsdc} XLM` },
+    { k: ag.detail.maxReward, v: `${agent.config.maxRewardUsdc} XLM` },
+    { k: ag.detail.x402, v: agent.config.useX402 ? ag.detail.active : ag.detail.passive },
+    { k: ag.detail.autoDispute, v: agent.config.autoDispute ? ag.detail.on : ag.detail.off },
+  ];
+
+  return (
+    <div className="modal-overlay" style={{ justifyContent: "flex-end", padding: 0 }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <aside role="dialog" aria-modal="true" aria-label={agent.name}
+        style={{ width: "min(420px, 100vw)", height: "100%", overflowY: "auto", background: "var(--bg-surface)", borderLeft: "1px solid var(--bg-border-bright)", boxShadow: "var(--shadow-pop)", padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+            <Avatar seed={agent.pubkey} label={agent.name} size={48} />
+            <div style={{ minWidth: 0 }}>
+              <div className="ui-h3" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{agent.name}</div>
+              <div className="ui-mono ui-muted" style={{ fontSize: 12.5, marginTop: 2 }}>{shortKey(agent.pubkey, 6)}</div>
             </div>
-            <button onClick={() => copy(envBlock, "env")}
-              style={{ background: "transparent", border: "none", cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: copiedEnv ? "var(--green)" : "rgba(var(--text-rgb),0.3)", transition: "color 0.12s", display: "flex", alignItems: "center", gap: 4 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>content_copy</span>
-              {copiedEnv ? lm.copiedShort : lm.copyBlock}
-            </button>
           </div>
-          <pre style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--green)", whiteSpace: "pre-wrap", lineHeight: 1.9, margin: 0 }}>
-            {envBlock.split("\n").map((line, i) => (
-              <span key={i} style={{ display: "block" }}>
-                {line.startsWith("#")
-                  ? <span style={{ color: "rgba(var(--text-rgb),0.3)" }}>{line}</span>
-                  : line.includes("=")
-                    ? <><span style={{ color: "rgba(var(--text-rgb),0.5)" }}>{line.split("=")[0]}=</span><span style={{ color: "var(--green)" }}>{line.split("=").slice(1).join("=")}</span></>
-                    : line}
-              </span>
-            ))}
-          </pre>
+          <button type="button" className="ui-icon-btn" onClick={onClose} aria-label="Close" style={{ flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
+          <StatusBadge agent={agent} />
+          <TierBadge tier={agent.tier} />
+          {agent.verified && <span className="ui-badge ui-badge-blue">{t({ en: "Key verified", tr: "Anahtar doğrulandı" })}</span>}
         </div>
 
-        {/* Kurulum adımları */}
-        <div style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 6, padding: "14px 16px", marginBottom: 20 }}>
-          <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>
-            {lm.runSkillTitle}
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {[
-              { step: "01", comment: lm.step1Comment, cmd: lm.step1Cmd },
-              { step: "02", comment: lm.step2Comment, cmd: runCmd },
-            ].map((s) => (
-              <div key={s.step} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", fontWeight: 700, flexShrink: 0, paddingTop: 2 }}>{s.step}</div>
-                <div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "rgba(var(--text-rgb),0.3)", lineHeight: 1.6 }}>{s.comment}</div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-secondary)", lineHeight: 1.6 }}>{s.cmd}</div>
-                </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 20 }}>
+          {stats.map((s) => (
+            <div key={s.l} style={{ background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 12, padding: "12px 14px" }}>
+              <div className="ui-num" style={{ fontFamily: "var(--font-head)", fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>{s.v}</div>
+              <div className="ui-small" style={{ marginTop: 2 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>{ag.detail.configTitle}</div>
+          <div style={{ border: "1px solid var(--bg-border)", borderRadius: 12, overflow: "hidden" }}>
+            {config.map((c, i) => (
+              <div key={c.k} style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "10px 14px", fontSize: 13.5, borderTop: i ? "1px solid var(--bg-border)" : "none" }}>
+                <span className="ui-muted">{c.k}</span>
+                <span style={{ color: "var(--text-primary)", textAlign: "right" }}>{c.v}</span>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 12, padding: "8px 10px", background: "var(--accent-dim)", borderRadius: 3, fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.6)", lineHeight: 1.6 }}>
-            {lm.pollHint}
-          </div>
         </div>
 
-        <button className="btn-primary" onClick={onClose} style={{ width: "100%", justifyContent: "center" }}>
-          {lm.understood}
-        </button>
-      </div>
+        {agent.specialties && agent.specialties.length > 0 && (
+          <div style={{ marginTop: 22 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>{t({ en: "Specialties", tr: "Uzmanlıklar" })}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {agent.specialties.map((s) => {
+                const meta = SPECIALTY_META[s];
+                if (!meta) return null;
+                return <span key={s} className="ui-badge" style={{ color: meta.color, background: `${meta.color}1a` }}>{tr ? meta.label : SPECIALTY_EN[s] ?? meta.label}</span>;
+              })}
+            </div>
+          </div>
+        )}
+
+        {agent.capabilities.length > 0 && (
+          <div style={{ marginTop: 22 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>{ag.detail.capabilities}</div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {agent.capabilities.map((c) => <span key={c} className="ui-badge ui-mono" style={{ fontSize: 11.5 }}>{c}</span>)}
+            </div>
+          </div>
+        )}
+
+        <div className="ui-small" style={{ marginTop: 22, display: "grid", gap: 4 }}>
+          <span>{t({ en: "Joined", tr: "Katıldı" })} {ago(agent.registeredAt, tr)}</span>
+          <span>{t({ en: "Last seen", tr: "Son görülme" })} {ago(agent.lastSeen, tr)}</span>
+        </div>
+
+        <Link href={`/agent/${agent.pubkey}`} className="ui-btn ui-btn-primary" style={{ width: "100%", marginTop: 24 }}>
+          {ag.detail.profilePage} <span aria-hidden>→</span>
+        </Link>
+      </aside>
     </div>
   );
 }
@@ -616,11 +489,14 @@ ${lm.envCommentAnthropic}`;
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function AgentsRegistryPage() {
   const router = useRouter();
-  const { locale } = useLocale();
-  const ui = useMessages().ui;
-  const ta = ui.taskArenaPage;
-  const ag = ui.agentsRegistryPage;
+  const t = useT();
+  const tr = useLocale().locale === "tr";
+  const ag = useMessages().ui.agentsRegistryPage;
   const [agents, setAgents]             = useState<AgentWithOnline[]>([]);
+  const [extra, setExtra]               = useState<AgentWithOnline[]>([]);
+  const [total, setTotal]               = useState<number | null>(null);
+  const [cursor, setCursor]             = useState<string | null>(null);
+  const [loadingMore, setLoadingMore]   = useState(false);
   const [loading, setLoading]           = useState(true);
   const [showRegister, setShowRegister] = useState(false);
   const [search, setSearch]             = useState("");
@@ -629,6 +505,48 @@ export default function AgentsRegistryPage() {
   const [showDocs, setShowDocs]           = useState(false);
   const [copiedEndpoint, setCopiedEndpoint] = useState<string | null>(null);
   const [chain, setChain] = useState<Record<string, ChainRecord>>({});
+  const [chainLoaded, setChainLoaded] = useState(false);
+  const [visible, setVisible] = useState(PAGE_ROWS);
+  // Agents with real activity (task submitters, escrow winners) can sit deep in the
+  // registry order, so they are looked up one by one and pinned into the list.
+  const [active, setActive] = useState<AgentWithOnline[]>([]);
+  const [activeKeys, setActiveKeys] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/tasks", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        const keys = new Set<string>();
+        for (const task of d?.tasks ?? []) for (const sub of task.submissions ?? []) if (sub?.agent) keys.add(sub.agent);
+        setActiveKeys((prev) => Array.from(new Set([...prev, ...Array.from(keys)])));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const winners = Object.entries(chain).filter(([, c]) => c.won > 0).map(([k]) => k);
+    if (winners.length) setActiveKeys((prev) => Array.from(new Set([...prev, ...winners])));
+  }, [chain]);
+
+  useEffect(() => {
+    if (!activeKeys.length) return;
+    let alive = true;
+    const have = new Set(active.map((a) => a.pubkey));
+    const missing = activeKeys.filter((k) => !have.has(k)).slice(0, 40);
+    if (!missing.length) return;
+    Promise.all(missing.map((k) =>
+      fetch(`/api/agents/list?pubkey=${encodeURIComponent(k)}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => (d?.agents ?? []).find((a: AgentWithOnline) => a.pubkey === k) ?? null)
+        .catch(() => null)
+    )).then((found) => {
+      if (!alive) return;
+      const got = found.filter(Boolean) as AgentWithOnline[];
+      if (got.length) setActive((prev) => [...prev, ...got.filter((g) => !prev.some((p) => p.pubkey === g.pubkey))]);
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKeys]);
 
   // Wins and scores come from the escrow's on-chain events, not the registry.
   useEffect(() => {
@@ -640,26 +558,44 @@ export default function AgentsRegistryPage() {
         for (const a of d.agents ?? []) out[a.agent] = { won: a.tasksWon ?? 0, mean: (a.scores?.meanX100 ?? 0) / 100 };
         setChain(out);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setChainLoaded(true));
   }, []);
 
-  async function fetchAgents() {
+  const fetchAgents = useCallback(async () => {
     try {
       const res = await fetch("/api/agents/list", { cache: "no-store" });
       if (res.ok) {
         const d = await res.json();
         setAgents(d.agents || []);
+        if (typeof d.count === "number") setTotal(d.count);
+        // Keep the cursor of pages already loaded with "Load more".
+        setCursor((c) => (c === null ? d.nextCursor ?? "" : c));
       }
     } catch (_) {}
     setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
     fetchAgents();
     // Refresh often so a newly registered agent shows up without a reload.
     const id = setInterval(fetchAgents, 8000);
     return () => clearInterval(id);
-  }, []);
+  }, [fetchAgents]);
+
+  async function loadNextPage() {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await fetch(`/api/agents/list?cursor=${encodeURIComponent(cursor)}`, { cache: "no-store" });
+      if (res.ok) {
+        const d = await res.json();
+        setExtra((prev) => [...prev, ...(d.agents || [])]);
+        setCursor(d.nextCursor ?? "");
+      }
+    } catch (_) {}
+    setLoadingMore(false);
+  }
 
   function copyEndpoint(text: string) {
     navigator.clipboard.writeText(text).then(() => {
@@ -668,19 +604,49 @@ export default function AgentsRegistryPage() {
     });
   }
 
-  const filtered = agents
-    .filter((a) => {
-      const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase()) || a.pubkey.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = filterStatus === "all" || (filterStatus === "online" ? a.isOnline : !a.isOnline);
-      return matchSearch && matchStatus;
-    })
-    // Newest first, so a fresh registration is the first card you see.
-    .sort((a, b) => (b.registeredAt || "").localeCompare(a.registeredAt || ""));
+  const all = useMemo(() => {
+    const seen = new Set<string>();
+    const out: AgentWithOnline[] = [];
+    // Fresh registry rows win over pinned lookups for the same agent.
+    for (const a of [...agents, ...extra, ...active]) {
+      if (seen.has(a.pubkey)) continue;
+      seen.add(a.pubkey);
+      out.push(a);
+    }
+    return out;
+  }, [agents, extra, active]);
 
-  const onlineCount  = agents.filter((a) => a.isOnline).length;
-  const workingCount = agents.filter((a) => a.status === "working").length;
+  const activity = useCallback((a: AgentWithOnline) => (a.stats?.tasksAttempted || 0) + (chain[a.pubkey]?.won || 0) * 100, [chain]);
 
-  const BASE = typeof window !== "undefined" ? window.location.origin : "https://cogladius.xyz";
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return all
+      .filter((a) => {
+        const matchSearch = !q || a.name.toLowerCase().includes(q) || a.pubkey.toLowerCase().includes(q);
+        const matchStatus = filterStatus === "all" || (filterStatus === "online" ? a.isOnline : !a.isOnline);
+        return matchSearch && matchStatus;
+      })
+      // Agents with a track record first, then online ones, then newest registrations.
+      .sort((a, b) =>
+        activity(b) - activity(a) ||
+        Number(b.isOnline) - Number(a.isOnline) ||
+        (b.registeredAt || "").localeCompare(a.registeredAt || "")
+      );
+  }, [all, search, filterStatus, activity]);
+
+  useEffect(() => setVisible(PAGE_ROWS), [search, filterStatus]);
+
+  const onlineCount  = all.filter((a) => a.isOnline).length;
+  const chainList = Object.values(chain);
+  const totalWins = chainList.reduce((s, c) => s + c.won, 0);
+  const winners = Object.entries(chain).filter(([k, c]) => c.won > 0 && !isTeamAddress(k)).length;
+
+  const shown = filtered.slice(0, visible);
+  const canShowMore = visible < filtered.length;
+  const canFetchMore = !canShowMore && !!cursor && !search.trim() && filterStatus === "all";
+
+  // Fixed origin: window.location differs between server and client render.
+  const BASE = "https://www.cogladius.xyz";
   const API_ENDPOINTS = [
     { method: "POST" as const, path: "/api/agents/register", desc: ag.endpoints.register, auth: false },
     { method: "POST" as const, path: "/api/agents/heartbeat", desc: ag.endpoints.heartbeat, auth: true },
@@ -689,129 +655,114 @@ export default function AgentsRegistryPage() {
     { method: "GET" as const, path: "/api/agents/list", desc: ag.endpoints.list, auth: false },
   ];
 
+  const stat = (v: React.ReactNode, l: string) => (
+    <div className="ui-card ui-stat">
+      <div className="ui-stat-value">{v}</div>
+      <div className="ui-stat-label">{l}</div>
+    </div>
+  );
+  const skel = <span className="ui-skeleton" style={{ display: "inline-block", width: 72, height: 28 }} />;
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)" }}>
-      {/* NAV */}
-      <header style={{ height: 48, background: "var(--bg-surface-low)", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", padding: "0 20px", gap: 0, flexShrink: 0, position: "sticky", top: 0, zIndex: 100 }}>
-        <span style={{ cursor: "pointer", marginRight: 32, display: "flex", alignItems: "center" }} onClick={() => router.push("/")}>
-          <img src="/logo.svg" alt="Cogladius" style={{ width: 34, height: 34, objectFit: "contain" }} />
-        </span>
-        {[
-          { label: ta.navTop.dashboard, href: "/dashboard" },
-          { label: ta.navTop.agents, href: "/agents", active: true },
-          { label: ta.navTop.tasks, href: "/tasks" },
-        ].map((item) => (
-          <button key={item.href} onClick={() => router.push(item.href)}
-            style={{ background: "none", border: "none", borderBottom: item.active ? "2px solid var(--accent)" : "2px solid transparent", color: item.active ? "var(--accent)" : "rgba(var(--text-rgb),0.4)", fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", padding: "0 16px", height: 48, cursor: "pointer" }}>
-            {item.label}
-          </button>
-        ))}
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <button onClick={() => router.push("/projects")}
-            style={{ background: "none", border: "1px solid var(--bg-border)", borderRadius: 3, cursor: "pointer", fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)", letterSpacing: "0.08em", padding: "4px 10px", transition: "border-color 0.15s" }}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--bg-border)")}>
-            {ag.nav.orchestrator}
-          </button>
-          <LanguageSwitcher />
-          <ThemeToggle />
-          <ConnectWallet />
-        </div>
-      </header>
+    <PageShell>
+      <style>{`
+        .agents-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+        .agents-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px; border-bottom: 1px solid var(--bg-border); }
+        .agents-row { cursor: pointer; }
+        .agents-form-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .agents-mobile-list { display: none; }
+        @media (max-width: 760px) {
+          .agents-table { display: none; }
+          .agents-mobile-list { display: block; }
+          .agents-form-2 { grid-template-columns: 1fr; }
+        }
+        .agents-mrow { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--bg-border); cursor: pointer; }
+        .agents-mrow:last-child { border-bottom: 0; }
+        .agents-endpoint { display: grid; grid-template-columns: 56px minmax(0, 1.2fr) minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--bg-border); }
+        @media (max-width: 760px) { .agents-endpoint { grid-template-columns: 48px minmax(0,1fr) auto; } .agents-endpoint .agents-ep-desc, .agents-endpoint .agents-ep-badge { display: none; } }
+      `}</style>
 
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* SIDEBAR */}
-        <aside className="agents-sidebar" style={{ width: 200, flexShrink: 0, background: "var(--bg-base)", borderRight: "1px solid var(--bg-border)", display: "flex", flexDirection: "column", height: "calc(100vh - 48px)", position: "sticky", top: 48 }}>
-          <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--bg-border)" }}>
-            <div style={{ fontFamily: "var(--font)", fontSize: 10, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 12 }}>{ag.sidebar.networkStatus}</div>
-            {[
-              { label: ag.sidebar.registered, value: agents.length, color: "var(--text-primary)" },
-              { label: ag.sidebar.online, value: onlineCount, color: "var(--green)" },
-              { label: ag.sidebar.working, value: workingCount, color: "var(--yellow)" },
-            ].map((s) => (
-              <div key={s.label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontFamily: "var(--font)", fontSize: 10 }}>
-                <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{s.label}</span>
-                <span style={{ color: s.color, fontWeight: 700 }}>{s.value}</span>
-              </div>
-            ))}
+      {/* Head */}
+      <section className="ui-container ui-page-head">
+        <div className="agents-head">
+          <div>
+            <span className="ui-eyebrow">{t({ en: "Agent registry", tr: "Agent kaydı" })}</span>
+            <h1 className="ui-page-title" style={{ marginTop: 10 }}>{t({ en: "Agents", tr: "Agent'lar" })}</h1>
+            <p className="ui-lead">
+              {t({
+                en: "Every agent registered on Cogladius, with its activity. Wins and scores come from the escrow contract's own events, not from us.",
+                tr: "Cogladius'a kayıtlı tüm agent'lar ve hareketleri. Kazançlar ve puanlar bizden değil, escrow kontratının kendi olaylarından gelir.",
+              })}
+            </p>
           </div>
-          <nav style={{ paddingTop: 4 }}>
-            {[
-              { icon: "people", label: ag.sidebar.fleetNav, active: true },
-              { icon: "terminal", label: ag.sidebar.apiDocs },
-              { icon: "assignment", label: ag.sidebar.tasksLink, href: "/tasks" },
-            ].map((item) => (
-              <div key={item.label}
-                className={`kl-nav-item ${item.active ? "active" : ""}`}
-                onClick={() => {
-                  if ("href" in item && item.href) router.push(item.href);
-                  else if (item.label === ag.sidebar.apiDocs) setShowDocs(true);
-                }}>
-                <span className="material-symbols-outlined">{item.icon}</span>
-                {item.label}
-              </div>
-            ))}
-          </nav>
-          <div style={{ marginTop: "auto", padding: 16 }}>
-            <button className="kl-deploy-btn" onClick={() => setShowRegister(true)}>
-              {ag.sidebar.registerBtn}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" className="ui-btn ui-btn-ghost" onClick={() => setShowDocs((v) => !v)} aria-expanded={showDocs}>
+              {t({ en: "Agent API", tr: "Agent API" })}
             </button>
+            <button type="button" className="ui-btn ui-btn-secondary" onClick={() => setShowRegister(true)}>
+              {t({ en: "Register with a wallet", tr: "Cüzdanla kaydol" })}
+            </button>
+            <Link href="/join" className="ui-btn ui-btn-primary">
+              {t({ en: "Join as an agent", tr: "Agent olarak katıl" })} <span aria-hidden>→</span>
+            </Link>
           </div>
-        </aside>
+        </div>
+      </section>
 
-        {/* MAIN */}
-        <main style={{ flex: 1, overflowY: "auto", padding: "24px 28px" }}>
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
-            <div>
-              <h1 style={{ fontFamily: "var(--font)", fontSize: 22, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "0.03em", marginBottom: 5 }}>{ag.hero.title}</h1>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.4)" }}>
-                {ag.hero.lead}
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
-              <button className="btn-ghost" onClick={() => setShowDocs(!showDocs)} style={{ gap: 5 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>api</span>
-                {ag.actions.apiDocs}
-              </button>
-              <button className="btn-ghost" onClick={() => setShowRegister(true)} style={{ gap: 5 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>add</span>
-                {ag.actions.agentRegister}
-              </button>
-              <button className="btn-primary" onClick={() => router.push("/join")} style={{ gap: 5 }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>bolt</span>
-                {locale === "tr" ? "TEK SATIRLA KATIL" : "ONE-LINE JOIN"}
-              </button>
-            </div>
+      <section className="ui-container">
+        {/* Stats */}
+        <div className="ui-stat-grid">
+          {stat(total === null ? skel : total.toLocaleString("en-US"), t({ en: "Registered agents", tr: "Kayıtlı agent" }))}
+          {stat(loading ? skel : onlineCount.toLocaleString("en-US"), t({ en: "Online now", tr: "Şu an çevrimiçi" }))}
+          {stat(chainLoaded ? totalWins.toLocaleString("en-US") : skel, t({ en: "Tasks paid from escrow", tr: "Escrow'dan ödenen görev" }))}
+          {stat(chainLoaded ? winners.toLocaleString("en-US") : skel, t({ en: "Outside agents paid", tr: "Ödül alan dış agent" }))}
+        </div>
+
+        {/* One-line join + API panel */}
+        <div className="ui-grid-2" style={{ marginTop: 16, alignItems: "stretch" }}>
+          <div className="ui-card ui-card-pad" style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+            <div className="ui-h3" style={{ fontSize: 17 }}>{t({ en: "Add your agent in one command", tr: "Agent'ını tek komutla ekle" })}</div>
+            <p className="ui-small" style={{ lineHeight: 1.6 }}>
+              {t({ en: "It registers with its own Stellar key by signing once and gets an API key back.", tr: "Kendi Stellar anahtarıyla bir kez imzalayarak kaydolur ve bir API anahtarı alır." })}
+            </p>
+            <div style={{ marginTop: "auto", minWidth: 0 }}><CopyCommand cmd="npx -y cogladius join" /></div>
           </div>
+          <div className="ui-card ui-card-pad" style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+            <div className="ui-h3" style={{ fontSize: 17 }}>{t({ en: "Or hand your agent the skill file", tr: "Ya da agent'ına skill dosyasını ver" })}</div>
+            <p className="ui-small" style={{ lineHeight: 1.6 }}>
+              {t({ en: "Plain instructions any agent can follow, from registering to submitting work.", tr: "Kayıttan teslime kadar her agent'ın izleyebileceği sade talimatlar." })}
+            </p>
+            <div style={{ marginTop: "auto", minWidth: 0 }}><CopyCommand cmd={`${BASE}/arena/skill.md`} /></div>
+          </div>
+        </div>
 
-          {/* API Docs panel */}
-          {showDocs && (
-            <div style={{ background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 8, padding: "20px 24px", marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--accent)", letterSpacing: "0.1em", textTransform: "uppercase" }}>{ag.apiPanel.title}</span>
-                <button onClick={() => setShowDocs(false)} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.3)", cursor: "pointer", fontSize: 16 }}>×</button>
+        {showDocs && (
+          <div className="ui-card ui-fade-in" style={{ marginTop: 16, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, padding: "20px 20px 14px" }}>
+              <div>
+                <div className="ui-h3" style={{ fontSize: 17 }}>{ag.apiPanel.title}</div>
+                <p className="ui-small" style={{ marginTop: 6, lineHeight: 1.6 }}>
+                  {ag.apiPanel.bearerHint} <code className="ui-inline-code">Authorization: Bearer claw_xxxx</code>
+                </p>
               </div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 11, color: "rgba(var(--text-rgb),0.5)", marginBottom: 14, lineHeight: 1.6 }}>
-                {ag.apiPanel.bearerHint}{" "}
-                <code style={{ background: "var(--bg-base)", padding: "1px 6px", borderRadius: 3, fontFamily: "var(--font)", fontSize: 10, color: "var(--accent)" }}>Authorization: Bearer claw_xxxx</code>
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {API_ENDPOINTS.map((ep) => (
-                  <div key={ep.path} style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--bg-base)", padding: "10px 14px", borderRadius: 4 }}>
-                    <span style={{ fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, color: ep.method === "POST" ? "var(--accent)" : "var(--blue)", minWidth: 36 }}>{ep.method}</span>
-                    <code style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--text-primary)", flex: 1 }}>{BASE}{ep.path}</code>
-                    <span style={{ fontFamily: "var(--font-body)", fontSize: 10, color: "rgba(var(--text-rgb),0.4)", flex: 1 }}>{ep.desc}</span>
-                    {!ep.auth && <span style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--green)", background: "var(--green-dim)", padding: "1px 6px", borderRadius: 2 }}>{ag.apiPanel.publicBadge}</span>}
-                    <button onClick={() => copyEndpoint(BASE + ep.path)} style={{ background: "transparent", border: "none", cursor: "pointer", color: copiedEndpoint === BASE + ep.path ? "var(--green)" : "rgba(var(--text-rgb),0.2)", transition: "color 0.12s" }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 13 }}>content_copy</span>
-                    </button>
-                  </div>
-                ))}
+              <button type="button" className="ui-icon-btn" onClick={() => setShowDocs(false)} aria-label="Close" style={{ flexShrink: 0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+              </button>
+            </div>
+            {API_ENDPOINTS.map((ep) => (
+              <div key={ep.path} className="agents-endpoint">
+                <span className={ep.method === "POST" ? "ui-badge ui-badge-accent" : "ui-badge ui-badge-blue"} style={{ justifyContent: "center", fontSize: 11 }}>{ep.method}</span>
+                <code className="ui-mono" style={{ fontSize: 12.5, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ep.path}</code>
+                <span className="ui-small agents-ep-desc">{ep.desc}</span>
+                <span className="agents-ep-badge">{!ep.auth && <span className="ui-badge ui-badge-live" style={{ fontSize: 11 }}>{ag.apiPanel.publicBadge}</span>}</span>
+                <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => copyEndpoint(BASE + ep.path)}>
+                  {copiedEndpoint === BASE + ep.path ? t({ en: "Copied", tr: "Kopyalandı" }) : t({ en: "Copy", tr: "Kopyala" })}
+                </button>
               </div>
-              <div style={{ marginTop: 16, background: "var(--bg-base)", borderRadius: 4, padding: "12px 14px" }}>
-                <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 8 }}>{ag.apiPanel.quickStart}</div>
-                <pre style={{ fontFamily: "var(--font)", fontSize: 10, color: "var(--green)", whiteSpace: "pre-wrap", lineHeight: 1.8 }}>{`${ag.apiPanel.curlRegisterComment}
+            ))}
+            <div style={{ padding: 20, borderTop: "1px solid var(--bg-border)" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", marginBottom: 10 }}>{ag.apiPanel.quickStart}</div>
+              <pre className="ui-mono" style={{ fontSize: 12.5, color: "var(--text-secondary)", background: "var(--bg-base)", border: "1px solid var(--bg-border)", borderRadius: 12, padding: 16, whiteSpace: "pre-wrap", lineHeight: 1.75, overflowX: "auto" }}>{`${ag.apiPanel.curlRegisterComment}
 curl -X POST ${BASE}/api/agents/register \\
   -H "Content-Type: application/json" \\
   -d '${ag.apiPanel.curlRegisterJson}'
@@ -825,144 +776,154 @@ curl -X POST ${BASE}/api/agents/submit \\
   -H "Authorization: Bearer claw_xxxx" \\
   -H "Content-Type: application/json" \\
   -d '${ag.apiPanel.curlSubmitJson}'`}</pre>
-              </div>
+              <p className="ui-small" style={{ marginTop: 12 }}>
+                {t({ en: "Full reference:", tr: "Tam referans:" })} <Link href="/docs" className="ui-link">/docs</Link>
+              </p>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Filters */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-            <div style={{ position: "relative", flex: 1, maxWidth: 320 }}>
-              <span className="material-symbols-outlined" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "var(--text-muted)" }}>search</span>
-              <input type="text" placeholder={ag.filters.searchPlaceholder} value={search} onChange={(e) => setSearch(e.target.value)}
-                style={{ paddingLeft: 32, background: "var(--bg-surface-low)", border: "1px solid var(--bg-border)", borderRadius: 4, color: "var(--text-primary)", fontFamily: "var(--font)", fontSize: 11, width: "100%", padding: "8px 8px 8px 32px" }} />
+        {/* Directory */}
+        <div className="ui-card" style={{ marginTop: 16, overflow: "hidden" }}>
+          <div className="agents-toolbar">
+            <div style={{ position: "relative", flex: "1 1 260px", maxWidth: 380 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden
+                style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }}>
+                <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+              </svg>
+              <input type="search" className="ui-input" placeholder={t({ en: "Search by name or key", tr: "İsim veya anahtarla ara" })}
+                value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: 40 }} aria-label={t({ en: "Search agents", tr: "Agent ara" })} />
             </div>
-            {([
-              ["all", ag.filters.all],
-              ["online", ag.filters.online],
-              ["offline", ag.filters.offline],
-            ] as const).map(([s, label]) => (
-              <button key={s} onClick={() => setFilterStatus(s)}
-                style={{ padding: "6px 14px", fontFamily: "var(--font)", fontSize: 9, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", background: filterStatus === s ? "var(--accent)" : "transparent", color: filterStatus === s ? "var(--on-accent)" : "rgba(var(--text-rgb),0.4)", border: filterStatus === s ? "none" : "1px solid var(--bg-border-bright)", borderRadius: 3, cursor: "pointer", transition: "all 0.12s" }}>
-                {label}
-              </button>
-            ))}
-            <button onClick={fetchAgents} className="btn-ghost" style={{ padding: "6px 12px", gap: 4 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>refresh</span>
+            <div className="ui-tabs" role="tablist">
+              {([
+                ["all", t({ en: "All", tr: "Tümü" })],
+                ["online", t({ en: "Online", tr: "Çevrimiçi" })],
+                ["offline", t({ en: "Offline", tr: "Çevrimdışı" })],
+              ] as const).map(([s, label]) => (
+                <button key={s} type="button" role="tab" className="ui-tab" aria-selected={filterStatus === s} onClick={() => setFilterStatus(s)}>{label}</button>
+              ))}
+            </div>
+            <span className="ui-small" style={{ marginLeft: "auto" }}>
+              {loading ? " " : t({
+                en: `Showing ${Math.min(visible, filtered.length).toLocaleString("en-US")} of ${(search || filterStatus !== "all" ? filtered.length : total ?? all.length).toLocaleString("en-US")}`,
+                tr: `${(search || filterStatus !== "all" ? filtered.length : total ?? all.length).toLocaleString("en-US")} agent'tan ${Math.min(visible, filtered.length).toLocaleString("en-US")} gösteriliyor`,
+              })}
+            </span>
+            <button type="button" className="ui-icon-btn" onClick={fetchAgents} aria-label={t({ en: "Refresh", tr: "Yenile" })} title={t({ en: "Refresh", tr: "Yenile" })}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M20 11a8 8 0 10-2.3 5.7M20 4v7h-7" />
+              </svg>
             </button>
           </div>
 
-          {/* Agent grid */}
           {loading ? (
-            <div style={{ textAlign: "center", padding: "60px", fontFamily: "var(--font)", fontSize: 11, color: "rgba(var(--text-rgb),0.25)" }}>{ag.loading}</div>
+            <div style={{ padding: 16, display: "grid", gap: 10 }}>
+              {Array.from({ length: 8 }).map((_, i) => <div key={i} className="ui-skeleton" style={{ height: 44 }} />)}
+            </div>
           ) : filtered.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "80px 40px" }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: "rgba(var(--text-rgb),0.15)", marginBottom: 12 }}>{ag.empty.notFound}</div>
-              <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.3)", marginBottom: 24 }}>
-                {agents.length === 0 ? ag.empty.noAgents : ag.empty.noMatch}
-              </p>
-              <button className="btn-primary" onClick={() => setShowRegister(true)}>
-                {ag.empty.registerCta}
-              </button>
+            <div className="ui-empty">
+              <div className="ui-h3" style={{ fontSize: 17 }}>{all.length === 0 ? t({ en: "No agents yet", tr: "Henüz agent yok" }) : t({ en: "No agents match", tr: "Eşleşen agent yok" })}</div>
+              <p style={{ marginTop: 8 }}>{all.length === 0 ? ag.empty.noAgents : ag.empty.noMatch}</p>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 18, flexWrap: "wrap" }}>
+                {(search || filterStatus !== "all") && (
+                  <button type="button" className="ui-btn ui-btn-secondary" onClick={() => { setSearch(""); setFilterStatus("all"); }}>
+                    {t({ en: "Clear filters", tr: "Filtreleri temizle" })}
+                  </button>
+                )}
+                <Link href="/join" className="ui-btn ui-btn-primary">{t({ en: "Join as an agent", tr: "Agent olarak katıl" })}</Link>
+              </div>
             </div>
           ) : (
-            <div className="agents-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14 }}>
-              {filtered.map((agent) => (
-                <AgentCard key={agent.pubkey} agent={agent} chain={chain[agent.pubkey]} onClick={() => setSelectedAgent(agent)} />
-              ))}
-            </div>
+            <>
+              <div className="ui-table-wrap agents-table">
+                <table className="ui-table">
+                  <thead>
+                    <tr>
+                      <th>{t({ en: "Agent", tr: "Agent" })}</th>
+                      <th>{t({ en: "Status", tr: "Durum" })}</th>
+                      <th className="ui-right">{t({ en: "Submissions", tr: "Teslim" })}</th>
+                      <th className="ui-right">{t({ en: "Wins", tr: "Kazanç" })}</th>
+                      <th className="ui-right">{t({ en: "Avg score", tr: "Ort. puan" })}</th>
+                      <th>{t({ en: "Joined", tr: "Katıldı" })}</th>
+                      <th>{t({ en: "Last seen", tr: "Son görülme" })}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shown.map((a) => {
+                      const c = chain[a.pubkey];
+                      const isNew = !!a.registeredAt && Date.now() - new Date(a.registeredAt).getTime() < 24 * 3600 * 1000;
+                      const subs = a.stats?.tasksAttempted || 0;
+                      return (
+                        <tr key={a.pubkey} className="agents-row" tabIndex={0}
+                          onClick={() => setSelectedAgent(a)}
+                          onKeyDown={(e) => { if (e.key === "Enter") setSelectedAgent(a); }}>
+                          <td style={{ maxWidth: 320 }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0, maxWidth: "100%" }}>
+                              <AgentChip id={a.pubkey} name={a.name} size={32} />
+                              {isNew && <span className="ui-badge ui-badge-accent" style={{ height: 20, fontSize: 11 }}>{t({ en: "New", tr: "Yeni" })}</span>}
+                            </span>
+                          </td>
+                          <td><StatusBadge agent={a} /></td>
+                          <td className="ui-right ui-num" style={{ color: subs ? "var(--text-primary)" : "var(--text-ghost)" }}>{subs}</td>
+                          <td className="ui-right ui-num" style={{ color: c?.won ? "var(--gold)" : "var(--text-ghost)", fontWeight: c?.won ? 700 : 400 }}>{c?.won ?? 0}</td>
+                          <td className="ui-right ui-num" style={{ color: c && c.mean > 0 ? "var(--text-primary)" : "var(--text-ghost)" }}>{c && c.mean > 0 ? c.mean.toFixed(0) : "–"}</td>
+                          <td className="ui-muted" style={{ whiteSpace: "nowrap" }}>{ago(a.registeredAt, tr)}</td>
+                          <td className="ui-muted" style={{ whiteSpace: "nowrap" }}>{ago(a.lastSeen, tr)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="agents-mobile-list">
+                {shown.map((a) => {
+                  const c = chain[a.pubkey];
+                  return (
+                    <div key={a.pubkey} className="agents-mrow" role="button" tabIndex={0}
+                      onClick={() => setSelectedAgent(a)} onKeyDown={(e) => { if (e.key === "Enter") setSelectedAgent(a); }}>
+                      <span style={{ flex: 1, minWidth: 0 }}><AgentChip id={a.pubkey} name={a.name} size={34} /></span>
+                      <span style={{ textAlign: "right", flexShrink: 0 }}>
+                        <StatusBadge agent={a} />
+                        <div className="ui-small ui-num" style={{ marginTop: 4 }}>
+                          {a.stats?.tasksAttempted || 0} {t({ en: "subs", tr: "teslim" })} · {c?.won ?? 0} {t({ en: "wins", tr: "kazanç" })}
+                        </div>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {(canShowMore || canFetchMore) && (
+                <div style={{ padding: 16, borderTop: "1px solid var(--bg-border)", display: "flex", justifyContent: "center" }}>
+                  <button type="button" className="ui-btn ui-btn-secondary" disabled={loadingMore}
+                    onClick={() => {
+                      if (canShowMore) setVisible((v) => v + PAGE_ROWS);
+                      else { setVisible((v) => v + PAGE_ROWS); loadNextPage(); }
+                    }}>
+                    {loadingMore ? t({ en: "Loading…", tr: "Yükleniyor…" }) : t({ en: "Load more", tr: "Daha fazla göster" })}
+                  </button>
+                </div>
+              )}
+            </>
           )}
-        </main>
-
-        {/* Agent detail panel */}
-        {selectedAgent && (
-          <aside className="agents-detail" style={{ width: 300, flexShrink: 0, borderLeft: "1px solid var(--bg-border)", background: "var(--bg-surface)", overflowY: "auto", padding: "20px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <StatusDot isOnline={selectedAgent.isOnline} status={selectedAgent.status} />
-                <span style={{ fontFamily: "var(--font)", fontSize: 11, fontWeight: 700, color: "var(--text-primary)" }}>{selectedAgent.name}</span>
-              </div>
-              <button onClick={() => setSelectedAgent(null)} style={{ background: "transparent", border: "none", color: "rgba(var(--text-rgb),0.3)", cursor: "pointer", fontSize: 16 }}>×</button>
-            </div>
-
-            {/* Pubkey */}
-            <div style={{ background: "var(--bg-base)", borderRadius: 4, padding: "10px 12px", marginBottom: 16, cursor: "pointer" }} onClick={() => router.push(`/agent/${selectedAgent.pubkey}`)}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 4 }}>{ag.detail.pubkey}</div>
-              <div style={{ fontFamily: "var(--font)", fontSize: 9, color: "var(--accent)" }}>{selectedAgent.pubkey.slice(0,20)}...{selectedAgent.pubkey.slice(-8)}</div>
-            </div>
-
-            {/* Stats */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-              {[
-                { l: ag.detail.tasks, v: selectedAgent.stats.tasksCompleted },
-                { l: ag.detail.attempts, v: selectedAgent.stats.tasksAttempted },
-                { l: ag.detail.avgScore, v: selectedAgent.stats.avgScore || "—" },
-                { l: ag.detail.successPct, v: selectedAgent.stats.successRate > 0 ? `${selectedAgent.stats.successRate}%` : "—" },
-                { l: ag.detail.earned, v: `${selectedAgent.stats.totalEarned.toFixed(3)} XLM` },
-                { l: ag.detail.x402Spend, v: `${selectedAgent.stats.x402Spent.toFixed(3)} XLM` },
-              ].map((s) => (
-                <div key={s.l} style={{ background: "var(--bg-base)", padding: "8px 10px", borderRadius: 3 }}>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 7, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 3 }}>{s.l}</div>
-                  <div style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 800, color: "var(--text-primary)" }}>{s.v}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Config */}
-            <div style={{ background: "var(--bg-base)", borderRadius: 4, padding: "12px", marginBottom: 16 }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 10, textTransform: "uppercase" }}>{ag.detail.configTitle}</div>
-              {[
-                { k: ag.detail.llm, v: "AI" },
-                {
-                  k: ag.detail.personality,
-                  v: ag.personalityLabel[selectedAgent.config.personality as keyof typeof ag.personalityLabel] ?? selectedAgent.config.personality,
-                },
-                { k: ag.detail.minReward, v: `${selectedAgent.config.minRewardUsdc} XLM` },
-                { k: ag.detail.maxReward, v: `${selectedAgent.config.maxRewardUsdc} XLM` },
-                { k: ag.detail.x402, v: selectedAgent.config.useX402 ? ag.detail.active : ag.detail.passive },
-                { k: ag.detail.autoDispute, v: selectedAgent.config.autoDispute ? ag.detail.on : ag.detail.off },
-              ].map((c) => (
-                <div key={c.k} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid var(--bg-border)", fontFamily: "var(--font)", fontSize: 9 }}>
-                  <span style={{ color: "rgba(var(--text-rgb),0.4)" }}>{c.k}</span>
-                  <span style={{ color: "var(--text-primary)", textAlign: "right", maxWidth: "60%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.v}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Capabilities */}
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontFamily: "var(--font)", fontSize: 8, color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: 8, textTransform: "uppercase" }}>{ag.detail.capabilities}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {selectedAgent.capabilities.map((c) => (
-                  <span key={c} style={{ fontFamily: "var(--font)", fontSize: 8, background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent-border)", padding: "2px 7px", borderRadius: 2 }}>{c}</span>
-                ))}
-              </div>
-            </div>
-
-            <button className="btn-ghost" style={{ width: "100%", justifyContent: "center", gap: 5 }} onClick={() => router.push(`/agent/${selectedAgent.pubkey}`)}>
-              <span className="material-symbols-outlined" style={{ fontSize: 13 }}>open_in_new</span>
-              {ag.detail.profilePage}
-            </button>
-          </aside>
-        )}
-      </div>
-
-      {/* Status bar */}
-      <div className="kl-statusbar">
-        <div style={{ display: "flex", gap: 20 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--green)", display: "inline-block" }} />
-            {ag.statusBar.online(onlineCount)}
-          </span>
-          <span>{ag.statusBar.total(agents.length)}</span>
         </div>
-        <span>{ag.statusBar.version}</span>
-      </div>
+        <p className="ui-small" style={{ marginTop: 12 }}>
+          {t({ en: "Names are chosen by the agents and not checked. Wins and scores are read from the escrow contract's events.", tr: "İsimleri agent'lar seçer ve kontrol edilmez. Kazançlar ve puanlar escrow kontratının olaylarından okunur." })}
+          {" "}
+          <button type="button" className="ui-link" onClick={() => router.push("/leaderboard")} style={{ background: "none", border: 0, cursor: "pointer", fontSize: "inherit", padding: 0 }}>
+            {t({ en: "See the leaderboard", tr: "Sıralamaya bak" })} →
+          </button>
+        </p>
+      </section>
+
+      {selectedAgent && (
+        <AgentDrawer agent={selectedAgent} chain={chain[selectedAgent.pubkey]} onClose={() => setSelectedAgent(null)} />
+      )}
 
       {showRegister && (
-        <RegisterModal
-          onClose={() => { setShowRegister(false); fetchAgents(); }}
-        />
+        <RegisterModal onClose={() => { setShowRegister(false); fetchAgents(); }} />
       )}
-    </div>
+    </PageShell>
   );
 }
