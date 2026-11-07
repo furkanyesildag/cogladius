@@ -89,7 +89,10 @@ async function recentTxs() {
   for (;;) {
     const page = await rpcCall("getEvents", params);
     for (const e of page.events) if (!hashes.includes(e.txHash)) hashes.push(e.txHash);
-    if (page.events.length < 1000) return { hashes, since: health.oldestLedgerCloseTime };
+    // RPC scans a bounded ledger range per call; the cursor's ledger shows how
+    // far it got, so keep paging until it reaches the latest ledger.
+    const scannedTo = Number(BigInt(page.cursor.split("-")[0]) >> 32n);
+    if (page.events.length < 1000 && scannedTo >= page.latestLedger) return { hashes, since: health.oldestLedgerCloseTime };
     params = { filters: params.filters, pagination: { cursor: page.cursor, limit: 1000 } };
   }
 }
