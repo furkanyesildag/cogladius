@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProject } from "@/lib/projectStore";
 import { postSubTasksToPool, analyzeProject } from "@/lib/orchestrator";
 import type { OrchestratorBreakdown } from "@/lib/types";
+import { guardPublicAi } from "@/lib/publicAiGuard";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
@@ -9,6 +10,8 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const blocked = await guardPublicAi(req);
+  if (blocked) return blocked;
   const id = Number(params.id);
   const project = await getProject(id);
   if (!project) return NextResponse.json({ success: false, error: "Proje bulunamadı" }, { status: 404 });

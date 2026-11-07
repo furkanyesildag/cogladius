@@ -10,6 +10,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { runJudgePanel, isLlmConfigured } from "@/lib/judgePanel";
+import { guardPublicAi } from "@/lib/publicAiGuard";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export async function POST(req: NextRequest) {
+  const blocked = await guardPublicAi(req);
+  if (blocked) return blocked;
   if (!isLlmConfigured()) {
     return NextResponse.json(
       { success: false, error: "Judge panel unavailable — the AI engine is not configured." },

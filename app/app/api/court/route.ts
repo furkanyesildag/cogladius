@@ -4,6 +4,7 @@ import {
   openaiChatCompletion,
   llmAvailable,
 } from "@/lib/openaiAgents";
+import { guardPublicAi } from "@/lib/publicAiGuard";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 export async function POST(request: NextRequest) {
+  const blocked = await guardPublicAi(request);
+  if (blocked) return blocked;
   const body = await request.json();
   const { taskDescription, criteria, agentResult, disputeReason } = body;
 

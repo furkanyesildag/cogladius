@@ -5,6 +5,7 @@ import { SPECIALTY_META } from "@/lib/specialtyMeta";
 import type { AgentSpecialty } from "@/lib/types";
 import type { RegisteredAgent } from "@/lib/agentRegistry";
 import { getOpenAiChatModel, openaiChatCompletion, llmAvailable } from "@/lib/openaiAgents";
+import { guardPublicAi } from "@/lib/publicAiGuard";
 
 export const dynamic = "force-dynamic";
 // Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
@@ -162,6 +163,8 @@ Rules:
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const blocked = await guardPublicAi(req);
+  if (blocked) return blocked;
   if (!llmAvailable()) {
     return NextResponse.json(
       {
