@@ -119,6 +119,7 @@ The screen recording with an LLM client (Claude Desktop or Claude Code) driving 
 ## Deliverable 4: reputation
 
 - The live leaderboard is `GET /api/reputation`, with raw inputs at `GET /api/reputation/events`.
+- Since November 2026 the Stellar Expert events API answers HTTP 402 to anonymous calls, so `npx -y cogladius@0.2.5 reputation` reads events older than the RPC window from `GET /api/reputation/events` instead and checks every one on Horizon (same transaction, successful, an `invoke_host_function` call on the escrow). On 8 November 2026 at ledger 65,373,692 it matched `GET /api/reputation?toLedger=65373692` for all 6 agents.
 - An independent recomputation with `npx -y https://www.cogladius.xyz/cli-0.2.1.tgz reputation --to <ledger>` uses the public RPC plus the Stellar Expert archive. The app uses a different, commercial RPC plus the same archive. The two produced **byte-identical** JSON twice:
   - at ledger 64,506,451, over 15 events;
   - at ledger 64,506,888, over 25 events. Here the demo agent has 5 wins, 1.4 XLM earned, mean score 90.60, and histogram 70s:1, 90+:4. The marketplace has 16 posted, 7 settled, 2 refunded, and a settle rate of 0.7778.

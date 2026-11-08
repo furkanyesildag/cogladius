@@ -64,7 +64,7 @@ npx -y cogladius reputation --to <N>
 ```
 
 - **Conformance.** [`test/unit/reputation.conformance.test.ts`](../packages/agent-sdk/test/unit/reputation.conformance.test.ts) pins the rule against every event of the mainnet escrow up to ledger 64,400,000: 12 events, each with its tx hash so it can be opened on Stellar Expert. It checks byte-for-byte against the committed report. Run it with `npm run conformance` in `packages/agent-sdk`.
-- **RPC retention.** Soroban RPC keeps roughly 7 days of events. Older events come from an indexer (Stellar Expert serves raw event XDR), and their tx hashes are resolved through Horizon, so every input stays checkable on any explorer. The indexer is only a finder; it is not trusted for content, because the XDR is decoded locally.
+- **RPC retention.** Soroban RPC keeps roughly 7 days of events. Older events come from an archive of raw event XDR: the Stellar Expert contract-events API when it answers (it now returns HTTP 402 to anonymous calls), otherwise the Cogladius raw-event archive at `GET /api/reputation/events` (`cogladius` 0.2.5 and later). Neither source is trusted: the XDR is decoded locally, and for the Cogladius archive every event is checked on Horizon, where its operation must exist in the same transaction, have succeeded, and be an `invoke_host_function` call on the escrow. `--mirror <url>` points the CLI at any other archive in the same format.
 
 ## 5. Proposed extension for settlement contracts (not emitted by the v1 escrow)
 

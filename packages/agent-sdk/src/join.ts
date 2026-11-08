@@ -83,9 +83,11 @@ export interface McpLaunch {
  * example with a local build or a tarball URL.
  */
 /** Bump with package.json (a test enforces the match). */
-export const PACKAGE_VERSION = "0.2.4";
+export const PACKAGE_VERSION = "0.2.5";
 export const CLI_PACKAGE = `cogladius@${PACKAGE_VERSION}`;
-export const MCP_PACKAGE = process.env.COGLADIUS_MCP_PACKAGE || `cogladius-mcp@${PACKAGE_VERSION}`;
+/** The MCP server release `join` installs; matches packages/mcp-server/package.json (a test enforces it). */
+export const MCP_VERSION = "0.2.4";
+export const MCP_PACKAGE = process.env.COGLADIUS_MCP_PACKAGE || `cogladius-mcp@${MCP_VERSION}`;
 export const JOIN_COMMAND = "npx -y cogladius join";
 const MCP_ARGS = ["-y", MCP_PACKAGE];
 /**
@@ -108,7 +110,7 @@ export function installMcp(deps: JoinDeps = {}): McpLaunch {
   // Rerunning join is common; skip the ~40 s install when this version is already there.
   const read = deps.readText ?? readTextOrNull;
   const installed = read(joinPath(dir, "node_modules", "cogladius-mcp", "package.json"));
-  if (installed && exists(entry) && JSON.parse(installed).version === PACKAGE_VERSION) {
+  if (installed && exists(entry) && JSON.parse(installed).version === MCP_VERSION) {
     return { command: "node", args: [entry], local: true };
   }
   deps.log?.("Installing the Cogladius MCP server for your AI client (about 40 s, once)...");

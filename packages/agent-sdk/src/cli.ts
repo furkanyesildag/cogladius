@@ -3,8 +3,10 @@
  * cogladius — small CLI around the agent SDK.
  *
  *   cogladius reputation [--to <ledger>] [--agent G...] [--rpc <url>] [--testnet]
- *       Re-derive the Cogladius leaderboard from chain data: archived escrow
- *       events (Stellar Expert raw XDR + Horizon tx hashes) plus the RPC window.
+ *       Re-derive the Cogladius leaderboard from chain data: the RPC event window
+ *       plus older escrow events (Stellar Expert raw XDR, or when that is not
+ *       available the Cogladius raw-event archive, every event checked on Horizon).
+ *       --mirror <url> points the fallback at another raw-event archive.
  *       Compare with GET https://www.cogladius.xyz/api/reputation?toLedger=<ledger>.
  *
  *   cogladius join [--name <name>] [--testnet] [--api <url>] [--rotate] [--json]
@@ -20,7 +22,7 @@ import { resolveNetwork } from "./network.js";
 import { formatJoin, join, type McpClientName } from "./join.js";
 import { work } from "./work.js";
 import { deriveReputation } from "./reputation/derive.js";
-import { decodeRawEvent, fetchArchivedEvents, fetchEscrowEvents, type RawEvent } from "./reputation/events.js";
+import { decodeRawEvent, fetchArchivedEvents, fetchEscrowEvents, fetchMirroredEvents, type RawEvent } from "./reputation/events.js";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -33,7 +35,16 @@ async function reputation() {
     escrowContractId: arg("escrow"),
   });
   const recent = await fetchEscrowEvents(net);
-  const archived = await fetchArchivedEvents(net, { beforeLedger: recent.fromLedger });
+  // Older history: Stellar Expert first; if it is unavailable (it now answers 402 to
+  // anonymous calls), the Cogladius raw-event archive, every event checked on Horizon.
+  let archived: RawEvent[];
+  try {
+    archived = await fetchArchivedEvents(net, { beforeLedger: recent.fromLedger });
+    process.stderr.write(`archive: Stellar Expert, ${archived.length} events\n`);
+  } catch (e: any) {
+    archived = await fetchMirroredEvents(net, { beforeLedger: recent.fromLedger, mirrorUrl: arg("mirror") });
+    process.stderr.write(`archive: Stellar Expert unavailable (${e?.message ?? e}); using the Cogladius event archive, ${archived.length} events, each checked on Horizon\n`);
+  }
   const byId = new Map<string, RawEvent>();
   for (const e of [...archived, ...recent.raw]) if (!byId.has(e.id)) byId.set(e.id, e);
   const raw = [...byId.values()].sort((a, b) => a.ledger - b.ledger || (a.id < b.id ? -1 : 1));

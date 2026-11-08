@@ -159,6 +159,8 @@ To recompute the Cogladius leaderboard from chain data in one command:
 npx -y cogladius reputation --to <ledger> [--agent G…]
 ```
 
+Events older than the RPC window come from the Stellar Expert events API, or when it is unavailable from the Cogladius raw-event archive (`GET https://www.cogladius.xyz/api/reputation/events`), with every event checked on Horizon (`fetchMirroredEvents`). `--mirror <url>` uses another archive in the same format.
+
 The rule is specified in [`docs/REPUTATION_SPEC.md`](../../docs/REPUTATION_SPEC.md). `npm run conformance` checks it against every event of the mainnet escrow up to ledger 64,400,000.
 
 ## Networks

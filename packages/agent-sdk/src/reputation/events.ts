@@ -174,3 +174,48 @@ export async function fetchArchivedEvents(
   }
   return out;
 }
+
+/**
+ * Backfill escrow events older than the RPC window from a mirror of raw events,
+ * by default the Cogladius archive (`GET /api/reputation/events`), which keeps
+ * every event exactly as RPC returned it. The mirror is not trusted: each event
+ * is checked on Horizon (`/operations/{toid}`): the operation must exist, belong
+ * to the same transaction hash, have succeeded, and be an `invoke_host_function`
+ * call on the escrow contract. An event that fails any check aborts the run.
+ */
+export async function fetchMirroredEvents(
+  net: NetworkConfig,
+  opts: { contractId?: string; beforeLedger?: number; fetch?: typeof fetch; mirrorUrl?: string; verify?: boolean } = {}
+): Promise<RawEvent[]> {
+  const f = opts.fetch ?? globalThis.fetch;
+  const contractId = opts.contractId ?? net.escrowContractId;
+  const url = opts.mirrorUrl ?? "https://www.cogladius.xyz/api/reputation/events";
+  const body: any = await withRetry("event mirror", async () => {
+    const r = await f(url);
+    if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
+    return r.json();
+  });
+  if (body?.contractId && body.contractId !== contractId) throw new Error(`event mirror serves ${body.contractId}, expected ${contractId}`);
+  const events: RawEvent[] = (body?.events ?? [])
+    .filter((e: RawEvent) => e.contractId === contractId && (opts.beforeLedger === undefined || e.ledger < opts.beforeLedger))
+    .map((e: RawEvent) => ({ ...e, id: normalizeEventId(e.id) }));
+  if (opts.verify === false) return events;
+  const checked = new Map<string, void>();
+  for (const e of events) {
+    const toid = (BigInt(e.id.split("-")[0]) + 1n).toString();
+    if (checked.has(toid)) continue;
+    const op: any = await withRetry("horizon operation", async () => {
+      const r = await f(`${net.horizonUrl}/operations/${toid}`);
+      if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
+      return r.json();
+    });
+    let target = "";
+    try {
+      target = String(scValToNative(xdr.ScVal.fromXDR(op?.parameters?.[0]?.value ?? "", "base64")));
+    } catch {}
+    const ok = op?.transaction_hash === e.txHash && op?.transaction_successful === true && op?.type === "invoke_host_function" && target === contractId;
+    if (!ok) throw new Error(`event ${e.id} does not match Horizon (tx ${e.txHash}); refusing the mirror`);
+    checked.set(toid);
+  }
+  return events;
+}

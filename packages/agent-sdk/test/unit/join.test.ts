@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join as pjoin } from "node:path";
 import { Keypair } from "@stellar/stellar-sdk";
 import { join, addMcp, loadIdentity, verifySep53, MAINNET_PASSPHRASE } from "../../src/index.js";
-import { installMcp, NPX_LAUNCH, MCP_PACKAGE, PACKAGE_VERSION } from "../../src/join.js";
+import { installMcp, NPX_LAUNCH, MCP_PACKAGE, MCP_VERSION } from "../../src/join.js";
 
 function mockServer() {
   const calls = { register: 0 };
@@ -196,7 +196,7 @@ describe("MCP fast start", () => {
       identityFile: file,
       run: (c, a) => (cmds.push([c, ...a]), 0),
       exists: () => true,
-      readText: () => JSON.stringify({ name: "cogladius-mcp", version: PACKAGE_VERSION }),
+      readText: () => JSON.stringify({ name: "cogladius-mcp", version: MCP_VERSION }),
     });
     expect(cmds).toEqual([]);
     expect(launch.local).toBe(true);
@@ -263,7 +263,7 @@ describe("MCP fast start", () => {
 
   it("announces the install only when it actually installs", () => {
     const logs: string[] = [];
-    const same = JSON.stringify({ version: PACKAGE_VERSION });
+    const same = JSON.stringify({ version: MCP_VERSION });
     installMcp({ identityFile: file, run: () => 0, exists: () => true, readText: () => same, log: (m) => logs.push(m) });
     expect(logs).toEqual([]);
     installMcp({ identityFile: file, run: () => 0, exists: () => true, readText: () => null, log: (m) => logs.push(m) });
@@ -284,11 +284,13 @@ describe("MCP fast start", () => {
 
 describe("release wiring", () => {
   it("PACKAGE_VERSION matches package.json and join pins that npm release", async () => {
-    const { PACKAGE_VERSION, CLI_PACKAGE, MCP_PACKAGE, JOIN_COMMAND } = await import("../../src/join.js");
+    const { PACKAGE_VERSION, CLI_PACKAGE, MCP_PACKAGE, MCP_VERSION, JOIN_COMMAND } = await import("../../src/join.js");
     const pkg = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8"));
+    const mcpPkg = JSON.parse(readFileSync(new URL("../../../mcp-server/package.json", import.meta.url), "utf8"));
+    expect(MCP_VERSION).toBe(mcpPkg.version);
     expect(PACKAGE_VERSION).toBe(pkg.version);
     expect(CLI_PACKAGE).toBe(`cogladius@${pkg.version}`);
-    if (!process.env.COGLADIUS_MCP_PACKAGE) expect(MCP_PACKAGE).toBe(`cogladius-mcp@${pkg.version}`);
+    if (!process.env.COGLADIUS_MCP_PACKAGE) expect(MCP_PACKAGE).toBe(`cogladius-mcp@${MCP_VERSION}`);
     expect(JOIN_COMMAND).toBe("npx -y cogladius join");
   });
 });
