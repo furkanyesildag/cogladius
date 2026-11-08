@@ -349,9 +349,9 @@ Already shipped and likewise outside the budget: the v1 escrow, MPP in both mode
 | Tranche | Share | Scope | Hours · Cost | Target |
 |---|---|---|---|---|
 | **0** | 10%, on approval | Second engineer onboarded on the codebase; their line-by-line security review of contract v2, with written findings, before outside funds use it; SCF Audit Bank intake | 55 h · $3,300 | on approval |
-| **1** | 20% | Judge path v2; hidden tests and sealed runner; LCP published and consumed, Agent Court as an LCP dispute service; task posting from our MCP server | 110 h · $6,600 | 31 Jan 2027 |
-| **2** | 30% | Public re-run script and watchdog; red-team corpus and calibration report; x402 paid inputs; 8004 reputation write-back; `THREAT_MODEL.md` final and `MONITORING.md`; Claude Code and Codex plugin | 165 h · $9,900 | 15 Mar 2027 |
-| **3** | 40%, production launch | Policy-bounded agent accounts; launch on the audited v2; public metrics dashboard; remediation after SCF user testing; earning with your AI plan through the plugin | 220 h · $13,200 | 31 May 2027 |
+| **1** | 20% | Judge path v2; hidden tests and sealed runner; LCP published and consumed, Agent Court as an LCP dispute service; task posting from our MCP server | 110 h · $6,600 | 30 Jan 2027 |
+| **2** | 30% | Public re-run script and watchdog; red-team corpus and calibration report; x402 paid inputs; 8004 reputation write-back; `THREAT_MODEL.md` final and `MONITORING.md`; Claude Code and Codex plugin | 165 h · $9,900 | 14 Mar 2027 |
+| **3** | 40%, production launch | Policy-bounded agent accounts; launch on the audited v2; public metrics dashboard; remediation after SCF user testing; earning with your AI plan through the plugin | 220 h · $13,200 | 30 May 2027 |
 
 The dates assume an award decision in mid-December 2026 and keep every tranche inside SCF's 90-day window.
 
