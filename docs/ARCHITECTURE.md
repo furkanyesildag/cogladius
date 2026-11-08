@@ -330,7 +330,7 @@ flowchart TB
 
 ## 6. Deployment and verification plan
 
-Every completion criterion below is an artifact a reviewer can open and check without taking our word for anything. The structure mirrors the SCF #46 submission one for one: **$30,000, 500 hours at a $60 blended rate**, paid in SCF's fixed tranche structure (10% on approval, then 20%, 30% and 40%).
+Every completion criterion below is an artifact a reviewer can open and check without taking our word for anything. The structure mirrors the SCF #46 submission one for one: **$33,000, 550 hours at a $60 blended rate**, paid in SCF's fixed tranche structure (10% on approval, then 20%, 30% and 40%).
 
 ### Outside the budget
 
@@ -348,16 +348,16 @@ Already shipped and likewise outside the budget: the v1 escrow, MPP in both mode
 
 | Tranche | Share | Scope | Hours · Cost | Target |
 |---|---|---|---|---|
-| **0** | 10%, on approval | Second engineer onboarded on the codebase; their line-by-line security review of contract v2, with written findings, before outside funds use it; SCF Audit Bank intake | 50 h · $3,000 | on approval |
-| **1** | 20% | Judge path v2; hidden tests and sealed runner; LCP published and consumed, Agent Court as an LCP dispute service | 100 h · $6,000 | 31 Jan 2027 |
-| **2** | 30% | Public re-run script and watchdog; red-team corpus and calibration report; x402 paid inputs; 8004 reputation write-back; `THREAT_MODEL.md` final and `MONITORING.md` | 150 h · $9,000 | 15 Mar 2027 |
-| **3** | 40%, production launch | Policy-bounded agent accounts; launch on the audited v2; public metrics dashboard; remediation after SCF user testing | 200 h · $12,000 | 31 May 2027 |
+| **0** | 10%, on approval | Second engineer onboarded on the codebase; their line-by-line security review of contract v2, with written findings, before outside funds use it; SCF Audit Bank intake | 55 h · $3,300 | on approval |
+| **1** | 20% | Judge path v2; hidden tests and sealed runner; LCP published and consumed, Agent Court as an LCP dispute service; task posting from our MCP server | 110 h · $6,600 | 31 Jan 2027 |
+| **2** | 30% | Public re-run script and watchdog; red-team corpus and calibration report; x402 paid inputs; 8004 reputation write-back; `THREAT_MODEL.md` final and `MONITORING.md`; Claude Code and Codex plugin | 165 h · $9,900 | 15 Mar 2027 |
+| **3** | 40%, production launch | Policy-bounded agent accounts; launch on the audited v2; public metrics dashboard; remediation after SCF user testing; earning with your AI plan through the plugin | 220 h · $13,200 | 31 May 2027 |
 
 The dates assume an award decision in mid-December 2026 and keep every tranche inside SCF's 90-day window.
 
 ### Tranche 1: Adjudication integrity
 
-Deliverables 1.1 judge path v2 · 1.2 hidden tests and sealed runner · 1.3 LCP consumption and dispute service.
+Deliverables 1.1 judge path v2 · 1.2 hidden tests and sealed runner · 1.3 LCP consumption and dispute service · 1.4 task posting from our MCP server, so agents can hire agents.
 
 Verified by:
 
@@ -368,7 +368,7 @@ Verified by:
 
 ### Tranche 2: Verification and paid inputs
 
-Deliverables 2.1 re-run script and watchdog · 2.2 red-team corpus and calibration report · 2.3 x402 paid inputs · 2.4 threat model final and monitoring plan · 2.5 8004 reputation write-back.
+Deliverables 2.1 re-run script and watchdog · 2.2 red-team corpus and calibration report · 2.3 x402 paid inputs · 2.4 threat model final and monitoring plan · 2.5 8004 reputation write-back · 2.6 Claude Code and Codex plugin.
 
 Verified by:
 
@@ -380,7 +380,7 @@ Verified by:
 
 ### Tranche 3: Production launch on the audited contract
 
-Deliverables 3.1 policy-bounded agent accounts (OpenZeppelin first) · 3.2 launch on audited v2 and hardening · 3.3 public metrics dashboard · 3.4 remediation against SCF professional user testing.
+Deliverables 3.1 policy-bounded agent accounts (OpenZeppelin first) · 3.2 launch on audited v2 and hardening · 3.3 public metrics dashboard · 3.4 remediation against SCF professional user testing · 3.5 earn with your AI plan: users solve tasks on the usage included in their Claude or ChatGPT plan and are paid in XLM, with an integration guide for further AI clients.
 
 Verified by:
 
