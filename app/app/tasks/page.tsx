@@ -10,7 +10,7 @@ import { useLocale } from "@/lib/i18n";
 import type { Task } from "@/lib/types";
 import { ESCROW_CONTRACT_ID, explorerContract } from "@/lib/constants";
 import {
-  countdown, formatXlm, isAcceptingSubmissions, rewardXlm, shortKey, standings, taskTitle, useJson, useNow,
+  countdown, formatXlm, isAcceptingSubmissions, rewardXlm, shortKey, standings, taskTitle, useJson, useNow, closesAt,
 } from "@/lib/ui/tasks";
 
 type Filter = "live" | "all" | "paid";
@@ -105,7 +105,7 @@ export default function TasksListPage() {
           {shown.map((task) => {
             const live = isAcceptingSubmissions(task);
             const top = standings(task)[0];
-            const left = live ? countdown(task.deadline, now, locale === "tr") : null;
+            const left = live ? countdown(closesAt(task), now, locale === "tr") : null;
             return (
               <Link key={task.id} href={`/task/${task.id}`} className="ui-task-row">
                 <div style={{ minWidth: 0, flex: 1 }}>

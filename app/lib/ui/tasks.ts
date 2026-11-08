@@ -111,3 +111,11 @@ export function useJson<T>(url: string, ms = 0): { data: T | null; error: boolea
   }, [url, ms]);
   return { data, error };
 }
+
+/** League finals were closed early (announced on Boltbook): entries count until 12:00 UTC, 8 Nov 2026. */
+export const LEAGUE_EARLY_CLOSE = Math.floor(Date.parse("2026-11-08T12:00:00Z") / 1000);
+
+/** When a task stops counting entries, for countdowns. */
+export function closesAt(t: Pick<Task, "deadline" | "gladiatorOnly">): number {
+  return t.gladiatorOnly ? Math.min(t.deadline, LEAGUE_EARLY_CLOSE) : t.deadline;
+}

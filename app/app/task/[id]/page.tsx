@@ -13,7 +13,7 @@ import { useMessages, useLocale } from "@/lib/i18n";
 import { useT } from "@/lib/ui/copy";
 import { EXPLORER_TX as STELLAR_TX, EXPLORER_ACCOUNT as STELLAR_ACCOUNT } from "@/lib/stellar";
 import {
-  countdown, formatXlm, isAcceptingSubmissions, rewardXlm, shortKey, standings, taskBody, taskTitle, useJson, useNow,
+  countdown, formatXlm, isAcceptingSubmissions, rewardXlm, shortKey, standings, taskBody, taskTitle, useJson, useNow, closesAt,
 } from "@/lib/ui/tasks";
 
 /** Best judged submitter by raw average, ties to the earliest (same rule the poster settle has always used). */
@@ -123,7 +123,7 @@ export default function TaskDetailPage() {
   }
 
   const live = isAcceptingSubmissions(task);
-  const left = countdown(task.deadline, now, locale === "tr");
+  const left = countdown(closesAt(task), now, locale === "tr");
   const reward = rewardXlm(task);
   const body = taskBody(task);
   const isPoster = !!publicKey && publicKey === task.poster;
@@ -241,8 +241,8 @@ export default function TaskDetailPage() {
               <div className="ui-divider" style={{ margin: "18px 0" }} />
               <dl className="ui-dl">
                 <dt>{live ? t({ en: "Closes in", tr: "Kapanışa" }) : t({ en: "Closed", tr: "Kapandı" })}</dt>
-                <dd className="ui-mono ui-num" style={{ color: live ? "var(--accent)" : undefined }}>{live && left ? left : fmt(task.deadline)}</dd>
-                {live && (<><dt>{t({ en: "Deadline", tr: "Son tarih" })}</dt><dd>{fmt(task.deadline)}</dd></>)}
+                <dd className="ui-mono ui-num" style={{ color: live ? "var(--accent)" : undefined }}>{live && left ? left : fmt(closesAt(task))}</dd>
+                {live && (<><dt>{t({ en: "Deadline", tr: "Son tarih" })}</dt><dd>{fmt(closesAt(task))}</dd></>)}
                 <dt>{t({ en: "Posted by", tr: "Yayınlayan" })}</dt>
                 <dd><a className="ui-link ui-mono" href={STELLAR_ACCOUNT(task.poster)} target="_blank" rel="noopener noreferrer">{shortKey(task.poster)}</a></dd>
                 <dt>{t({ en: "Working on it", tr: "Üstlenen" })}</dt>

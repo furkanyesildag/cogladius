@@ -17,7 +17,7 @@ import { fetchUsdcBalance, EXPLORER_TX } from "@/lib/stellar";
 import { settleAsPoster, signTaskDelete } from "@/lib/sorobanEscrow";
 import { isAcceptingSubmissions, txFromEscrowEvents } from "@/lib/dashboardData";
 import {
-  countdown, formatXlm, rewardXlm, shortKey, standings, taskBody, taskTitle, useJson, useNow,
+  countdown, formatXlm, rewardXlm, shortKey, standings, taskBody, taskTitle, useJson, useNow, closesAt,
 } from "@/lib/ui/tasks";
 import { isTeamAddress } from "@/lib/ui/team";
 import s from "./dashboard.module.css";
@@ -359,7 +359,7 @@ export default function Dashboard() {
             <TaskStatusBadge task={task} />
             <span>{task.submissions?.length ?? 0} {t({ en: "answers", tr: "cevap" })}</span>
             {top && <span>{t({ en: "best", tr: "en iyi" })} <b>{top.avg}</b></span>}
-            {isLive && <span className={s.sideLeft}>{countdown(task.deadline, now, tr)}</span>}
+            {isLive && <span className={s.sideLeft}>{countdown(closesAt(task), now, tr)}</span>}
           </div>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
@@ -431,7 +431,7 @@ export default function Dashboard() {
         {finalsLive.length > 0 && (
           <Link href="/arena/league" className={s.leagueStrip}>
             <span className="ui-badge ui-badge-gold">Gladiator League</span>
-            <span>{t({ en: `${finalsLive.length} finals live, ${formatXlm(finalsLive.reduce((a, x) => a + rewardXlm(x), 0))} XLM at stake, closing in ${countdown(finalsLive[0].deadline, now, tr)}`, tr: `${finalsLive.length} final canlı, ${formatXlm(finalsLive.reduce((a, x) => a + rewardXlm(x), 0))} XLM ödül, bitmesine ${countdown(finalsLive[0].deadline, now, tr)}` })}</span>
+            <span>{t({ en: `${finalsLive.length} finals live, ${formatXlm(finalsLive.reduce((a, x) => a + rewardXlm(x), 0))} XLM at stake, closing in ${countdown(closesAt(finalsLive[0]), now, tr)}`, tr: `${finalsLive.length} final canlı, ${formatXlm(finalsLive.reduce((a, x) => a + rewardXlm(x), 0))} XLM ödül, bitmesine ${countdown(closesAt(finalsLive[0]), now, tr)}` })}</span>
             <span className={s.leagueGo}>{t({ en: "Standings", tr: "Sıralama" })} →</span>
           </Link>
         )}
@@ -586,7 +586,7 @@ export default function Dashboard() {
               <div><div className="ui-small">{t({ en: "Reward", tr: "Ödül" })}</div><div className={s.accountVal}>{formatXlm(rewardXlm(selected), 4)} XLM</div></div>
               <div><div className="ui-small">{isAcceptingSubmissions(selected) ? t({ en: "Closes in", tr: "Kapanışa" }) : t({ en: "Deadline", tr: "Son tarih" })}</div>
                 <div className={s.accountVal} style={{ color: isAcceptingSubmissions(selected) ? "var(--accent)" : undefined }}>
-                  {isAcceptingSubmissions(selected) ? countdown(selected.deadline, now, tr) : new Date(selected.deadline * 1000).toLocaleDateString(tr ? "tr-TR" : "en-US")}
+                  {isAcceptingSubmissions(selected) ? countdown(closesAt(selected), now, tr) : new Date(selected.deadline * 1000).toLocaleDateString(tr ? "tr-TR" : "en-US")}
                 </div></div>
               <div><div className="ui-small">{t({ en: "Entries", tr: "Teslim" })}</div><div className={s.accountVal}>{selected.submissions?.length ?? 0}</div></div>
             </div>

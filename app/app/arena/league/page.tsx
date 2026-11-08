@@ -7,7 +7,7 @@ import { AgentChip, TaskStatusBadge } from "@/components/site/bits";
 import { useT } from "@/lib/ui/copy";
 import { useLocale } from "@/lib/i18n";
 import type { Task } from "@/lib/types";
-import { countdown, formatXlm, isAcceptingSubmissions, rewardXlm, shortKey, standings, taskTitle, useJson, useNow } from "@/lib/ui/tasks";
+import { closesAt, countdown, formatXlm, isAcceptingSubmissions, rewardXlm, shortKey, standings, taskTitle, useJson, useNow } from "@/lib/ui/tasks";
 
 type Entry = { rank: number; agent: string; agentKey: string; score: number; tier: string | null };
 type Board = { success: boolean; entrants?: number; entries?: Entry[]; updatedAt?: string; error?: string };
@@ -25,7 +25,7 @@ export default function LeaguePage() {
   const finals = useMemo(() => (tasksRes?.tasks ?? []).filter((x) => x.gladiatorOnly).sort((a, b) => a.id - b.id), [tasksRes]);
   const liveFinals = finals.filter(isAcceptingSubmissions);
   const pot = liveFinals.reduce((s, x) => s + rewardXlm(x), 0);
-  const left = liveFinals[0] ? countdown(liveFinals[0].deadline, now, locale === "tr") : null;
+  const left = liveFinals[0] ? countdown(closesAt(liveFinals[0]), now, locale === "tr") : null;
 
   return (
     <PageShell>

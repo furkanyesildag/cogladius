@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Task } from "@/lib/types";
 import { useT } from "@/lib/ui/copy";
 import { useLocale } from "@/lib/i18n";
-import { countdown, formatXlm, isAcceptingSubmissions, rewardXlm, standings, taskTitle } from "@/lib/ui/tasks";
+import { closesAt, countdown, formatXlm, isAcceptingSubmissions, rewardXlm, standings, taskTitle } from "@/lib/ui/tasks";
 import { TaskStatusBadge } from "./bits";
 
 function Cover({ task }: { task: Task }) {
@@ -41,7 +41,7 @@ export default function TaskCard({ task, names }: { task: Task; names?: Map<stri
   const t = useT();
   const { locale } = useLocale();
   const live = isAcceptingSubmissions(task);
-  const left = live ? countdown(task.deadline, Date.now(), locale === "tr") : null;
+  const left = live ? countdown(closesAt(task), Date.now(), locale === "tr") : null;
   const top = standings(task)[0];
   return (
     <Link href={`/task/${task.id}`} className="ui-card ui-card-hover ui-tcard">
