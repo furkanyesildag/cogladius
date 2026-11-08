@@ -8,7 +8,8 @@ import { useMessages, useLocale } from "@/lib/i18n";
 import type {
   Project, OrchestratorBreakdown, AgentSpecialty,
 } from "@/lib/types";
-import { SPECIALTY_META } from "@/lib/specialtyMeta";
+import { SPECIALTY_META, specialtyLabel } from "@/lib/specialtyMeta";
+import { useT } from "@/lib/ui/copy";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -109,14 +110,15 @@ async function postOrchestratorChatApi(
   projectId: number,
   history: { role: string; content: string }[],
   userMessage: string,
+  locale: string,
 ): Promise<{ success: false; error: string } | { success: true; reply: string; breakdown?: OrchestratorBreakdown[] }> {
   const r = await fetch(`/api/projects/${projectId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages: history, userMessage }),
+    body: JSON.stringify({ messages: history, userMessage, locale }),
   });
   const data = await r.json();
-  if (!data.success) return { success: false, error: data.error ?? "Hata" };
+  if (!data.success) return { success: false, error: data.error ?? (locale === "tr" ? "Bir hata oluştu" : "Something went wrong") };
   return { success: true, reply: data.reply as string, breakdown: data.breakdown as OrchestratorBreakdown[] | undefined };
 }
 
@@ -155,12 +157,12 @@ function RenderLine({ text }: { text: string }) {
 function AgentMessageBody({ text }: { text: string }) {
   if (!text) return null;
   return (
-    <div style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.82)", lineHeight: 1.8 }}>
+    <div style={{ fontFamily: "var(--font-body)", fontSize: 14.5, color: "var(--text-secondary)", lineHeight: 1.7 }}>
       {text.split("\n").map((line, i) => {
         if (!line.trim()) return <div key={i} style={{ height: 6 }} />;
         if (/^#{1,3}\s/.test(line)) {
           const lvl = (line.match(/^#+/) ?? [""])[0].length;
-          return <div key={i} style={{ fontFamily: "var(--font)", fontSize: lvl === 1 ? 13 : 11, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "0.04em", marginTop: 14, marginBottom: 5, textTransform: lvl === 1 ? "uppercase" : "none", borderBottom: lvl === 1 ? "1px solid var(--bg-border)" : "none", paddingBottom: lvl === 1 ? 5 : 0 }}>{line.replace(/^#+\s/, "")}</div>;
+          return <div key={i} style={{ fontFamily: "var(--font-head)", fontSize: lvl === 1 ? 17 : 15, fontWeight: 700, color: "var(--text-primary)", letterSpacing: "-0.01em", marginTop: 14, marginBottom: 6, borderBottom: lvl === 1 ? "1px solid var(--bg-border)" : "none", paddingBottom: lvl === 1 ? 6 : 0 }}>{line.replace(/^#+\s/, "")}</div>;
         }
         if (/^═+$/.test(line.trim())) return <div key={i} style={{ height: 1, background: "var(--bg-border)", margin: "8px 0" }} />;
         const listM = line.match(/^([•\-\*]|\d+\.)\s+(.*)/);
@@ -168,7 +170,7 @@ function AgentMessageBody({ text }: { text: string }) {
           const isNum = /^\d/.test(listM[1]);
           return (
             <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
-              <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 12, flexShrink: 0, marginTop: 2 }}>{isNum ? listM[1] : "▸"}</span>
+              <span style={{ color: "var(--accent)", fontWeight: 700, fontSize: 13, flexShrink: 0, marginTop: 2 }}>{isNum ? listM[1] : "▸"}</span>
               <span><RenderLine text={listM[2]} /></span>
             </div>
           );
@@ -188,6 +190,8 @@ function BreakdownCard({
   editable?: boolean;
   onChange?: (b: OrchestratorBreakdown[]) => void;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
   function adjust(idx: number, delta: number) {
     if (!onChange) return;
     const next = breakdown.map((b) => ({ ...b }));
@@ -211,10 +215,10 @@ function BreakdownCard({
   }
 
   return (
-    <div style={{ border: "1px solid var(--accent-border)", borderRadius: 6, overflow: "hidden", marginTop: 12 }}>
+    <div style={{ border: "1px solid var(--accent-border)", borderRadius: 14, overflow: "hidden", marginTop: 14 }}>
       <div style={{ padding: "10px 14px", background: "var(--accent-dim)", display: "flex", alignItems: "center", gap: 8 }}>
         <span className="material-symbols-outlined" style={{ fontSize: 15, color: "var(--accent)" }}>hub</span>
-        <span style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: "var(--accent)" }}>Proje planı · {totalBudget} XLM</span>
+        <span style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: "var(--accent)" }}>{t({ en: "Project plan", tr: "Proje planı" })} · {totalBudget} XLM</span>
       </div>
       {breakdown.map((b, i) => {
         const meta = SPECIALTY_META[b.specialty as AgentSpecialty];
@@ -223,7 +227,7 @@ function BreakdownCard({
           <div key={b.specialty} style={{ padding: "12px 14px", borderTop: i > 0 ? "1px solid var(--bg-border)" : "none", background: i % 2 === 0 ? "var(--bg-base)" : "transparent" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 14, color: meta.color }}>{meta.icon}</span>
-              <span style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: meta.color, flex: 1 }}>{meta.label}</span>
+              <span style={{ fontFamily: "var(--font)", fontSize: 14, fontWeight: 700, color: meta.color, flex: 1 }}>{specialtyLabel(b.specialty, locale)}</span>
               <span style={{ fontFamily: "var(--font)", fontSize: 13, fontWeight: 800, color: "var(--accent)" }}>{b.budgetUsdc.toFixed(3)} XLM</span>
             </div>
             {/* Progress bar + pct controls */}
@@ -242,7 +246,7 @@ function BreakdownCard({
               )}
             </div>
             {/* Reasoning */}
-            {b.reasoning && <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "rgba(var(--text-rgb),0.4)", margin: "0 0 6px", lineHeight: 1.5 }}>{b.reasoning}</p>}
+            {b.reasoning && <p style={{ fontFamily: "var(--font-body)", fontSize: 13.5, color: "var(--text-muted)", margin: "0 0 8px", lineHeight: 1.55 }}>{b.reasoning}</p>}
             {/* Technologies */}
             {(b as any).technologies?.length > 0 && (
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -273,15 +277,16 @@ function BreakdownCard({
 // ── OpenAI Key Modal ──────────────────────────────────────────────────────────
 function ApiKeyModal({ onSave, onSkip }: { onSave: (key: string) => void; onSkip: () => void }) {
   const [key, setKey] = useState("");
+  const t = useT();
   return (
     <div className="modal-overlay">
       <div className="modal-box" style={{ maxWidth: 440 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
           <span className="material-symbols-outlined" style={{ fontSize: 20, color: "var(--accent)" }}>key</span>
-          <span style={{ fontFamily: "var(--font-head)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>AI Engine Key</span>
+          <span style={{ fontFamily: "var(--font-head)", fontSize: 16, fontWeight: 700, color: "var(--text-primary)" }}>{t({ en: "AI engine key", tr: "Yapay zekâ anahtarı" })}</span>
         </div>
         <p style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.7, marginBottom: 16 }}>
-          Orkestratör Agent'i için yapay zeka motoru anahtarını gir. Anahtar yalnızca tarayıcında saklanır, sunucuya gönderilmez.
+          {t({ en: "Enter the AI engine key for the orchestrator agent. It stays in your browser and is never sent to the server.", tr: "NEXUS için yapay zekâ anahtarını gir. Anahtar sadece tarayıcında kalır, sunucuya gönderilmez." })}
         </p>
         <input
           type="password"
@@ -293,14 +298,14 @@ function ApiKeyModal({ onSave, onSkip }: { onSave: (key: string) => void; onSkip
           style={{ fontFamily: "var(--font)", fontSize: 12, marginBottom: 12 }}
         />
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onSkip} className="btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 12 }}>Şimdi değil</button>
+          <button onClick={onSkip} className="btn-ghost" style={{ flex: 1, justifyContent: "center", fontSize: 12 }}>{t({ en: "Not now", tr: "Şimdi değil" })}</button>
           <button
             disabled={!key.startsWith("sk-")}
             onClick={() => onSave(key.trim())}
             className="btn-primary"
             style={{ flex: 2, justifyContent: "center", opacity: key.startsWith("sk-") ? 1 : 0.4 }}
           >
-            Kaydet &amp; Başlat
+            {t({ en: "Save and start", tr: "Kaydet ve başlat" })}
           </button>
         </div>
       </div>
@@ -645,6 +650,8 @@ function OrchestratorChat({
   onPlanConfirmed: (updated: Project) => void;
 }) {
   const msgs = useMessages();
+  const { locale } = useLocale();
+  const t = useT();
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -681,11 +688,11 @@ function OrchestratorChat({
         setSending(true);
         setError(null);
 
-        const data = await postOrchestratorChatApi(project.id, [], "");
+        const data = await postOrchestratorChatApi(project.id, [], "", locale);
         if (cancelled) return;
 
         if (!data.success) {
-          setError(data.error ?? "Hata");
+          setError(data.error ?? t({ en: "Something went wrong", tr: "Bir hata oluştu" }));
           return;
         }
 
@@ -739,10 +746,10 @@ function OrchestratorChat({
     const history = newMessages.map((m) => ({ role: m.role, content: m.content }));
 
     try {
-      const data = await postOrchestratorChatApi(project.id, history, userMsg);
+      const data = await postOrchestratorChatApi(project.id, history, userMsg, locale);
 
       if (!data.success) {
-        setError(data.error ?? "Hata");
+        setError(data.error ?? t({ en: "Something went wrong", tr: "Bir hata oluştu" }));
         return;
       }
 
@@ -809,20 +816,20 @@ function OrchestratorChat({
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {isAgent && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--accent)", display: "inline-block" }} />}
                 <span style={{ fontFamily: "var(--font)", fontSize: 11.5, color: isAgent ? "var(--accent)" : "rgba(var(--text-rgb),0.3)", letterSpacing: "0.01em" }}>
-                  {isAgent ? "NEXUS" : msgs.common.or === "VEYA" ? "SİZ" : "YOU"} · {msg.ts}
+                  {isAgent ? "NEXUS" : t({ en: "You", tr: "Sen" })} · {msg.ts}
                 </span>
               </div>
               {/* Bubble */}
               <div style={{
                 background: isAgent ? "var(--bg-surface)" : "var(--accent-dim)",
                 border: `1px solid ${isAgent ? "var(--bg-border-bright)" : "rgba(255,86,37,0.3)"}`,
-                borderRadius: isAgent ? "0 8px 8px 8px" : "8px 0 8px 8px",
-                padding: "12px 16px",
+                borderRadius: isAgent ? "4px 16px 16px 16px" : "16px 4px 16px 16px",
+                padding: "14px 18px",
                 maxWidth: "90%",
                 animation: "fadeIn 0.25s ease",
               }}>
                 {isAgent ? <AgentMessageBody text={msg.content} /> : (
-                  <span style={{ fontFamily: "var(--font-body)", fontSize: 12, color: "var(--text-primary)" }}>{msg.content}</span>
+                  <span style={{ fontFamily: "var(--font-body)", fontSize: 14.5, lineHeight: 1.6, color: "var(--text-primary)", whiteSpace: "pre-wrap" }}>{msg.content}</span>
                 )}
                 {/* Plan visualization in message */}
                 {isAgent && msg.breakdown && (
@@ -888,7 +895,7 @@ function OrchestratorChat({
             placeholder={msgs.nexusSection.chatPlaceholder}
             rows={2}
             disabled={sending || !chatBootDone}
-            style={{ flex: 1, resize: "none", fontFamily: "var(--font-body)", fontSize: 12, lineHeight: 1.6, background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 8, padding: "8px 12px", color: "var(--text-primary)", outline: "none" }}
+            style={{ flex: 1, resize: "none", fontFamily: "var(--font-body)", fontSize: 14.5, lineHeight: 1.55, background: "var(--bg-base)", border: "1px solid var(--bg-border-bright)", borderRadius: 14, padding: "12px 14px", color: "var(--text-primary)", outline: "none" }}
           />
           <button
             onClick={() => { if (input.trim()) sendMessage(input.trim()); }}
@@ -918,6 +925,7 @@ function OrchestratorChat({
 // ── Empty state ───────────────────────────────────────────────────────────────
 function EmptyState({ onNew }: { onNew: () => void }) {
   const m = useMessages();
+  const { locale } = useLocale();
   const steps: { label: string; tone: string }[] = [
     { label: m.nexusSection.step1, tone: "var(--blue)" },
     { label: m.nexusSection.step2, tone: "var(--accent)" },
@@ -930,19 +938,25 @@ function EmptyState({ onNew }: { onNew: () => void }) {
 
   return (
     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "56px 24px", textAlign: "center" }}>
-      <div style={{ maxWidth: 560, width: "100%" }}>
+      <div style={{ maxWidth: 760, width: "100%" }}>
         <span className="ui-badge ui-badge-accent ui-badge-dot">NEXUS orchestrator</span>
         <h1 className="ui-page-title" style={{ marginTop: 20 }}>
           {line1}{line2 ? <><br /><span className="ui-gradient-text">{line2}</span></> : null}
         </h1>
         <p className="ui-lead" style={{ marginTop: 14, maxWidth: 440, marginInline: "auto" }}>{m.nexusSection.emptySub}</p>
 
-        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 28 }}>
-          {steps.map((st, i) => (
-            <span key={st.label} className="ui-badge" style={{ height: 32, padding: "0 14px", fontSize: 13, gap: 8 }}>
-              <span className="ui-mono" style={{ color: st.tone, fontSize: 12 }}>0{i + 1}</span>
-              {st.label}
-            </span>
+        <div className={s.steps}>
+          {[
+            [m.nexusSection.s1Title, m.nexusSection.s1Desc],
+            [m.nexusSection.s2Title, m.nexusSection.s2Desc],
+            [m.nexusSection.s3Title, m.nexusSection.s3Desc],
+            [m.nexusSection.s4Title, m.nexusSection.s4Desc],
+          ].map(([title, desc], i) => (
+            <div key={i} className={s.step}>
+              <span className="ui-mono" style={{ color: steps[i].tone, fontSize: 12.5, fontWeight: 600 }}>0{i + 1}</span>
+              <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 14.5, marginTop: 6 }}>{title}</div>
+              <div className="ui-small" style={{ marginTop: 4, lineHeight: 1.5 }}>{desc}</div>
+            </div>
           ))}
         </div>
 
@@ -951,7 +965,7 @@ function EmptyState({ onNew }: { onNew: () => void }) {
             const meta = SPECIALTY_META[sp];
             return (
               <span key={sp} className="ui-badge" style={{ color: meta.color, background: `${meta.color}14`, fontWeight: 500 }}>
-                {meta.label}
+                {specialtyLabel(sp, locale)}
               </span>
             );
           })}
@@ -1075,7 +1089,7 @@ export default function ProjectsPage() {
                       <span className="ui-num" style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{p.totalBudgetUsdc.toFixed(2)} XLM</span>
                       {p.subTasks.length > 0 && (
                         <div style={{ display: "flex", gap: 3 }}>
-                          {p.subTasks.slice(0, 5).map((st) => <span key={st.id} style={{ width: 7, height: 7, borderRadius: "50%", background: SPECIALTY_META[st.specialty]?.color ?? "var(--bg-border)", display: "inline-block" }} title={SPECIALTY_META[st.specialty]?.label} />)}
+                          {p.subTasks.slice(0, 5).map((st) => <span key={st.id} style={{ width: 7, height: 7, borderRadius: "50%", background: SPECIALTY_META[st.specialty]?.color ?? "var(--bg-border)", display: "inline-block" }} title={specialtyLabel(st.specialty, locale)} />)}
                         </div>
                       )}
                     </div>

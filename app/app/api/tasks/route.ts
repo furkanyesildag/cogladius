@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, task });
   } catch (err: any) {
     return NextResponse.json(
-      { success: false, error: err?.message || "Sunucu hatası" },
+      { success: false, error: err?.message || "Server error" },
       { status: 500 }
     );
   }

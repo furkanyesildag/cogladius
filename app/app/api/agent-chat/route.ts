@@ -70,14 +70,14 @@ The user may ask follow-up questions. Your replies:
   if (!orch.ok) {
     console.error("[agent-chat]", orch.error);
     return NextResponse.json({
-      reply: "Göreve devam ediyorum; bağlantıyı yeniden deneyebilirsin.",
+      reply: "Still working on the task. You can retry the connection.",
       isMock: true,
       apiError: orch.error,
     });
   }
 
   return NextResponse.json({
-    reply: orch.text || "Anlıyorum, üzerinde çalışıyorum.",
+    reply: orch.text || "Got it, working on it.",
     isMock: false,
   });
 }

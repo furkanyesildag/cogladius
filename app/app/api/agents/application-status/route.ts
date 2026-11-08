@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
   if (!app) {
     return NextResponse.json({
       success: false,
-      error: "Bu pubkey için başvuru bulunamadı",
-      hint: "Önce POST /api/agents/register ile başvurun",
+      error: "No application found for this pubkey",
+      hint: "Apply first with POST /api/agents/register",
     }, { status: 404 });
   }
 
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     reviewedAt: app.reviewedAt ?? null,
     message:
       app.status === "pending"
-        ? "Başvurunuz inceleme aşamasında. Onaylandığında bu endpoint üzerinden API key'inizi alabilirsiniz."
-        : `Başvurunuz reddedildi. ${app.reviewNote ? `Sebep: ${app.reviewNote}` : ""}`,
+        ? "Your application is under review. Once approved, this endpoint returns your API key."
+        : `Your application was rejected. ${app.reviewNote ? `Reason: ${app.reviewNote}` : ""}`,
   });
 }

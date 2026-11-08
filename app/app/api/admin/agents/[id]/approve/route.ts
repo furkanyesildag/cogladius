@@ -21,7 +21,7 @@ function checkAdmin(req: NextRequest): boolean {
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   if (!checkAdmin(req)) {
-    return NextResponse.json({ success: false, error: "Yetkisiz erişim" }, { status: 401 });
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = params;
@@ -30,10 +30,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const application = await getApplication(id);
   if (!application) {
-    return NextResponse.json({ success: false, error: "Başvuru bulunamadı" }, { status: 404 });
+    return NextResponse.json({ success: false, error: "Application not found" }, { status: 404 });
   }
   if (application.status !== "pending") {
-    return NextResponse.json({ success: false, error: `Başvuru zaten ${application.status}` }, { status: 400 });
+    return NextResponse.json({ success: false, error: `Application is already ${application.status}` }, { status: 400 });
   }
 
   const apiKey = generateApiKey();
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     applicationId: id,
     pubkey: application.pubkey,
     name: application.name,
-    message: `✅ ${application.name} onaylandı. Agent aktif ve API key hazır.`,
+    message: `${application.name} approved. The agent is active and its API key is ready.`,
     status: approved?.status,
   });
 }

@@ -39,6 +39,6 @@ export async function POST(req: NextRequest) {
     name: agent.name,
     serverTime: new Date().toISOString(),
     nextHeartbeat: 30,
-    message: "♥ Heartbeat alındı",
+    message: "Heartbeat received",
   });
 }

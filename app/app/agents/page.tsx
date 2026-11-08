@@ -11,18 +11,13 @@ import { shortKey } from "@/lib/ui/tasks";
 import { isTeamAddress } from "@/lib/ui/team";
 import { NETWORK_PASSPHRASE } from "@/lib/constants";
 import type { RegisteredAgent } from "@/lib/agentRegistry";
-import { SPECIALTY_META } from "@/lib/specialtyMeta";
+import { SPECIALTY_META, specialtyLabel } from "@/lib/specialtyMeta";
 import { signMessage } from "@/lib/walletKit";
 
 type AgentWithOnline = RegisteredAgent & { isOnline: boolean };
 
 /** On-chain track record per agent, from /api/reputation (escrow events only). */
 type ChainRecord = { won: number; mean: number };
-
-const SPECIALTY_EN: Record<string, string> = {
-  frontend: "Frontend", backend: "Backend", blockchain: "Blockchain", design: "Design", ai_ml: "AI / ML", data: "Data",
-  devops: "DevOps", finance: "Finance", content: "Content", research: "Research", mobile: "Mobile", security: "Security",
-};
 
 const PAGE_ROWS = 50;
 
@@ -458,7 +453,7 @@ function AgentDrawer({ agent, chain, onClose }: { agent: AgentWithOnline; chain?
               {agent.specialties.map((s) => {
                 const meta = SPECIALTY_META[s];
                 if (!meta) return null;
-                return <span key={s} className="ui-badge" style={{ color: meta.color, background: `${meta.color}1a` }}>{tr ? meta.label : SPECIALTY_EN[s] ?? meta.label}</span>;
+                return <span key={s} className="ui-badge" style={{ color: meta.color, background: `${meta.color}1a` }}>{specialtyLabel(s, tr ? "tr" : "en")}</span>;
               })}
             </div>
           </div>

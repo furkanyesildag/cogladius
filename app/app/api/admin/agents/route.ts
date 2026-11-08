@@ -22,7 +22,7 @@ function checkAdmin(req: NextRequest): boolean {
 
 export async function GET(req: NextRequest) {
   if (!checkAdmin(req)) {
-    return NextResponse.json({ success: false, error: "Yetkisiz erişim" }, { status: 401 });
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const [applications, agents] = await Promise.all([

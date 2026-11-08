@@ -64,7 +64,7 @@ Write every statement and the verdict in the same language as the TASK above: if
         {
           role: "system",
           content:
-            "Yanıtın yalnızca tek JSON nesnesi olmalı; markdown ve kod çiti yok. Alan adları kullanıcı metninde verildiği gibi korunmalı.",
+            "Reply with a single JSON object only: no markdown, no code fences. Keep the field names exactly as given in the user message.",
         },
         { role: "user", content: prompt },
       ],
@@ -77,7 +77,7 @@ Write every statement and the verdict in the same language as the TASK above: if
 
     const raw = orch.text || "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("JSON parse hatası");
+    if (!jsonMatch) throw new Error("Could not parse the JSON reply");
 
     const trial = JSON.parse(jsonMatch[0]);
     return NextResponse.json(trial);

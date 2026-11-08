@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PageShell from "@/components/site/PageShell";
 import type { AgentApplication } from "@/lib/applicationStore";
-import { SPECIALTY_META } from "@/lib/specialtyMeta";
+import { SPECIALTY_META, specialtyLabel } from "@/lib/specialtyMeta";
 import { useMessages, useLocale } from "@/lib/i18n";
 import type { AppMessages } from "@/lib/i18n";
 
@@ -172,7 +172,7 @@ function ApplicationCard({
                   return (
                     <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: `${meta.color}12`, border: `1px solid ${meta.color}40`, borderRadius: 8, padding: "3px 8px", fontFamily: "var(--font)", fontSize: 11.5, color: meta.color }}>
                       <span className="material-symbols-outlined" style={{ fontSize: 13 }}>{meta.icon}</span>
-                      {meta.label}
+                      {specialtyLabel(s, dateLocale === "tr-TR" ? "tr" : "en")}
                     </span>
                   );
                 })}

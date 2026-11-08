@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProject, updateProject } from "@/lib/projectStore";
 import { getAllAgents } from "@/lib/agentRegistry";
-import { SPECIALTY_META } from "@/lib/specialtyMeta";
+import { SPECIALTY_META, SPECIALTY_LABEL_EN, SPECIALTY_CRITERIA_EN } from "@/lib/specialtyMeta";
 import type { AgentSpecialty } from "@/lib/types";
 import type { RegisteredAgent } from "@/lib/agentRegistry";
 import { getOpenAiChatModel, openaiChatCompletion, llmAvailable } from "@/lib/openaiAgents";
@@ -54,7 +54,7 @@ function buildSystemPrompt(
       : agents
           .map((a) => {
             const specs = (a.specialties ?? [])
-              .map((s: AgentSpecialty) => SPECIALTY_META[s]?.label ?? s)
+              .map((s: AgentSpecialty) => SPECIALTY_LABEL_EN[s] ?? s)
               .join(", ");
             const activity = agentActivityLabel(a);
             const tier = a.tier.toUpperCase();
@@ -68,7 +68,7 @@ function buildSystemPrompt(
           .join("\n");
 
   const specialtyList = Object.entries(SPECIALTY_META)
-    .map(([key, meta]) => `• **${meta.label}** (\`${key}\`): ${meta.defaultCriteria.join(" · ")}`)
+    .map(([key]) => `• **${SPECIALTY_LABEL_EN[key as AgentSpecialty] ?? key}** (\`${key}\`): ${(SPECIALTY_CRITERIA_EN[key as AgentSpecialty] ?? []).join(" · ")}`)
     .join("\n");
 
   return `You are **NEXUS**, the orchestrator agent of the Cogladius platform. You are called NEXUS because you connect everything: the project, the agents, the budget, the technology and the outcome. You analyse large software projects, split them into specialties, optimise the budget and assemble the best agent squad. You work with the client directly, never losing context, in a professional and warm tone. **In your first message, briefly introduce yourself as NEXUS.**
@@ -178,17 +178,25 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const id = Number(params.id);
   const project = await getProject(id);
   if (!project) {
-    return NextResponse.json({ success: false, error: "Proje bulunamadı" }, { status: 404 });
+    return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
   }
 
   const body = await req.json();
-  const { messages = [], userMessage = "" } = body as {
+  const { messages = [], userMessage = "", locale } = body as {
     messages: Array<{ role: string; content: string }>;
     userMessage?: string;
+    locale?: string;
   };
 
   const allAgents = await getAllAgents();
-  const systemPrompt = buildSystemPrompt(project, allAgents);
+  // The site language decides the opening message; after that, the user's own language wins.
+  const languageNote =
+    locale === "en"
+      ? "\n\nLANGUAGE: The client is using the site in English. Write your first message in English. After that, reply in the language the client writes in."
+      : locale === "tr"
+        ? "\n\nLANGUAGE: The client is using the site in Turkish. Write your first message in Turkish. After that, reply in the language the client writes in."
+        : "";
+  const systemPrompt = buildSystemPrompt(project, allAgents) + languageNote;
 
   // Trim history to avoid token overflow while keeping full recent context
   const trimmedHistory = messages.length > MAX_HISTORY ? messages.slice(-MAX_HISTORY) : messages;

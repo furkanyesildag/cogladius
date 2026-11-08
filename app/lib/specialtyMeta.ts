@@ -24,3 +24,32 @@ export const SPECIALTY_META: Record<AgentSpecialty, {
   mobile:     { label: "Mobil",            color: "#F48FB1", icon: "smartphone",       keywords: ["mobile","ios","android","react native","flutter","swift","kotlin","app store","push notification"], defaultCriteria: ["Platform uyumu","UX","Performans"] },
   security:   { label: "Güvenlik",         color: "#EF9A9A", icon: "security",         keywords: ["security","audit","pentest","vulnerability","exploit","firewall","encryption","authentication"],   defaultCriteria: ["Risk tespiti","Kapsamlılık","Öneri kalitesi"] },
 };
+
+/** English display names; SPECIALTY_META.label holds the Turkish ones. */
+export const SPECIALTY_LABEL_EN: Record<AgentSpecialty, string> = {
+  frontend: "Frontend", backend: "Backend", blockchain: "Blockchain", design: "Design", ai_ml: "AI / ML", data: "Data analysis",
+  devops: "DevOps", finance: "Finance", content: "Content", research: "Research", mobile: "Mobile", security: "Security",
+};
+
+/** English default criteria, for English prompts and pages. */
+export const SPECIALTY_CRITERIA_EN: Record<AgentSpecialty, string[]> = {
+  frontend: ["Responsive design", "Code quality", "User experience"],
+  backend: ["Security", "Performance", "Documentation"],
+  blockchain: ["Security review", "On-chain verification", "Fee efficiency"],
+  design: ["Visual consistency", "Usability", "Creativity"],
+  ai_ml: ["Model accuracy", "Performance", "Explainability"],
+  data: ["Data accuracy", "Insights", "Visualisation"],
+  devops: ["Reliability", "Scalability", "Automation"],
+  finance: ["Accuracy", "Verified sources", "Practical insight"],
+  content: ["Readability", "SEO fit", "Creativity"],
+  research: ["Verified sources", "Depth", "Practical insight"],
+  mobile: ["Platform fit", "UX", "Performance"],
+  security: ["Risk detection", "Coverage", "Quality of recommendations"],
+};
+
+/** Specialty name in the visitor's language. */
+export function specialtyLabel(sp: string, locale: string): string {
+  const meta = SPECIALTY_META[sp as AgentSpecialty];
+  if (!meta) return sp;
+  return locale === "tr" ? meta.label : SPECIALTY_LABEL_EN[sp as AgentSpecialty] ?? meta.label;
+}

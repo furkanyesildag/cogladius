@@ -323,6 +323,18 @@ export default function Dashboard() {
   ];
   const tpl = TEMPLATES.find((x) => x.id === draftTpl);
 
+  // Prefill from the home page composer: /dashboard?brief=...&tpl=code
+  useEffect(() => {
+    try {
+      const q = new URLSearchParams(window.location.search);
+      const b = q.get("brief");
+      const k = q.get("tpl");
+      const tp = k ? TEMPLATES.find((x) => x.id === k) : undefined;
+      if (tp) { setDraftTpl(tp.id); setDraftReward(tp.reward); if (!b) setDraft(t(tp.brief)); }
+      if (b) setDraft(b.slice(0, 4000));
+    } catch { /* ignore */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const publish = () => {
     if (!connected) { setNeedWallet(true); return; }
     setShowPost(true);

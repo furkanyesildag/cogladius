@@ -8,6 +8,6 @@ export const fetchCache = "force-no-store";
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const project = await getProject(Number(params.id));
-  if (!project) return NextResponse.json({ success: false, error: "Proje bulunamadı" }, { status: 404 });
+  if (!project) return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
   return NextResponse.json({ success: true, project });
 }

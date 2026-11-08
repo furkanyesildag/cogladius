@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "poster, title, description, totalBudgetUsdc zorunlu" }, { status: 400 });
     }
     if (totalBudgetUsdc < 0.01) {
-      return NextResponse.json({ success: false, error: "Minimum bütçe 0.01 XLM" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "The minimum budget is 0.01 XLM" }, { status: 400 });
     }
 
     const deadline = Math.floor(Date.now() / 1000) + deadlineDays * 86400;
