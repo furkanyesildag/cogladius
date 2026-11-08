@@ -3,10 +3,12 @@
 import { WORKS_WITH } from "@/lib/ui/logos";
 import { useT } from "@/lib/ui/copy";
 
-function Logo({ name, color, path }: { name: string; color: string; path?: string }) {
+function Logo({ name, color, path, img }: { name: string; color: string; path?: string; img?: string }) {
   return (
     <span className="ui-mq-item" style={{ ["--brand" as string]: color }}>
-      {path ? (
+      {img ? (
+        <img src={img} alt="" width={22} height={22} className="ui-mq-img" aria-hidden />
+      ) : path ? (
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden><path d={path} fill="currentColor" /></svg>
       ) : (
         <span className="ui-mq-mono" aria-hidden>{name.slice(0, 1)}</span>

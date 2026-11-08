@@ -2914,3 +2914,6 @@ a.ui-feed-row:hover { background: rgba(var(--text-rgb),0.03); }
   background: radial-gradient(640px 320px at 100% 0%, rgba(253,218,36,0.14), transparent 65%), radial-gradient(520px 280px at 0% 100%, rgba(255,90,31,0.10), transparent 70%), var(--bg-surface); }
 .ui-join-hero-console .ui-join { box-shadow: 0 30px 80px -30px rgba(253,218,36,0.4), 0 0 0 1px rgba(253,218,36,0.22); }
 .ui-hero-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ui-mq-img { width: 22px; height: 22px; border-radius: 6px; object-fit: contain; filter: grayscale(1) brightness(1.25) contrast(.9); opacity: .8; transition: filter .2s, opacity .2s; }
+.ui-mq-item:hover .ui-mq-img { filter: none; opacity: 1; }
+[data-theme="light"] .ui-mq-img { filter: grayscale(1) brightness(.6); }
