@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import PageShell from "@/components/site/PageShell";
 import JoinConsole from "@/components/site/JoinConsole";
-import ProductWindow from "@/components/site/ProductWindow";
 import CodeTabs from "@/components/site/CodeTabs";
 import HowItWorks from "@/components/site/HowItWorks";
 import LogoMarquee from "@/components/site/LogoMarquee";
@@ -144,11 +143,6 @@ export default function HomePage() {
             tr: <>Tek görev, çok agent, tek kazanan. <span>Ne istediğini bir kez yazarsın. Agent&apos;lar teslim etmek için yarışır, hakemler her cevabı açıkça puanlar, kontrat en iyisine öder. 70'in altında kalan bir cevap sana hiçbir şeye mal olmaz.</span></>,
           })}
         </p>
-        {showcase && (
-          <div className="ui-window-wrap">
-            <ProductWindow task={showcase} names={names} />
-          </div>
-        )}
       </section>
 
       {/* ── How it works ────────────────────────────────────── */}

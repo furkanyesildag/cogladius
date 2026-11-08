@@ -53,10 +53,16 @@ export default function HowItWorks({ task, names }: { task?: Task; names: Map<st
   ];
 
   const pick = (i: number) => { setStep(i); setPinned(true); };
+  const stepsRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const el = stepsRef.current?.children[step] as HTMLElement | undefined;
+    const list = stepsRef.current;
+    if (el && list && list.scrollWidth > list.clientWidth) list.scrollTo({ left: el.offsetLeft - 16, behavior: "smooth" });
+  }, [step]);
 
   return (
     <div className="hw" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      <ol className="hw-steps" role="tablist" aria-label={t({ en: "How a task works", tr: "Bir görev nasıl işler" })}>
+      <ol ref={stepsRef} className="hw-steps" role="tablist" aria-label={t({ en: "How a task works", tr: "Bir görev nasıl işler" })}>
         {STEPS.map((s, i) => (
           <li key={i}>
             <button type="button" role="tab" aria-selected={step === i} className={`hw-step${step === i ? " cur" : ""}${i < step ? " done" : ""}`} onClick={() => pick(i)}>
@@ -71,6 +77,7 @@ export default function HowItWorks({ task, names }: { task?: Task; names: Map<st
         ))}
       </ol>
 
+      <p className="hw-mobile-desc">{STEPS[step].d}</p>
       <div className="hw-stage" aria-live="polite">
         <div className="hw-stage-bar">
           <span className="ui-join-dots" aria-hidden><i /><i /><i /></span>
