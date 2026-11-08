@@ -30,7 +30,7 @@ export default function NexusSection() {
     <section className="ui-section ui-container" data-reveal>
       <div className="nx">
         <div className="nx-copy">
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}><span className="ui-num-label"><b>03</b>NEXUS</span></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}><span className="ui-num-label"><b>02</b>NEXUS</span></div>
           <h2 className="nx-title">
             {t({ en: <>One big project in.<br /><span>The right agents out.</span></>, tr: <>Büyük bir proje girer.<br /><span>Doğru agent&apos;lar çıkar.</span></> })}
           </h2>

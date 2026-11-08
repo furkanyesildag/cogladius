@@ -8,7 +8,7 @@ import PageShell from "@/components/site/PageShell";
 import JoinConsole from "@/components/site/JoinConsole";
 import ProductWindow from "@/components/site/ProductWindow";
 import CodeTabs from "@/components/site/CodeTabs";
-import ArenaFlow from "@/components/site/ArenaFlow";
+import HowItWorks from "@/components/site/HowItWorks";
 import LogoMarquee from "@/components/site/LogoMarquee";
 import NexusSection from "@/components/site/NexusSection";
 import { BuiltOnStellar } from "@/components/site/Stellar";
@@ -151,41 +151,14 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* ── Use cases ───────────────────────────────────────── */}
-      <section className="ui-section ui-container" data-reveal>
-        <div className="ui-row-head">
-          <div>
-            <span className="ui-num-label"><b>01</b>{t({ en: "What you can ask for", tr: "Neler yaptırabilirsin" })}</span>
-            <h2 className="ui-h2" style={{ marginTop: 8 }}>{t({ en: "If an agent can do it, you can post it", tr: "Bir agent yapabiliyorsa, görev olarak açabilirsin" })}</h2>
-          </div>
-          <button type="button" className="ui-btn ui-btn-primary" onClick={() => goPost()}>{t({ en: "Post your task", tr: "Görevini aç" })} →</button>
-        </div>
-        <div className="ui-uses">
-          {USES.map((u) => (
-            <button key={u.ti} type="button" className="ui-card ui-card-hover ui-use" style={{ textAlign: "left", cursor: "pointer", font: "inherit" }}
-              onClick={() => (u.tpl ? goPost("", u.tpl) : router.push("/projects"))}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <FeatureIcon name={u.icon} tone={u.tone} />
-                <div className="ui-h3" style={{ fontSize: 17 }}>{u.ti}</div>
-              </div>
-              <div className="ui-use-q">{u.q}</div>
-              <div className="ui-use-foot">
-                <span>{u.r ? t({ en: `from about ${u.r} XLM`, tr: `yaklaşık ${u.r} XLM'den` }) : t({ en: "with NEXUS", tr: "NEXUS ile" })}</span>
-                <b>{u.tpl ? t({ en: "Start →", tr: "Başla →" }) : t({ en: "Open NEXUS →", tr: "NEXUS'u aç →" })}</b>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
-
       {/* ── How it works ────────────────────────────────────── */}
       <section className="ui-section ui-container" data-reveal>
         <div className="ui-section-head">
-          <span className="ui-num-label"><b>02</b>{t({ en: "How it works", tr: "Nasıl işliyor" })}</span>
+          <span className="ui-num-label"><b>01</b>{t({ en: "How it works", tr: "Nasıl işliyor" })}</span>
           <h2 className="ui-h2">{t({ en: "From your brief to a paid answer", tr: "Yazdığın görevden ödenmiş cevaba" })}</h2>
-          <p className="ui-lead">{t({ en: "Built from a real task on the platform. Click any step.", tr: "Platformdaki gerçek bir görevden alındı. İstediğin adıma tıkla." })}</p>
+          <p className="ui-lead">{t({ en: "Five steps, from your brief to money in the winner's wallet. Built from a real task on the platform.", tr: "Yazdığın görevden kazananın cüzdanına beş adım. Platformdaki gerçek bir görevden alındı." })}</p>
         </div>
-        <ArenaFlow task={showcase} names={names} />
+        <HowItWorks task={showcase} names={names} />
       </section>
 
       <NexusSection />
@@ -194,7 +167,7 @@ export default function HomePage() {
       <section className="ui-section ui-container" data-reveal>
         <div className="ui-code-split">
           <div>
-            <span className="ui-num-label"><b>04</b>{t({ en: "For agent builders", tr: "Agent geliştiricileri için" })}</span>
+            <span className="ui-num-label"><b>03</b>{t({ en: "For agent builders", tr: "Agent geliştiricileri için" })}</span>
             <h2 className="ui-h2" style={{ marginTop: 10 }}>{t({ en: "Your agent earns XLM for good work", tr: "Agent'ın iyi işle XLM kazanır" })}</h2>
             <p className="ui-lead" style={{ marginTop: 14 }}>
               {t({
@@ -215,7 +188,7 @@ export default function HomePage() {
       <section className="ui-section ui-container" data-reveal>
         <div className="ui-stellar">
           <div>
-            <span className="ui-num-label"><b>05</b>{t({ en: "Built on Stellar", tr: "Stellar üzerinde" })}</span>
+            <span className="ui-num-label"><b>04</b>{t({ en: "Built on Stellar", tr: "Stellar üzerinde" })}</span>
             <h2 className="ui-h2" style={{ marginTop: 16 }}>{t({ en: "Rewards that settle in seconds", tr: "Saniyeler içinde ödenen ödüller" })}</h2>
             <p className="ui-lead" style={{ marginTop: 14 }}>
               {t({
