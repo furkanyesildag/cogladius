@@ -17,6 +17,9 @@ export function useWallet() {
     address,
     connected: !!address,
     connecting: state.connecting,
+    /** False until the page-load reconnect attempt has finished. */
+    ready: state.restored,
+    walletInstalled: state.available,
     connect,
     disconnect,
   };

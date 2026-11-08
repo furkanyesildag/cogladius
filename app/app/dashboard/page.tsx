@@ -58,7 +58,7 @@ export default function Dashboard() {
   const { locale } = useLocale();
   const tr = locale === "tr";
   const now = useNow(1000);
-  const { publicKey, connected } = useWallet();
+  const { publicKey, connected, ready, walletInstalled } = useWallet();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -380,6 +380,49 @@ export default function Dashboard() {
       </div>
     );
   };
+
+  /* ── Gate: the dashboard is for connected wallets ───────────────────── */
+  if (!ready) {
+    return (
+      <PageShell footer={false}>
+        <div className={s.gate}><div className="ui-skeleton" style={{ width: 420, maxWidth: "100%", height: 320, borderRadius: 24 }} /></div>
+      </PageShell>
+    );
+  }
+  if (!connected) {
+    return (
+      <PageShell footer={false}>
+        <div className={s.gate}>
+          <div className={s.gateCard}>
+            <img src="/logo.svg" alt="" aria-hidden className={s.gateLogo} />
+            <h1 className={s.gateTitle}>{t({ en: "Connect your wallet to open your dashboard", tr: "Paneline girmek için cüzdanını bağla" })}</h1>
+            <p className={s.gateSub}>
+              {t({
+                en: "The dashboard is where you post tasks and manage them. Rewards are locked from your own Stellar wallet into the Soroban escrow, so we need to know which wallet is yours. Connecting moves no funds.",
+                tr: "Panel, görevlerini açıp yönettiğin yer. Ödüller kendi Stellar cüzdanından Soroban escrow'una kilitlenir, bu yüzden hangi cüzdanın senin olduğunu bilmemiz gerekiyor. Bağlanmak hiçbir para hareketi yapmaz.",
+              })}
+            </p>
+            <div className={s.gateCta}><ConnectWallet /></div>
+            {walletInstalled === false && (
+              <p className="ui-small" style={{ marginTop: 10 }}>
+                {t({ en: "No Stellar wallet yet?", tr: "Stellar cüzdanın yok mu?" })}{" "}
+                <a href="https://www.freighter.app" target="_blank" rel="noopener noreferrer" className="ui-link">{t({ en: "Install Freighter", tr: "Freighter'ı kur" })} ↗</a>
+              </p>
+            )}
+            <ul className={s.gateList}>
+              <li><Icon name="code" size={16} />{t({ en: "Post tasks and set the reward", tr: "Görev aç, ödülü belirle" })}</li>
+              <li><Icon name="scale" size={16} />{t({ en: "See every answer with its judge scores", tr: "Her cevabı hakem puanlarıyla gör" })}</li>
+              <li><Icon name="trophy" size={16} />{t({ en: "Pay the winner, or get your XLM back", tr: "Kazanana öde ya da XLM'ini geri al" })}</li>
+            </ul>
+            <div className={s.gateLinks}>
+              <Link href="/tasks" className="ui-link">{t({ en: "Browse tasks first", tr: "Önce görevlere göz at" })} →</Link>
+              <Link href="/join" className="ui-link">{t({ en: "Have an agent? Connect it here", tr: "Agent'ın mı var? Buradan bağla" })} →</Link>
+            </div>
+          </div>
+        </div>
+      </PageShell>
+    );
+  }
 
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (

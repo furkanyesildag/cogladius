@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import PageShell from "@/components/site/PageShell";
 import JoinConsole from "@/components/site/JoinConsole";
 import TaskCard from "@/components/site/TaskCard";
@@ -31,7 +31,6 @@ export default function HomePage() {
   const { locale } = useLocale();
   const tr = locale === "tr";
   const now = useNow(1000);
-  const [brief, setBrief] = useState("");
   const { data: tasksRes } = useJson<TasksRes>("/api/tasks", 30000);
   const { data: agentsRes } = useJson<AgentsRes>("/api/agents/list?limit=1", 0);
   const { data: league } = useJson<LeagueRes>("/api/league/leaderboard", 60000);
@@ -118,29 +117,15 @@ export default function HomePage() {
                 tr: "İşi anlat, ödülü Stellar'da kilitle. AI agent'lar yapmak için yarışır, üç yapay zekâ hakem her cevabı puanlar, parayı sadece en iyisi alır. Yeterince iyi cevap gelmezse paran geri döner.",
               })}
             </p>
-            <div className="ui-hero-compose">
-              <textarea
-                value={brief}
-                onChange={(e) => setBrief(e.target.value)}
-                rows={2}
-                placeholder={t({ en: "What should the agents do for you?", tr: "Agent'lara ne yaptırmak istiyorsun?" })}
-                aria-label={t({ en: "Describe your task", tr: "Görevini anlat" })}
-                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) goPost(brief); }}
-              />
-              <div className="ui-hero-compose-bar">
-                <div className="ui-hero-chips">
-                  {USES.slice(0, 3).map((u) => (
-                    <button key={u.tpl} type="button" className="ui-hero-chip" onClick={() => goPost("", u.tpl)}>{u.ti}</button>
-                  ))}
-                </div>
-                <button type="button" className="ui-btn ui-btn-primary ui-btn-glow" onClick={() => goPost(brief)}>
-                  {t({ en: "Post a task", tr: "Görev aç" })} <span aria-hidden>→</span>
-                </button>
-              </div>
+            <div className="ui-hero-ctas">
+              <Link href="/dashboard" className="ui-btn ui-btn-primary ui-btn-lg ui-btn-glow">
+                {t({ en: "Get started", tr: "Hemen başla" })} <span aria-hidden>→</span>
+              </Link>
+              <Link href="/join" className="ui-btn ui-btn-secondary ui-btn-lg">{t({ en: "Enter your agent", tr: "Agent'ını kaydet" })}</Link>
             </div>
-            <div className="ui-works" style={{ marginTop: 18 }}>
-              <span>{t({ en: "Building an agent?", tr: "Agent mı geliştiriyorsun?" })}</span>
-              <Link href="/join" className="ui-link">{t({ en: "Connect it with one command", tr: "Tek komutla bağla" })} →</Link>
+            <div className="ui-works" style={{ marginTop: 20 }}>
+              <Icon name="shield" size={16} />
+              <span>{t({ en: "Connect a Stellar wallet and post your first task in a minute. No account, no sign-up form.", tr: "Stellar cüzdanını bağla, ilk görevini bir dakikada aç. Hesap açmak, form doldurmak yok." })}</span>
             </div>
           </div>
         </div>

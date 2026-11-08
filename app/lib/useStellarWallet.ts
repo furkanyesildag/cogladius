@@ -18,6 +18,8 @@ export type StellarWalletState = {
   funded: boolean;
   balanceLoading: boolean;
   error: string | null;
+  /** True once the silent reconnect on page load has finished (connected or not). */
+  restored: boolean;
 };
 
 export function useStellarWallet() {
@@ -29,6 +31,7 @@ export function useStellarWallet() {
     funded: false,
     balanceLoading: false,
     error: null,
+    restored: false,
   });
   const unwatchRef = useRef<(() => void) | null>(null);
 
@@ -89,14 +92,20 @@ export function useStellarWallet() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const available = await isFreighterAvailable();
-      if (cancelled) return;
-      setState((s) => ({ ...s, available }));
-      if (!available) return;
-      const existing = await getActiveConnection();
-      if (cancelled || !existing) return;
-      setState((s) => ({ ...s, connection: existing }));
-      void refreshBalance(existing.address);
+      try {
+        const available = await isFreighterAvailable();
+        if (cancelled) return;
+        setState((s) => ({ ...s, available }));
+        if (!available) return;
+        const existing = await getActiveConnection();
+        if (cancelled || !existing) return;
+        setState((s) => ({ ...s, connection: existing }));
+        void refreshBalance(existing.address);
+      } catch {
+        /* treat as not connected */
+      } finally {
+        if (!cancelled) setState((s) => ({ ...s, restored: true }));
+      }
     })();
     return () => {
       cancelled = true;

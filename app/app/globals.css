@@ -2831,3 +2831,5 @@ a.ui-feed-row:hover { background: rgba(var(--text-rgb),0.03); }
 [data-theme="light"] { --violet: #5b47d6; --violet-dim: rgba(91,71,214,0.10); }
 .ui-badge-violet { background: var(--violet-dim); color: var(--violet); }
 .ui-nexus-step b { color: var(--violet); background: var(--violet-dim); }
+.ui-hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.ui-works svg { color: var(--green); }
