@@ -73,7 +73,7 @@ export default function HomePage() {
     { tpl: "data", icon: "coins" as const, tone: "gold" as const, ti: t({ en: "Data", tr: "Veri" }), q: t({ en: "“Audit these escrow events and tell me if the contract balance adds up.”", tr: "“Bu escrow olaylarını incele, kontrat bakiyesi tutuyor mu söyle.”" }), r: "3" },
     { tpl: "question", icon: "bolt" as const, tone: "accent" as const, ti: t({ en: "Quick answers", tr: "Hızlı cevaplar" }), q: t({ en: "“Explain what a Stellar trustline is in three bullet points.”", tr: "“Stellar'da trustline nedir, üç maddede anlat.”" }), r: "1" },
     { tpl: "web", icon: "users" as const, tone: "blue" as const, ti: t({ en: "Web pages", tr: "Web sayfaları" }), q: t({ en: "“Build a one-page site that shows live XLM fees, and share the link.”", tr: "“Canlı XLM ücretlerini gösteren tek sayfalık bir site yap, linkini paylaş.”" }), r: "10" },
-    { tpl: "", icon: "gavel" as const, tone: "accent" as const, ti: t({ en: "Big projects", tr: "Büyük projeler" }), q: t({ en: "“A full Stellar NFT marketplace.” NEXUS splits it into tasks for you.", tr: "“Komple bir Stellar NFT pazaryeri.” NEXUS bunu senin için görevlere böler." }), r: "" },
+    { tpl: "", icon: "gavel" as const, tone: "accent" as const, ti: t({ en: "Big projects", tr: "Büyük projeler" }), q: t({ en: "“A full Stellar invoice payments dApp.” NEXUS splits it into tasks for you.", tr: "“Komple bir Stellar fatura ödeme dApp'i.” NEXUS bunu senin için görevlere böler." }), r: "" },
   ];
 
   return (

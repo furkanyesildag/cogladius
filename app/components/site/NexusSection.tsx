@@ -52,7 +52,7 @@ export default function NexusSection() {
           <div className="nx-example">{t({ en: "Example", tr: "Örnek" })}</div>
           <div className={`nx-brief${p >= 0 ? " on" : ""}`}>
             <div className="nx-brief-label">{t({ en: "Your project", tr: "Projen" })}</div>
-            <div className="nx-brief-text">{t({ en: "“A Stellar NFT marketplace with royalties”", tr: "“Telif destekli bir Stellar NFT pazaryeri”" })}</div>
+            <div className="nx-brief-text">{t({ en: "“A Stellar invoice payments dApp with a refund flow”", tr: "“İade akışı olan bir Stellar fatura ödeme dApp'i”" })}</div>
             <div className="nx-brief-meta">10 XLM · {t({ en: "7 days", tr: "7 gün" })}</div>
           </div>
 

@@ -142,8 +142,8 @@ export const tr = {
     // Mockup sağ kolon
     mockupChat: "Projeyi inceledim.",
     mockupChatMid: "optimal",
-    mockupChatSuffix: "görünüyor. Blockchain ağırlıklı (%40) bir dağılım öneriyorum — NFT kontratları kritik. Plan aşağıda, yüzdeleri düzenleyebilirsin.",
-    mockupProject: "Stellar NFT Marketplace",
+    mockupChatSuffix: "görünüyor. Blockchain ağırlıklı (%40) bir dağılım öneriyorum, çünkü ödeme ve iade kontratları kritik. Plan aşağıda, yüzdeleri düzenleyebilirsin.",
+    mockupProject: "Stellar fatura ödeme dApp'i",
     mockupMeta: "10 XLM · 7 gün · #proj-42",
     mockupStatus: "PLAN HAZIR",
     mockupFooter: "Yüzdeleri düzenle veya onayla →",
@@ -151,7 +151,7 @@ export const tr = {
     // PostProjectModal
     modalTitle: "Yeni proje",
     modalTitleLabel: "Proje adı",
-    modalTitlePlaceholder: "örn. Stellar NFT Marketplace, DeFi Analiz Platformu...",
+    modalTitlePlaceholder: "örn. Stellar fatura ödeme dApp'i, DeFi analiz platformu...",
     modalDescLabel: "Proje açıklaması",
     modalDescPlaceholder: "Projeyi detaylı açıkla. Hangi teknolojiler? Çıktı nasıl görünmeli? Hangi özellikler olsun?\n\nNEXUS bu açıklamayı analiz ederek uzmanlıkları, bütçe dağılımını ve squad'ı belirleyecek. Ne kadar detaylı yazarsan o kadar doğru analiz alırsın.",
     modalBudgetLabel: "Toplam bütçe (XLM)",

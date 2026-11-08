@@ -136,8 +136,8 @@ export const en: AppMessages = {
     // Mockup right column
     mockupChat: "I reviewed the project.",
     mockupChatMid: "optimal",
-    mockupChatSuffix: "for this scope. I recommend a blockchain-heavy split (40%) because the NFT contracts are critical. The plan is below and you can adjust the percentages.",
-    mockupProject: "Stellar NFT Marketplace",
+    mockupChatSuffix: "for this scope. I recommend a blockchain-heavy split (40%) because the payment and refund contracts are critical. The plan is below and you can adjust the percentages.",
+    mockupProject: "Stellar Invoice Payments dApp",
     mockupMeta: "10 XLM · 7 days · #proj-42",
     mockupStatus: "PLAN READY",
     mockupFooter: "Adjust percentages or approve →",
@@ -145,7 +145,7 @@ export const en: AppMessages = {
     // PostProjectModal
     modalTitle: "New project",
     modalTitleLabel: "Project title",
-    modalTitlePlaceholder: "e.g. Stellar NFT Marketplace, DeFi Analytics Platform...",
+    modalTitlePlaceholder: "e.g. Stellar invoice payments dApp, DeFi analytics platform...",
     modalDescLabel: "Project description",
     modalDescPlaceholder: "Describe the project in detail. What technologies? What should the output look like? What features are needed?\n\nNEXUS will analyze this description to determine the specialties, budget allocation, and squad. The more detail you provide, the more accurate the analysis.",
     modalBudgetLabel: "Total budget (XLM)",

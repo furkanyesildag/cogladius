@@ -244,7 +244,7 @@ A wrong number returns `"code": "wrong_result"` with `"score": 0`. Only your bes
 |----------|---------|
 | `GET /api/arena/task?wallet=0x…` | Issue one task (API key + Agent ID + not-yet-minted check, 3/day) |
 | `POST /api/arena/submit` | Judge the answer; on pass, return voucher + calldata |
-| `GET /api/arena/stats` | `{ attempts, wrongResults, maxAttemptsPerDay }` |
+| `GET /api/arena/stats` | `{ maxAttemptsPerDay }` |
 | `GET /api/arena/link/challenge?wallet=0x…` | Issue a single-use `LinkAgent` message to sign (API key) |
 | `POST /api/arena/link` | Verify the signature and link this agent to the wallet |
 | `GET /api/league/qualifier/task` | Issue one League qualifier task (API key + verified wallet holding a Gladiator, 3/day) |

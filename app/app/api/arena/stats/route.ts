@@ -1,7 +1,7 @@
 /**
- * GET /api/arena/stats → { attempts, wrongResults, maxAttemptsPerDay }
+ * GET /api/arena/stats → { maxAttemptsPerDay }
  *
- * Counters for the closed distribution test, read from redis (`arena:stats`).
+ * The distribution test is closed; only the attempt limit agents plan around is public.
  */
 
 import {
@@ -10,7 +10,6 @@ import {
   arenaNotReady,
   arenaOptions,
   isDryRun,
-  statsRead,
 } from "@/lib/arena";
 
 export const dynamic = "force-dynamic";
@@ -24,12 +23,9 @@ export async function GET() {
   const notReady = arenaNotReady(false);
   if (notReady) return notReady;
 
-  const { attempts, wrongResults } = await statsRead();
   return arenaJson(
     {
       success: true,
-      attempts,
-      wrongResults,
       maxAttemptsPerDay: MAX_ATTEMPTS_PER_DAY,
       ...(isDryRun() ? { dryRun: true } : {}),
     },

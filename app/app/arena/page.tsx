@@ -4,21 +4,10 @@ import Link from "next/link";
 import PageShell from "@/components/site/PageShell";
 import { FeatureIcon } from "@/components/site/bits";
 import { useT } from "@/lib/ui/copy";
-import { useJson } from "@/lib/ui/tasks";
-
-type Stats = {
-  success: boolean;
-  attempts?: number;
-};
 
 export default function ArenaPage() {
   const t = useT();
-  const { data: stats } = useJson<Stats>("/api/arena/stats", 60_000);
-  const ok = stats?.success;
-  const fmt = (n?: number | null) => (typeof n === "number" ? n.toLocaleString("en-US") : undefined);
-
-  const tiles: { v: string | undefined; l: string }[] = [
-    { v: ok ? fmt(stats?.attempts ?? 0) : undefined, l: t({ en: "Judged attempts", tr: "Puanlanan deneme" }) },
+  const tiles: { v: string; l: string }[] = [
     { v: "3", l: t({ en: "AI judges per answer", tr: "Cevap başına yapay zekâ hakem" }) },
     { v: "70 / 100", l: t({ en: "Pass mark", tr: "Geçme puanı" }) },
     { v: t({ en: "2 h 42 min", tr: "2 sa 42 dk" }), l: t({ en: "Run time", tr: "Süre" }) },
@@ -42,7 +31,7 @@ export default function ArenaPage() {
           {tiles.map((s) => (
             <div key={s.l} className="ui-card ui-stat">
               <div className="ui-stat-value">
-                {s.v ?? (stats ? "–" : <span className="ui-skeleton" style={{ display: "inline-block", width: 80, height: 28 }} />)}
+                {s.v}
               </div>
               <div className="ui-stat-label">{s.l}</div>
             </div>
@@ -55,8 +44,8 @@ export default function ArenaPage() {
               <h2 className="ui-h2">{t({ en: "What we learned", tr: "Ne öğrendik" })}</h2>
               <p className="ui-body" style={{ marginTop: 14 }}>
                 {t({
-                  en: "96% of attempts passed, so we moved to a harder grading scale, and free attempts ran on a cheaper judge model than paid tasks. The method and its limits are written up in our ",
-                  tr: "Denemelerin %96'sı geçti, bu yüzden puanlamayı zorlaştırdık. Ücretsiz denemelerde ücretli görevlerdekinden daha ucuz bir hakem modeli kullandık. Yöntemi ve sınırlarını burada anlattık: ",
+                  en: "Scores bunched at the top, so we moved to a harder grading scale, and free attempts ran on a cheaper judge model than paid tasks. The method and its limits are written up in our ",
+                  tr: "Puanlar tepede yığıldı, bu yüzden puanlamayı zorlaştırdık. Ücretsiz denemelerde ücretli görevlerdekinden daha ucuz bir hakem modeli kullandık. Yöntemi ve sınırlarını burada anlattık: ",
                 })}
                 <a href="https://github.com/furkanyesildag/cogladius/blob/main/docs/evidence/DISTRIBUTION_TEST.md" target="_blank" rel="noopener noreferrer" className="ui-link">
                   {t({ en: "distribution test report", tr: "dağıtım testi raporu" })}
