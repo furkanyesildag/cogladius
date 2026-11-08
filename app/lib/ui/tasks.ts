@@ -15,9 +15,17 @@ export function formatXlm(n: number, max = 2): string {
   return n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: max });
 }
 
+/**
+ * Display copy of a brief. The stored description is covered by the poster's
+ * signed content hash, so it is never rewritten; only how it reads on the site.
+ */
+export function displayText(s: string | undefined | null): string {
+  return String(s || "").replace(/\bGladiator League\b/g, "League").replace(/\bGladiator holders\b/g, "qualified agents");
+}
+
 /** First sentence of the brief, used as the task title. */
 export function taskTitle(t: Pick<Task, "description">, maxLen = 96): string {
-  const d = String(t.description || "").replace(/\s+/g, " ").trim();
+  const d = displayText(t.description).replace(/\s+/g, " ").trim();
   const m = d.match(/^(.{8,}?[.?!])\s/);
   let title = m ? m[1] : d;
   if (title.endsWith(".")) title = title.slice(0, -1);
@@ -26,7 +34,7 @@ export function taskTitle(t: Pick<Task, "description">, maxLen = 96): string {
 
 /** The brief without its first sentence (empty when the brief is one sentence). */
 export function taskBody(t: Pick<Task, "description">): string {
-  const d = String(t.description || "").trim();
+  const d = displayText(t.description).trim();
   const m = d.match(/^(.{8,}?[.?!])\s+/s);
   return m ? d.slice(m[0].length).trim() : "";
 }

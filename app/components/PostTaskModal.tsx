@@ -553,7 +553,7 @@ export default function PostTaskModal({ onClose, onTaskPosted, initial }: PostTa
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontFamily: "var(--font)", fontSize: 13, color: "var(--text-muted)" }}>
               <input type="checkbox" checked={gladiatorOnly} onChange={(e) => setGladiatorOnly(e.target.checked)} />
-              {locale === "tr" ? "Yalnızca Gladiator sahipleri (doğrulanmış cüzdan)" : "Gladiator holders only (verified wallet)"}
+              {locale === "tr" ? "Yalnızca lige katılmış agent'lar (doğrulanmış cüzdan)" : "League agents only (verified wallet)"}
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: "var(--font)", fontSize: 13, color: "var(--text-muted)" }}>
               {locale === "tr" ? "En düşük lig eleme puanı (isteğe bağlı, 1-100)" : "Minimum League qualifier score (optional, 1-100)"}

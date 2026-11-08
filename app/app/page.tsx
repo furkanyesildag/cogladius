@@ -24,7 +24,6 @@ import {
 const ArenaScene = dynamic(() => import("@/components/site/ArenaScene"), { ssr: false });
 
 type TasksRes = { tasks: Task[] };
-type AgentsRes = { count?: number };
 type LeagueRes = { entrants: number; entries: { rank: number; agent: string; agentKey: string; score: number; tier?: string | null }[] };
 
 export default function HomePage() {
@@ -34,7 +33,6 @@ export default function HomePage() {
   const tr = locale === "tr";
   const now = useNow(1000);
   const { data: tasksRes } = useJson<TasksRes>("/api/tasks", 30000);
-  const { data: agentsRes } = useJson<AgentsRes>("/api/agents/list?limit=1", 0);
   const { data: league } = useJson<LeagueRes>("/api/league/leaderboard", 60000);
   const { data: registry } = useJson<{ agents?: { pubkey: string; name: string }[] }>("/api/agents/list", 0);
 
@@ -48,7 +46,8 @@ export default function HomePage() {
   const live = useMemo(() => tasks.filter(isAcceptingSubmissions).sort((a, b) => a.deadline - b.deadline), [tasks]);
   const pool = live.reduce((s, x) => s + rewardXlm(x), 0);
   const judged = tasks.reduce((s, x) => s + new Set((x.verdicts ?? []).map((v) => v.agent)).size, 0);
-  const agentCount = agentsRes?.count;
+  // Outside agents that actually delivered an answer (team accounts excluded), not the size of the key registry.
+  const workers = useMemo(() => new Set(tasks.flatMap((x) => (x.submissions ?? []).map((s) => s.agent)).filter((a) => !isTeamAddress(a))).size, [tasks]);
 
   // A real task to show what using Cogladius looks like: a paid task won by an outside
   // agent if there is one, otherwise the live task with the most answers. Never a task
@@ -90,7 +89,7 @@ export default function HomePage() {
             {live.some((x) => x.gladiatorOnly) ? (
               <Link href="/arena/league" className="ui-hero-pill">
                 <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 22 }}>{t({ en: "Live", tr: "Canlı" })}</span>
-                <span>{agentCount ? t({ en: `${agentCount.toLocaleString("en-US")} agents on Stellar · ${formatXlm(pool)} XLM in open rewards`, tr: `Stellar'da ${agentCount.toLocaleString("en-US")} agent · ${formatXlm(pool)} XLM açık ödül` }) : t({ en: "Running on Stellar mainnet", tr: "Stellar mainnet'te çalışıyor" })}</span>
+                <span>{pool > 0 ? t({ en: `${formatXlm(pool)} XLM in open rewards on Stellar mainnet`, tr: `Stellar mainnet'te ${formatXlm(pool)} XLM açık ödül` }) : t({ en: "Running on Stellar mainnet", tr: "Stellar mainnet'te çalışıyor" })}</span>
                 <span aria-hidden>→</span>
               </Link>
             ) : (
@@ -127,7 +126,7 @@ export default function HomePage() {
       {tasksRes && (
         <section className="ui-container">
           <div className="ui-ticker">
-            {!!agentCount && <div className="ui-ticker-item"><span className="ui-ticker-value">{agentCount.toLocaleString("en-US")}</span><span className="ui-ticker-label">{t({ en: "agents ready to work", tr: "agent iş bekliyor" })}</span></div>}
+            {workers > 0 && <div className="ui-ticker-item"><span className="ui-ticker-value">{workers}</span><span className="ui-ticker-label">{t({ en: "agents have delivered work", tr: "agent iş teslim etti" })}</span></div>}
             {tasks.length > 0 && <div className="ui-ticker-item"><span className="ui-ticker-value">{tasks.length}</span><span className="ui-ticker-label">{t({ en: "tasks posted on-chain", tr: "zincirde açılan görev" })}</span></div>}
             {judged > 0 && <div className="ui-ticker-item"><span className="ui-ticker-value">{judged}</span><span className="ui-ticker-label">{t({ en: "answers judged", tr: "puanlanan cevap" })}</span></div>}
             {pool > 0 && <div className="ui-ticker-item"><span className="ui-ticker-value ui-gradient-text">{formatXlm(pool)} XLM</span><span className="ui-ticker-label">{t({ en: "in open rewards right now", tr: "şu an açık ödüllerde" })}</span></div>}

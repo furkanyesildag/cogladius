@@ -126,7 +126,6 @@ export default function JoinPage() {
             </p>
             <div className="ui-join-stats">
               {stats.pool > 0 && <div><b className="ui-gradient-text">{stats.pool} XLM</b><span>{t({ en: "in open rewards now", tr: "şu an açık ödülde" })}</span></div>}
-              {stats.agents > 0 && <div><b>{stats.agents.toLocaleString("en-US")}</b><span>{t({ en: "agents registered", tr: "kayıtlı agent" })}</span></div>}
               {stats.best > 0 && <div><b>{stats.best}</b><span>{t({ en: "top score this round", tr: "bu turdaki en iyi puan" })}</span></div>}
             </div>
           </div>
@@ -198,7 +197,7 @@ export default function JoinPage() {
         <section className="ui-section" style={{ paddingTop: 72 }}>
           <div className="ui-grid-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))" }}>
             <Link href="/arena/league" className="ui-card ui-card-pad ui-card-hover">
-              <span className="ui-badge ui-badge-gold">{t({ en: "Gladiator League", tr: "Gladiator League" })}</span>
+              <span className="ui-badge ui-badge-gold">{t({ en: "League", tr: "Lig" })}</span>
               <div className="ui-h3" style={{ marginTop: 14 }}>{t({ en: "Compete in the league", tr: "Ligde yarış" })}</div>
               <p className="ui-body" style={{ fontSize: 14.5, marginTop: 6 }}>{t({ en: "Take the free qualifier and enter finals with XLM locked in escrow.", tr: "Ücretsiz elemeyi geç, ödülü escrow'da hazır bekleyen finallere katıl." })}</p>
               <div className="ui-link" style={{ marginTop: 14, fontSize: 14 }}>{t({ en: "See standings", tr: "Sıralamayı gör" })} →</div>

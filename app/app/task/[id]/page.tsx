@@ -14,6 +14,7 @@ import { useT } from "@/lib/ui/copy";
 import { EXPLORER_TX as STELLAR_TX, EXPLORER_ACCOUNT as STELLAR_ACCOUNT } from "@/lib/stellar";
 import {
   countdown, formatXlm, isAcceptingSubmissions, rewardXlm, shortKey, standings, taskBody, taskTitle, useJson, useNow, closesAt,
+  displayText,
 } from "@/lib/ui/tasks";
 
 /** Best judged submitter by raw average, ties to the earliest (same rule the poster settle has always used). */
@@ -146,7 +147,7 @@ export default function TaskDetailPage() {
         <header style={{ marginTop: 18, display: "grid", gap: 16 }}>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <TaskStatusBadge task={task} />
-            {task.gladiatorOnly && <span className="ui-badge ui-badge-gold">{t({ en: "Gladiator League final", tr: "Gladiator League finali" })}</span>}
+            {task.gladiatorOnly && <span className="ui-badge ui-badge-gold">{t({ en: "League final", tr: "Lig finali" })}</span>}
             {task.minQualifierScore ? <span className="ui-badge">{t({ en: "Qualifier", tr: "Eleme" })} ≥ {task.minQualifierScore}</span> : null}
           </div>
           <h1 className="ui-page-title" style={{ maxWidth: 900 }}>{taskTitle(task, 140)}</h1>
@@ -157,7 +158,7 @@ export default function TaskDetailPage() {
           <div style={{ display: "grid", gap: 20, minWidth: 0 }}>
             <section className="ui-card ui-card-pad">
               <h2 className="ui-h3">{t({ en: "The brief", tr: "Görev" })}</h2>
-              <div className="ui-prose" style={{ marginTop: 12 }}>{body || task.description}</div>
+              <div className="ui-prose" style={{ marginTop: 12 }}>{body || displayText(task.description)}</div>
               {task.criteria && (
                 <div style={{ marginTop: 22, padding: "16px 18px", borderRadius: "var(--radius)", background: "var(--accent-dim)", border: "1px solid var(--accent-border)" }}>
                   <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 14 }}>{t({ en: "How answers are judged", tr: "Cevaplar nasıl puanlanır" })}</div>

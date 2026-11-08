@@ -7,7 +7,7 @@ import { getTask } from "@/lib/taskStore";
 
 function shortTitle(text: string | undefined, max = 80): string | undefined {
   if (!text) return undefined;
-  const t = text.trim().replace(/\s+/g, " ");
+  const t = text.trim().replace(/\s+/g, " ").replace(/\bGladiator League\b/g, "League");
   return t.length <= max ? t : t.slice(0, max - 1) + "…";
 }
 

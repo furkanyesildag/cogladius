@@ -18,6 +18,7 @@ import { settleAsPoster, signTaskDelete } from "@/lib/sorobanEscrow";
 import { isAcceptingSubmissions, txFromEscrowEvents } from "@/lib/dashboardData";
 import {
   countdown, formatXlm, rewardXlm, shortKey, standings, taskBody, taskTitle, useJson, useNow, closesAt,
+  displayText,
 } from "@/lib/ui/tasks";
 import { isTeamAddress } from "@/lib/ui/team";
 import s from "./dashboard.module.css";
@@ -342,6 +343,7 @@ export default function Dashboard() {
 
   const withEntries = tasks.filter((x) => (x.submissions?.length ?? 0) > 0);
   const avgEntries = withEntries.length ? Math.round((withEntries.reduce((a, x) => a + (x.submissions?.length ?? 0), 0) / withEntries.length) * 10) / 10 : 0;
+  const workers = useMemo(() => new Set(tasks.flatMap((x) => (x.submissions ?? []).map((s) => s.agent)).filter((a) => !isTeamAddress(a))).size, [tasks]);
   const tops = tasks.map((x) => standings(x)[0]?.avg).filter((n): n is number => typeof n === "number");
   const avgBest = tops.length ? Math.round(tops.reduce((a, b) => a + b, 0) / tops.length) : 0;
   const examples = useMemo(() => tasks.filter((x) => !isAcceptingSubmissions(x) && standings(x).length > 0 && rewardXlm(x) >= 0.01 && String(x.description || "").trim().length >= 30).sort((a, b) => (b.submissions?.length ?? 0) - (a.submissions?.length ?? 0) || b.id - a.id).slice(0, 8), [tasks]);
@@ -430,7 +432,7 @@ export default function Dashboard() {
       <div className={s.screen2}>
         {finalsLive.length > 0 && (
           <Link href="/arena/league" className={s.leagueStrip}>
-            <span className="ui-badge ui-badge-gold">Gladiator League</span>
+            <span className="ui-badge ui-badge-gold">{t({ en: "League", tr: "Lig" })}</span>
             <span>{t({ en: `${finalsLive.length} finals live, ${formatXlm(finalsLive.reduce((a, x) => a + rewardXlm(x), 0))} XLM at stake, closing in ${countdown(closesAt(finalsLive[0]), now, tr)}`, tr: `${finalsLive.length} final canlı, ${formatXlm(finalsLive.reduce((a, x) => a + rewardXlm(x), 0))} XLM ödül, bitmesine ${countdown(closesAt(finalsLive[0]), now, tr)}` })}</span>
             <span className={s.leagueGo}>{t({ en: "Standings", tr: "Sıralama" })} →</span>
           </Link>
@@ -443,8 +445,8 @@ export default function Dashboard() {
               <h1 className={s.compTitle}>{t({ en: "What should the agents do for you?", tr: "Agent'lara ne yaptırmak istiyorsun?" })}</h1>
               <p className={s.compSub}>
                 {t({
-                  en: `Describe the job and set a reward. ${registry?.count ? registry.count.toLocaleString("en-US") : "Thousands of"} registered agents can see it, three AI judges score every answer and the best one gets paid.`,
-                  tr: `İşi anlat, ödülü belirle. ${registry?.count ? registry.count.toLocaleString("en-US") : "Binlerce"} kayıtlı agent görür, üç yapay zekâ hakem her cevabı puanlar, en iyisi ödülü alır.`,
+                  en: "Describe the job and set a reward. Registered agents pick it up, three AI judges score every answer and the best one gets paid.",
+                  tr: "İşi anlat, ödülü belirle. Kayıtlı agent'lar görevi alır, üç yapay zekâ hakem her cevabı puanlar, en iyisi ödülü alır.",
                 })}
               </p>
             </div>
@@ -557,7 +559,7 @@ export default function Dashboard() {
 
         {/* Proof strip */}
         <div className={s.proof}>
-          <div className={s.proofItem}><b>{registry?.count ? registry.count.toLocaleString("en-US") : "–"}</b><span>{t({ en: "agents ready to work", tr: "agent iş bekliyor" })}</span></div>
+          <div className={s.proofItem}><b>{workers || "–"}</b><span>{t({ en: "agents have delivered work", tr: "agent iş teslim etti" })}</span></div>
           <div className={s.proofItem}><b>{avgEntries || "–"}</b><span>{t({ en: "answers per task on average", tr: "görev başına ortalama cevap" })}</span></div>
           <div className={s.proofItem}><b>{avgBest || "–"}</b><span>{t({ en: "average score of the best answer", tr: "en iyi cevabın ortalama puanı" })}</span></div>
           <div className={s.proofItem}><b>{escrowTx.length ? `${formatXlm(paidTotal, 2)} XLM` : "–"}</b><span>{t({ en: "paid out by the contract", tr: "kontrattan ödendi" })}</span></div>
@@ -605,7 +607,7 @@ export default function Dashboard() {
               <div style={{ display: drawerTab === "summary" ? "grid" : "none", gap: 18 }}>
                 <div>
                   <div className={s.label}>{t({ en: "Brief", tr: "Görev" })}</div>
-                  <div className="ui-prose" style={{ fontSize: 14.5, maxHeight: 220, overflowY: "auto" }}>{taskBody(selected) || selected.description}</div>
+                  <div className="ui-prose" style={{ fontSize: 14.5, maxHeight: 220, overflowY: "auto" }}>{taskBody(selected) || displayText(selected.description)}</div>
                 </div>
                 {selected.criteria && (
                   <div>
