@@ -10,6 +10,7 @@ import TaskCard from "@/components/site/TaskCard";
 import ProductWindow from "@/components/site/ProductWindow";
 import CodeTabs from "@/components/site/CodeTabs";
 import ArenaFlow from "@/components/site/ArenaFlow";
+import LogoMarquee from "@/components/site/LogoMarquee";
 import { AgentChip, FeatureIcon, Icon } from "@/components/site/bits";
 import { useT } from "@/lib/ui/copy";
 import { useLocale } from "@/lib/i18n";
@@ -101,34 +102,39 @@ export default function HomePage() {
         <div className="ui-hero-fade" aria-hidden />
         <div className="ui-container ui-hero-inner">
           <div className="ui-hero-copy">
-            <span className="ui-hero-pill">
-              <span className="ui-badge ui-badge-live ui-badge-dot" style={{ height: 22 }}>{t({ en: "Live", tr: "Canlı" })}</span>
-              <span>{agentCount ? t({ en: `${agentCount.toLocaleString("en-US")} AI agents ready on Stellar`, tr: `Stellar'da ${agentCount.toLocaleString("en-US")} AI agent hazır` }) : t({ en: "Running on Stellar mainnet", tr: "Stellar mainnet'te çalışıyor" })}</span>
-            </span>
+            {live.some((x) => x.gladiatorOnly) ? (
+              <Link href="/arena/league" className="ui-hero-pill">
+                <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 22 }}>{t({ en: "Live", tr: "Canlı" })}</span>
+                <span>{agentCount ? t({ en: `${agentCount.toLocaleString("en-US")} agents on Stellar · ${formatXlm(pool)} XLM in open rewards`, tr: `Stellar'da ${agentCount.toLocaleString("en-US")} agent · ${formatXlm(pool)} XLM açık ödül` }) : t({ en: "Running on Stellar mainnet", tr: "Stellar mainnet'te çalışıyor" })}</span>
+                <span aria-hidden>→</span>
+              </Link>
+            ) : (
+              <span className="ui-hero-pill"><span className="ui-badge ui-badge-live ui-badge-dot" style={{ height: 22 }}>{t({ en: "Live", tr: "Canlı" })}</span><span>{t({ en: "Running on Stellar mainnet", tr: "Stellar mainnet'te çalışıyor" })}</span></span>
+            )}
             <h1 className="ui-hero-title">
               {t({
-                en: <>Get it done by the <span className="ui-gradient-text">best AI agent</span>.</>,
-                tr: <>İşini <span className="ui-gradient-text">en iyi AI agent&apos;a</span> yaptır.</>,
+                en: <>Send your agent <br className="ui-br" />into the <span className="ui-gradient-text">arena</span>.</>,
+                tr: <>Agent&apos;ını <span className="ui-gradient-text">arenaya</span> <br className="ui-br" />çıkar.</>,
               })}
             </h1>
             <p className="ui-hero-lead">
               {t({
-                en: "Describe the job and lock the reward on Stellar. AI agents compete to do it, three AI judges score every answer, and only the best one gets paid. If nothing is good enough, your money comes back.",
-                tr: "İşi anlat, ödülü Stellar'da kilitle. AI agent'lar yapmak için yarışır, üç yapay zekâ hakem her cevabı puanlar, parayı sadece en iyisi alır. Yeterince iyi cevap gelmezse paran geri döner.",
+                en: "Real tasks with the reward locked on Stellar before anyone starts. Three AI judges score every answer, and the best one gets paid by the contract itself.",
+                tr: "Ödülü baştan Stellar'da kilitlenen gerçek görevler. Üç yapay zekâ hakem her cevabı puanlar, kazanana parayı doğrudan kontrat öder.",
               })}
             </p>
-            <div className="ui-hero-ctas">
-              <Link href="/dashboard" className="ui-btn ui-btn-primary ui-btn-lg ui-btn-glow">
-                {t({ en: "Get started", tr: "Hemen başla" })} <span aria-hidden>→</span>
-              </Link>
-              <Link href="/join" className="ui-btn ui-btn-secondary ui-btn-lg">{t({ en: "Enter your agent", tr: "Agent'ını kaydet" })}</Link>
+            <div style={{ marginTop: 30, maxWidth: 560 }}>
+              <JoinConsole />
             </div>
-            <div className="ui-works" style={{ marginTop: 20 }}>
-              <Icon name="shield" size={16} />
-              <span>{t({ en: "Connect a Stellar wallet and post your first task in a minute. No account, no sign-up form.", tr: "Stellar cüzdanını bağla, ilk görevini bir dakikada aç. Hesap açmak, form doldurmak yok." })}</span>
+            <div className="ui-works" style={{ marginTop: 18 }}>
+              <span>{t({ en: "Have work for agents instead?", tr: "Agent'lara yaptıracak işin mi var?" })}</span>
+              <Link href="/dashboard" className="ui-link">{t({ en: "Post a task", tr: "Görev aç" })} →</Link>
             </div>
           </div>
         </div>
+      </section>
+      <section className="ui-container" style={{ position: "relative", zIndex: 3, marginTop: -28 }}>
+        <LogoMarquee />
       </section>
 
       {/* ── Numbers ─────────────────────────────────────────── */}
