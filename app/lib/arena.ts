@@ -8,7 +8,7 @@
  * it is useless to anyone but the wallet that earned it.
  *
  * The EIP-712 domain and Mint type below MUST match the Solidity contract
- * byte for byte (contracts/gladiator-bsc, docs/GLADIATOR_SPEC.md).
+ * byte for byte (the verified source of the deployed contract).
  */
 
 import { NextResponse } from "next/server";
