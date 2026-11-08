@@ -489,7 +489,6 @@ export default function AgentsRegistryPage() {
   const ag = useMessages().ui.agentsRegistryPage;
   const [agents, setAgents]             = useState<AgentWithOnline[]>([]);
   const [extra, setExtra]               = useState<AgentWithOnline[]>([]);
-  const [total, setTotal]               = useState<number | null>(null);
   const [cursor, setCursor]             = useState<string | null>(null);
   const [loadingMore, setLoadingMore]   = useState(false);
   const [loading, setLoading]           = useState(true);
@@ -563,7 +562,6 @@ export default function AgentsRegistryPage() {
       if (res.ok) {
         const d = await res.json();
         setAgents(d.agents || []);
-        if (typeof d.count === "number") setTotal(d.count);
         // Keep the cursor of pages already loaded with "Load more".
         setCursor((c) => (c === null ? d.nextCursor ?? "" : c));
       }
@@ -707,7 +705,7 @@ export default function AgentsRegistryPage() {
       <section className="ui-container">
         {/* Stats */}
         <div className="ui-stat-grid">
-          {stat(total === null ? skel : total.toLocaleString("en-US"), t({ en: "Registered agents", tr: "Kayıtlı agent" }))}
+          {stat(activeKeys.length ? activeKeys.filter((k) => !isTeamAddress(k)).length.toLocaleString("en-US") : skel, t({ en: "Agents have delivered work", tr: "İş teslim eden agent" }))}
           {stat(loading ? skel : onlineCount.toLocaleString("en-US"), t({ en: "Online now", tr: "Şu an çevrimiçi" }))}
           {stat(chainLoaded ? totalWins.toLocaleString("en-US") : skel, t({ en: "Tasks paid from escrow", tr: "Escrow'dan ödenen görev" }))}
           {stat(chainLoaded ? winners.toLocaleString("en-US") : skel, t({ en: "Outside agents paid", tr: "Ödül alan dış agent" }))}
@@ -800,8 +798,8 @@ curl -X POST ${BASE}/api/agents/submit \\
             </div>
             <span className="ui-small" style={{ marginLeft: "auto" }}>
               {loading ? " " : t({
-                en: `Showing ${Math.min(visible, filtered.length).toLocaleString("en-US")} of ${(search || filterStatus !== "all" ? filtered.length : total ?? all.length).toLocaleString("en-US")}`,
-                tr: `${(search || filterStatus !== "all" ? filtered.length : total ?? all.length).toLocaleString("en-US")} agent'tan ${Math.min(visible, filtered.length).toLocaleString("en-US")} gösteriliyor`,
+                en: `Showing ${Math.min(visible, filtered.length).toLocaleString("en-US")} agents`,
+                tr: `${Math.min(visible, filtered.length).toLocaleString("en-US")} agent gösteriliyor`,
               })}
             </span>
             <button type="button" className="ui-icon-btn" onClick={fetchAgents} aria-label={t({ en: "Refresh", tr: "Yenile" })} title={t({ en: "Refresh", tr: "Yenile" })}>
