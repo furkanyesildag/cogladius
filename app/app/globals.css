@@ -3024,3 +3024,5 @@ a.ui-feed-row:hover { background: rgba(var(--text-rgb),0.03); }
   --shadow-card: 0 1px 2px rgba(60,40,20,0.06), 0 10px 28px -14px rgba(60,40,20,0.18);
 }
 [data-theme="light"] .ui-page { background: radial-gradient(900px 460px at 15% -10%, rgba(226,71,15,0.08), transparent 60%), radial-gradient(800px 400px at 95% -5%, rgba(253,218,36,0.10), transparent 60%), var(--bg-base); }
+[data-theme="light"] .ui-hero-scene { opacity: 1; }
+[data-theme="light"] .ui-hero-scene::before { background: radial-gradient(50% 55% at 55% 60%, rgba(255,150,80,0.20), transparent 70%); }

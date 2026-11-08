@@ -6,6 +6,7 @@
  * visitor prefers reduced motion.
  */
 import { useEffect, useRef } from "react";
+import { useTheme } from "@/components/ThemeProvider";
 import * as THREE from "three";
 
 const ORANGE = new THREE.Color("#ff5a1f");
@@ -27,18 +28,26 @@ function glowTexture(): THREE.Texture {
   return tex;
 }
 
-function floorTexture(): THREE.Texture {
+function floorTexture(light = false): THREE.Texture {
   const c = document.createElement("canvas");
   c.width = c.height = 512;
   const g = c.getContext("2d")!;
   const grd = g.createRadialGradient(256, 256, 0, 256, 256, 256);
-  grd.addColorStop(0, "rgba(255,120,50,0.55)");
-  grd.addColorStop(0.35, "rgba(255,90,31,0.18)");
-  grd.addColorStop(0.75, "rgba(120,60,200,0.06)");
-  grd.addColorStop(1, "rgba(0,0,0,0)");
+  if (light) {
+    // Sand floor, warm and sunlit, with an orange heart under the prize.
+    grd.addColorStop(0, "rgba(255,138,72,0.95)");
+    grd.addColorStop(0.22, "rgba(255,190,130,0.85)");
+    grd.addColorStop(0.6, "rgba(236,214,186,0.9)");
+    grd.addColorStop(1, "rgba(226,206,180,0)");
+  } else {
+    grd.addColorStop(0, "rgba(255,120,50,0.55)");
+    grd.addColorStop(0.35, "rgba(255,90,31,0.18)");
+    grd.addColorStop(0.75, "rgba(120,60,200,0.06)");
+    grd.addColorStop(1, "rgba(0,0,0,0)");
+  }
   g.fillStyle = grd;
   g.fillRect(0, 0, 512, 512);
-  g.strokeStyle = "rgba(255,160,90,0.22)";
+  g.strokeStyle = light ? "rgba(150,80,30,0.22)" : "rgba(255,160,90,0.22)";
   g.lineWidth = 1.5;
   for (let r = 40; r < 256; r += 34) { g.beginPath(); g.arc(256, 256, r, 0, Math.PI * 2); g.stroke(); }
   for (let i = 0; i < 24; i++) {
@@ -52,8 +61,14 @@ function floorTexture(): THREE.Texture {
 
 export default function ArenaScene({ className }: { className?: string }) {
   const host = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
+  const light = theme === "light";
 
   useEffect(() => {
+    // Two looks: a night arena lit from inside (dark) and a sunlit sandstone colosseum (light).
+    const P = light
+      ? { fog: 0xf7f3ee, fogNear: 12, fogFar: 27, add: THREE.NormalBlending, pillar: 0xeadcc8, pillarEm: 0x000000, ledge: 0xdcc9b1, ringOpacity: 0.9, haloOpacity: 0.32, beamOpacity: 0.14, dust: 0xb98a5c, dustOpacity: 0.45, coreI: 14 }
+      : { fog: 0x110f0d, fogNear: 11, fogFar: 24, add: THREE.AdditiveBlending, pillar: 0x1c1814, pillarEm: 0x2a1408, ledge: 0x16130f, ringOpacity: 0.55, haloOpacity: 0.9, beamOpacity: 0.12, dust: 0xffd2b0, dustOpacity: 0.5, coreI: 30 };
     const el = host.current;
     if (!el) return;
     let renderer: THREE.WebGLRenderer;
@@ -69,23 +84,30 @@ export default function ArenaScene({ className }: { className?: string }) {
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x0a0a0f, 11, 24);
+    scene.fog = new THREE.Fog(P.fog, P.fogNear, P.fogFar);
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
     const target = new THREE.Vector3(0, 0.55, 0);
 
     // Lights
-    scene.add(new THREE.AmbientLight(0x6a5a8a, 0.55));
-    const core = new THREE.PointLight(ORANGE, 30, 14, 1.6);
+    if (light) {
+      scene.add(new THREE.HemisphereLight(0xfffaf2, 0xd2b896, 1.25));
+      const sun = new THREE.DirectionalLight(0xfff1dc, 2.2);
+      sun.position.set(6, 9, 5);
+      scene.add(sun);
+    } else {
+      scene.add(new THREE.AmbientLight(0x6a5a8a, 0.55));
+    }
+    const core = new THREE.PointLight(ORANGE, P.coreI, 14, 1.6);
     core.position.set(0, 1.4, 0);
     scene.add(core);
-    const rim = new THREE.DirectionalLight(0x8a7dff, 0.6);
+    const rim = new THREE.DirectionalLight(light ? 0xffb37a : 0x8a7dff, light ? 0.5 : 0.6);
     rim.position.set(-6, 6, -4);
     scene.add(rim);
 
     // Floor
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(3.1, 96),
-      new THREE.MeshBasicMaterial({ map: floorTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })
+      new THREE.MeshBasicMaterial({ map: floorTexture(light), transparent: true, depthWrite: false, blending: P.add })
     );
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
@@ -94,7 +116,7 @@ export default function ArenaScene({ className }: { className?: string }) {
     const arena = new THREE.Group();
     scene.add(arena);
     const pillarGeo = new THREE.BoxGeometry(0.09, 1, 0.09);
-    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x1a1824, emissive: 0x2a1408, roughness: 0.55, metalness: 0.35 });
+    const pillarMat = new THREE.MeshStandardMaterial({ color: P.pillar, emissive: P.pillarEm, roughness: light ? 0.85 : 0.55, metalness: light ? 0.02 : 0.35 });
     const ringMats: THREE.MeshBasicMaterial[] = [];
     const tiers = 5;
     for (let i = 0; i < tiers; i++) {
@@ -115,7 +137,7 @@ export default function ArenaScene({ className }: { className?: string }) {
       }
       arena.add(inst);
       const ringMat = new THREE.MeshBasicMaterial({
-        color: i % 2 ? GOLD : ORANGE, transparent: true, opacity: 0.55 - i * 0.07, blending: THREE.AdditiveBlending, depthWrite: false,
+        color: i % 2 ? GOLD : ORANGE, transparent: true, opacity: P.ringOpacity - i * 0.07, blending: P.add, depthWrite: false,
       });
       ringMats.push(ringMat);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.012, 6, 160), ringMat);
@@ -124,7 +146,7 @@ export default function ArenaScene({ className }: { className?: string }) {
       arena.add(ring);
       const ledge = new THREE.Mesh(
         new THREE.RingGeometry(radius - 0.05, radius + 0.55, 128, 1),
-        new THREE.MeshStandardMaterial({ color: 0x14131c, roughness: 0.9, side: THREE.DoubleSide })
+        new THREE.MeshStandardMaterial({ color: P.ledge, roughness: 0.92, side: THREE.DoubleSide })
       );
       ledge.rotation.x = -Math.PI / 2;
       ledge.position.y = base + h + 0.001;
@@ -185,7 +207,7 @@ export default function ArenaScene({ className }: { className?: string }) {
     prize.add(logo);
     const orbitRing = new THREE.Mesh(
       new THREE.TorusGeometry(1.25, 0.008, 6, 180),
-      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false })
+      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: light ? 0.8 : 0.45, blending: P.add, depthWrite: false })
     );
     orbitRing.rotation.x = Math.PI / 2.4;
     prize.add(orbitRing);
@@ -194,7 +216,7 @@ export default function ArenaScene({ className }: { className?: string }) {
     (orbitRing2.material as THREE.MeshBasicMaterial) = (orbitRing.material as THREE.MeshBasicMaterial).clone();
     (orbitRing2.material as THREE.MeshBasicMaterial).color = ORANGE.clone();
     prize.add(orbitRing2);
-    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: ORANGE, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: light ? 0xffa060 : ORANGE, transparent: true, opacity: P.haloOpacity, blending: P.add, depthWrite: false }));
     halo.scale.set(4.2, 4.2, 1);
     halo.position.z = -0.4;
     prize.add(halo);
@@ -207,7 +229,7 @@ export default function ArenaScene({ className }: { className?: string }) {
     // Light beam from the floor to the prize
     const beam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.05, 0.55, 1.5, 32, 1, true),
-      new THREE.MeshBasicMaterial({ color: ORANGE, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+      new THREE.MeshBasicMaterial({ color: ORANGE, transparent: true, opacity: P.beamOpacity, blending: P.add, depthWrite: false, side: THREE.DoubleSide })
     );
     beam.position.set(0, 0.75, 0);
     scene.add(beam);
@@ -217,7 +239,7 @@ export default function ArenaScene({ className }: { className?: string }) {
     const pos = new Float32Array(N * 3);
     const col = new Float32Array(N * 3);
     const agents = Array.from({ length: N }, (_, i) => {
-      const c = [ORANGE, GOLD, WHITE][i % 3].clone().lerp(WHITE, Math.random() * 0.25);
+      const c = light ? [ORANGE, new THREE.Color("#e8930c"), new THREE.Color("#a8461a")][i % 3].clone() : [ORANGE, GOLD, WHITE][i % 3].clone().lerp(WHITE, Math.random() * 0.25);
       col.set([c.r, c.g, c.b], i * 3);
       return {
         a: Math.random() * Math.PI * 2,
@@ -232,7 +254,7 @@ export default function ArenaScene({ className }: { className?: string }) {
     ptsGeo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
     ptsGeo.setAttribute("color", new THREE.BufferAttribute(col, 3));
     const pts = new THREE.Points(ptsGeo, new THREE.PointsMaterial({
-      size: 0.16, map: glowTexture(), vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true,
+      size: light ? 0.13 : 0.16, map: glowTexture(), vertexColors: true, transparent: true, depthWrite: false, blending: P.add, sizeAttenuation: true,
     }));
     scene.add(pts);
 
@@ -245,7 +267,7 @@ export default function ArenaScene({ className }: { className?: string }) {
     }
     const dustGeo = new THREE.BufferGeometry();
     dustGeo.setAttribute("position", new THREE.BufferAttribute(dust, 3));
-    const dustPts = new THREE.Points(dustGeo, new THREE.PointsMaterial({ size: 0.035, color: 0xffd2b0, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const dustPts = new THREE.Points(dustGeo, new THREE.PointsMaterial({ size: light ? 0.03 : 0.035, color: P.dust, transparent: true, opacity: P.dustOpacity, depthWrite: false, blending: P.add }));
     scene.add(dustPts);
 
     // Sizing
@@ -302,9 +324,9 @@ export default function ArenaScene({ className }: { className?: string }) {
       prize.position.y = 1.55 + Math.sin(t * 1.6) * 0.09;
       prize.lookAt(camera.position.x, prize.position.y, camera.position.z);
       const pulse = 0.85 + Math.sin(t * 2.2) * 0.15;
-      core.intensity = 26 * pulse;
-      (halo.material as THREE.SpriteMaterial).opacity = 0.65 + 0.25 * pulse;
-      ringMats.forEach((m, i) => { m.opacity = (0.5 - i * 0.07) * (0.75 + 0.25 * Math.sin(t * 1.4 + i)); });
+      core.intensity = P.coreI * 0.87 * pulse;
+      (halo.material as THREE.SpriteMaterial).opacity = P.haloOpacity * (0.72 + 0.28 * pulse);
+      ringMats.forEach((m, i) => { m.opacity = (P.ringOpacity - 0.05 - i * 0.07) * (0.75 + 0.25 * Math.sin(t * 1.4 + i)); });
 
       for (let i = 0; i < N; i++) {
         const g = agents[i];
@@ -350,7 +372,7 @@ export default function ArenaScene({ className }: { className?: string }) {
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, []);
+  }, [light]);
 
   return <div ref={host} className={className} aria-hidden style={{ position: "absolute", inset: 0 }} />;
 }
