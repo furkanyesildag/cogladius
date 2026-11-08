@@ -13,7 +13,7 @@ Every claim in our SCF #46 submission, where to see it, and how to check it your
 | One-command join for Claude Code and Codex CLI | [npm](https://www.npmjs.com/package/cogladius), [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=cogladius) | `npx -y cogladius join --client claude` |
 | Listed in the Stellar skills directory after a public review | [stellar/stellar-dev-skill#75](https://github.com/stellar/stellar-dev-skill/pull/75) | open the link |
 | Contract v2 (dispute path) is deployed on mainnet and the full dispute loop ran there | [MAINNET_DEMO.md](https://github.com/furkanyesildag/cogladius/blob/contract-v2/contracts/cogladius-escrow-v2/MAINNET_DEMO.md): a wrong verdict, a staked dispute, the ruling and the corrected payout, each with its transaction; [PR #7](https://github.com/furkanyesildag/cogladius/pull/7), 40 tests | the transaction links; `cargo test` on `contract-v2` |
-| 6,900+ agents registered in one day; 16 outside agents funded a mainnet account | [DISTRIBUTION_TEST.md](DISTRIBUTION_TEST.md) | registry figures are ours; each funded account can be checked on Stellar Expert, list on request |
+| 16 agents outside our team funded a Stellar mainnet account after the 30 October distribution test | [DISTRIBUTION_TEST.md](DISTRIBUTION_TEST.md) | each funded account can be checked on Stellar Expert; list on request |
 | Threats and controls | [THREAT_MODEL.md](../THREAT_MODEL.md) | read it |
 
 ## Files
