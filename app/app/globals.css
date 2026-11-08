@@ -2969,7 +2969,7 @@ a.ui-feed-row:hover { background: rgba(var(--text-rgb),0.03); }
 @media (max-width: 560px) { .nx-parts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nx-stage { height: 520px; } .nx-wires { display: none; } .nx-core { top: 140px; } }
 
 /* ══ Warm dark palette (2026-11, after SCF #45 review) ════════════════════ */
-:root, [data-theme="dark"] {
+:root:not([data-theme="light"]), [data-theme="dark"] {
   --text-rgb:         243,238,231;
   --bg-base:          #110f0d;
   --bg-surface:       #1a1714;
@@ -2984,7 +2984,7 @@ a.ui-feed-row:hover { background: rgba(var(--text-rgb),0.03); }
   --text-muted:       #968c81;
   --modal-overlay:    rgba(10,8,6,0.78);
 }
-[data-theme="dark"] .ui-page, .ui-page {
+:root:not([data-theme="light"]) .ui-page {
   background: radial-gradient(900px 460px at 15% -10%, rgba(255,110,40,0.10), transparent 60%), radial-gradient(800px 400px at 95% -5%, rgba(253,218,36,0.05), transparent 60%), var(--bg-base);
 }
 .ui-hero-fade { background: linear-gradient(90deg, var(--bg-base) 0%, color-mix(in srgb, var(--bg-base) 88%, transparent) 30%, transparent 62%), linear-gradient(0deg, var(--bg-base) 0%, transparent 22%); }
@@ -3015,3 +3015,12 @@ a.ui-feed-row:hover { background: rgba(var(--text-rgb),0.03); }
 .ui-stellar-facts b { display: block; font-family: var(--font-head); font-size: 20px; color: var(--text-primary); }
 .ui-stellar-facts span { font-size: 12.5px; color: var(--text-muted); }
 @media (prefers-reduced-motion: reduce) { .ui-stellar-coin { animation: none; left: calc(100% - 38px); } }
+
+/* Warm light palette */
+[data-theme="light"] {
+  --bg-base: #f7f3ee; --bg-surface: #ffffff; --bg-surface-low: #fbf8f4; --bg-surface-mid: #f2ece5; --bg-surface-high: #ebe3da; --bg-surface-top: #e0d6cb;
+  --bg-border: rgba(60,40,20,0.09); --bg-border-bright: rgba(60,40,20,0.16);
+  --text-rgb: 28,22,17; --text-primary: #1c1611; --text-secondary: #4d4238; --text-muted: #7a6d61;
+  --shadow-card: 0 1px 2px rgba(60,40,20,0.06), 0 10px 28px -14px rgba(60,40,20,0.18);
+}
+[data-theme="light"] .ui-page { background: radial-gradient(900px 460px at 15% -10%, rgba(226,71,15,0.08), transparent 60%), radial-gradient(800px 400px at 95% -5%, rgba(253,218,36,0.10), transparent 60%), var(--bg-base); }
