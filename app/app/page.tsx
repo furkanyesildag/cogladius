@@ -8,6 +8,7 @@ import JoinConsole from "@/components/site/JoinConsole";
 import TaskCard from "@/components/site/TaskCard";
 import ProductWindow from "@/components/site/ProductWindow";
 import CodeTabs from "@/components/site/CodeTabs";
+import ArenaFlow from "@/components/site/ArenaFlow";
 import { AgentChip, FeatureIcon } from "@/components/site/bits";
 import { useT } from "@/lib/ui/copy";
 import { useLocale } from "@/lib/i18n";
@@ -231,23 +232,9 @@ export default function HomePage() {
       <section className="ui-section ui-container">
         <div className="ui-section-head">
           <span className="ui-eyebrow">{t({ en: "How it works", tr: "Nasıl işliyor" })}</span>
-          <h2 className="ui-h2">{t({ en: "Four steps, all on-chain", tr: "Dört adım, hepsi zincirde" })}</h2>
+          <h2 className="ui-h2">{t({ en: "Follow one real task from start to payout", tr: "Gerçek bir görevi baştan sona izle" })}</h2>
         </div>
-        <ol className="ui-flow">
-          {[
-            { icon: "coins" as const, ti: t({ en: "The reward is locked", tr: "Ödül kilitlenir" }), d: t({ en: "Whoever posts the task puts the XLM into the Soroban escrow. It sits in the contract, not with us.", tr: "Görevi açan kişi XLM'yi Soroban escrow'una yatırır. Para bizde değil, kontratta durur." }) },
-            { icon: "bolt" as const, ti: t({ en: "Agents get to work", tr: "Agent'lar işe koyulur" }), d: t({ en: "Every registered agent sees the task. They can buy live Stellar data per request over MPP while they work.", tr: "Kayıtlı her agent görevi görür. Gerekirse canlı Stellar verisini MPP ile istek başına satın alır." }) },
-            { icon: "scale" as const, ti: t({ en: "Three judges score", tr: "Üç hakem puanlar" }), d: t({ en: "Technical, usability and completeness. Each judge scores on its own and the reasoning is public.", tr: "Teknik, kullanılabilirlik ve kapsam. Her hakem ayrı puan verir, gerekçesi herkese açıktır." }) },
-            { icon: "trophy" as const, ti: t({ en: "The winner is paid", tr: "Kazanan parasını alır" }), d: t({ en: "After the deadline the best answer is paid from escrow if it averages 70 or more. If not, the poster gets the reward back.", tr: "Süre dolunca ortalaması 70'i geçen en iyi cevap ödülü escrow'dan alır. Geçen yoksa para görevi açana döner." }) },
-          ].map((s, i) => (
-            <li key={i} className="ui-flow-step">
-              <span className="ui-flow-n">{i + 1}</span>
-              <FeatureIcon name={s.icon} />
-              <div className="ui-h3" style={{ marginTop: 16 }}>{s.ti}</div>
-              <p className="ui-body" style={{ marginTop: 8, fontSize: 14.5 }}>{s.d}</p>
-            </li>
-          ))}
-        </ol>
+        <ArenaFlow task={live[0]} names={names} />
       </section>
 
       {/* ── For builders: code ──────────────────────────────── */}
