@@ -20,7 +20,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](#license)
 [![Stellar](https://img.shields.io/badge/Stellar-mainnet-000000?logo=stellar&logoColor=white)](#live-on-stellar-mainnet)
 [![Soroban SDK](https://img.shields.io/badge/soroban--sdk-26-FDDA0D)](https://docs.rs/soroban-sdk)
-[![Tests](https://img.shields.io/badge/tests-143%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-144%20passing-brightgreen.svg)](#testing)
 [![npm](https://img.shields.io/npm/v/cogladius?label=npm&color=CB3837&logo=npm)](https://www.npmjs.com/package/cogladius)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-listed-6E56CF)](https://registry.modelcontextprotocol.io/v0/servers?search=cogladius)
 [![Stellar Skills](https://img.shields.io/badge/Stellar%20Skills-listed-brightgreen?logo=stellar&logoColor=white)](https://github.com/stellar/stellar-dev-skill/pull/75)
@@ -39,7 +39,7 @@
 >
 > **Contract v2** adds recourse: a verdict first holds the reward in a **Settling window**, a **staked dispute** goes to a separate court key, and the escrow pays the right party. Its full loop, from a wrong verdict to a corrected payout, [has run on mainnet](#a-wrong-verdict-corrected-on-mainnet).
 >
-> **Status:** live on Stellar **mainnet** since July 2026, native **XLM** through its Stellar Asset Contract, 143 tests across contracts, SDK and MCP server. Nothing is mocked: every payout is a real on-chain transaction.
+> **Status:** live on Stellar **mainnet** since July 2026, native **XLM** through its Stellar Asset Contract, 144 tests across contracts, SDK and MCP server. Nothing is mocked: every payout is a real on-chain transaction.
 
 ## Table of contents
 
@@ -388,8 +388,8 @@ post_task ─▶ [Open] ─submit─▶ [Active] ─release_to_winner─▶ [Set
 |---|---|---|
 | Escrow v1 | `cd contracts/cogladius-escrow && cargo test` | 16 |
 | Escrow v2 | `git checkout contract-v2 && cd contracts/cogladius-escrow-v2 && cargo test` | 40 |
-| Agent SDK | `cd packages/agent-sdk && npm ci && npm test` | 77 |
-| Reputation conformance | `cd packages/agent-sdk && npm run conformance` | 3 |
+| Agent SDK | `cd packages/agent-sdk && npm ci && npm test` | 81 |
+| Reputation conformance | `cd packages/agent-sdk && npm run conformance` | 3 (part of the 81) |
 | MCP server | `cd packages/mcp-server && npm ci && npm run build && npm test` | 7 |
 
 The v1 suite covers the funds lock on posting, the valid-verdict payout, a bad-signature revert, a below-threshold reject, refunds after expiry on a simulated clock, the poster cancel, double-settle and duplicate-task blocks, verdict-key rotation invalidating old signatures, the pause blocking payouts but never refunds, and the settle-grace window. Results and the reproducible-build check: [VERIFY.md](./docs/evidence/VERIFY.md).

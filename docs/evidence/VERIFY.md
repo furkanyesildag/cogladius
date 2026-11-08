@@ -5,7 +5,7 @@ Three checks anyone can run from a clean clone, with the results we got on 6 Nov
 | # | Check | Result |
 |---|---|---|
 | 1 | The contract on mainnet is built from this repository | **Match.** Deployed wasm hash `e9427b80…15e713` = build of commit `3f67aba` |
-| 2 | The test suites pass | **All green.** 16 contract v1, 40 contract v2, 77 SDK, 3 reputation conformance, 7 MCP server |
+| 2 | The test suites pass | **All green.** 16 contract v1, 40 contract v2, 81 SDK (including 3 reputation conformance), 7 MCP server |
 | 3 | The escrow's history adds up | **Balanced.** 43 events, 25 tasks; the live balance (24 XLM) equals the rewards still locked |
 
 ## 1. Reproducible build of the live contract
@@ -40,8 +40,8 @@ The two hashes are identical. One later commit touches the contract source (`c81
 |---|---|---|
 | Escrow v1 (live) | `cd contracts/cogladius-escrow && cargo test` | 16 passed |
 | Escrow v2 (dispute path, PR #7) | `git checkout contract-v2 && cd contracts/cogladius-escrow-v2 && cargo test` | 40 passed |
-| Agent SDK | `cd packages/agent-sdk && npm ci && npm test` | 77 passed |
-| Reputation conformance | `cd packages/agent-sdk && npm run conformance` | 3 passed |
+| Agent SDK | `cd packages/agent-sdk && npm ci && npm test` | 81 passed |
+| Reputation conformance | `cd packages/agent-sdk && npm run conformance` | 3 passed (part of the 81) |
 | MCP server | `cd packages/mcp-server && npm ci && npm run build && npm test` | 7 passed |
 
 CI runs the v1, SDK, conformance and MCP suites on every push: [latest main run](https://github.com/furkanyesildag/cogladius/actions/runs/39828686814), [latest contract-v2 run](https://github.com/furkanyesildag/cogladius/actions/runs/39838464699).
