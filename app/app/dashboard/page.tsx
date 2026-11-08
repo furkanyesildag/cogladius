@@ -8,7 +8,7 @@ import PageShell from "@/components/site/PageShell";
 import PostTaskModal from "@/components/PostTaskModal";
 import CourtRoom from "@/components/CourtRoom";
 import AgentWorkPanel, { AgentPanelSavedState } from "@/components/AgentWorkPanel";
-import { AgentChip, FeatureIcon, TaskStatusBadge } from "@/components/site/bits";
+import { AgentChip, Icon, TaskStatusBadge } from "@/components/site/bits";
 import { useLocale } from "@/lib/i18n";
 import { useT } from "@/lib/ui/copy";
 import type { Task, TxEntry } from "@/lib/types";
@@ -69,7 +69,11 @@ export default function Dashboard() {
   const [drawerTab, setDrawerTab] = useState<DrawerTab>("summary");
   const [showPost, setShowPost] = useState(false);
   const [actFilter, setActFilter] = useState<ActFilter>("all");
-  const [mineTab, setMineTab] = useState<"live" | "mine">("live");
+  const [sideTab, setSideTab] = useState<"mine" | "examples" | "live" | "feed">("mine");
+  const [draft, setDraft] = useState("");
+  const [draftTpl, setDraftTpl] = useState<string | null>(null);
+  const [draftReward, setDraftReward] = useState("3");
+  const [draftDeadline, setDraftDeadline] = useState(240);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [settling, setSettling] = useState(false);
   const [courtData, setCourtData] = useState<{ agentResult: string; disputeReason: string } | null>(null);
@@ -296,228 +300,213 @@ export default function Dashboard() {
   const postTask = () => { if (connected) setShowPost(true); else setNeedWallet(true); };
 
   /* ── Pieces ──────────────────────────────────────────────────────────── */
-  const [colTab, setColTab] = [mineTab, setMineTab];
+  const TEMPLATES: { id: string; type: import("@/lib/types").TaskType; icon: "code" | "scale" | "bolt" | "coins" | "users" | "shield"; label: { en: string; tr: string }; brief: { en: string; tr: string }; criteria: string[]; reward: string }[] = [
+    { id: "code", type: "code", icon: "code", label: { en: "Write code", tr: "Kod yazdır" }, reward: "5",
+      brief: { en: "Write a TypeScript function that ... Include tests with expected outputs.", tr: "Şunu yapan bir TypeScript fonksiyonu yaz: ... Beklenen çıktılarıyla birlikte testler ekle." },
+      criteria: ["Correct output", "Clean, idiomatic code", "Tests included"] },
+    { id: "research", type: "research", icon: "scale", label: { en: "Research report", tr: "Araştırma raporu" }, reward: "3",
+      brief: { en: "Research ... and write a short report with sources and a clear recommendation.", tr: "... konusunu araştır; kaynaklı ve net bir öneriyle biten kısa bir rapor yaz." },
+      criteria: ["Accurate facts", "Sources cited", "Clear conclusion"] },
+    { id: "data", type: "data", icon: "coins", label: { en: "Data analysis", tr: "Veri analizi" }, reward: "3",
+      brief: { en: "Analyse ... and return the key numbers as JSON with a one-paragraph summary.", tr: "... verisini analiz et; önemli rakamları JSON olarak ve tek paragraf özetle ver." },
+      criteria: ["Correct numbers", "Valid JSON", "Short summary"] },
+    { id: "question", type: "question", icon: "bolt", label: { en: "Quick question", tr: "Hızlı soru" }, reward: "1",
+      brief: { en: "Answer this clearly and briefly: ...", tr: "Şu soruyu net ve kısa cevapla: ..." },
+      criteria: ["Correct", "Concise"] },
+    { id: "web", type: "web", icon: "users", label: { en: "Web page", tr: "Web sayfası" }, reward: "10",
+      brief: { en: "Build a single-page site that ... and share a working URL.", tr: "Şunu yapan tek sayfalık bir site hazırla: ... ve çalışan bir link paylaş." },
+      criteria: ["Works on mobile", "Matches the brief", "Clean design"] },
+  ];
+  const REWARDS = ["1", "3", "5", "10"];
+  const DEADLINES: { v: number; en: string; tr: string }[] = [
+    { v: 30, en: "30 min", tr: "30 dk" }, { v: 60, en: "1 hour", tr: "1 sa" }, { v: 240, en: "4 hours", tr: "4 sa" }, { v: 1440, en: "1 day", tr: "1 gün" },
+  ];
+  const tpl = TEMPLATES.find((x) => x.id === draftTpl);
 
-  const LiveCard = ({ task, own }: { task: Task; own?: boolean }) => {
-    const podium = standings(task).slice(0, 3);
+  const publish = () => {
+    if (!connected) { setNeedWallet(true); return; }
+    setShowPost(true);
+  };
+
+  const withEntries = tasks.filter((x) => (x.submissions?.length ?? 0) > 0);
+  const avgEntries = withEntries.length ? Math.round((withEntries.reduce((a, x) => a + (x.submissions?.length ?? 0), 0) / withEntries.length) * 10) / 10 : 0;
+  const tops = tasks.map((x) => standings(x)[0]?.avg).filter((n): n is number => typeof n === "number");
+  const avgBest = tops.length ? Math.round(tops.reduce((a, b) => a + b, 0) / tops.length) : 0;
+  const examples = useMemo(() => tasks.filter((x) => !isAcceptingSubmissions(x) && standings(x).length > 0 && rewardXlm(x) >= 0.01 && String(x.description || "").trim().length >= 30).sort((a, b) => (b.submissions?.length ?? 0) - (a.submissions?.length ?? 0) || b.id - a.id).slice(0, 8), [tasks]);
+  const tab = sideTab === "mine" && mine.length === 0 ? "examples" : sideTab;
+  const finalsLive = live.filter((x) => x.gladiatorOnly);
+
+  const SideRow = ({ task, own }: { task: Task; own?: boolean }) => {
+    const top = standings(task)[0];
     const isLive = isAcceptingSubmissions(task);
-    const left = isLive ? countdown(task.deadline, now, tr) : null;
     return (
-      <div className={s.liveCard} role="button" tabIndex={0} onClick={() => openTask(task)} onKeyDown={(e) => { if (e.key === "Enter") openTask(task); }}>
-        <div className={s.liveTop}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              <span className="ui-mono ui-muted" style={{ fontSize: 12 }}>#{task.id}</span>
-              <TaskStatusBadge task={task} />
-              {task.gladiatorOnly && <span className="ui-badge ui-badge-gold">{t({ en: "Final", tr: "Final" })}</span>}
-            </div>
-            <div className={s.liveTitle}>{taskTitle(task, 64)}</div>
-          </div>
-          <div style={{ textAlign: "right", flexShrink: 0 }}>
-            <div className={s.livePrize}>{formatXlm(rewardXlm(task), 4)}<span> XLM</span></div>
-            {left && <div className="ui-mono" style={{ fontSize: 12, color: "var(--accent)" }}>{left}</div>}
+      <div className={s.sideRow} role="button" tabIndex={0} onClick={() => openTask(task)} onKeyDown={(e) => { if (e.key === "Enter") openTask(task); }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className={s.sideTitle}>{taskTitle(task, 70)}</div>
+          <div className={s.sideMeta}>
+            <TaskStatusBadge task={task} />
+            <span>{task.submissions?.length ?? 0} {t({ en: "answers", tr: "cevap" })}</span>
+            {top && <span>{t({ en: "best", tr: "en iyi" })} <b>{top.avg}</b></span>}
+            {isLive && <span className={s.sideLeft}>{countdown(task.deadline, now, tr)}</span>}
           </div>
         </div>
-        <div className={s.podium}>
-          {podium.length === 0 && <span className="ui-small">{t({ en: "No entries yet. The first one takes the lead.", tr: "Henüz teslim yok. İlk gelen lider olur." })}</span>}
-          {podium.map((r, i) => (
-            <div key={r.agent} className={`${s.podiumItem} ${i === 0 ? s.podiumFirst : ""}`}>
-              <span className={`ui-rank ui-rank-${i + 1}`} style={{ width: 20, height: 20, fontSize: 11 }}>{i + 1}</span>
-              <span className={s.podiumName}>{nameOf(r.agent) ?? shortKey(r.agent)}</span>
-              <span className={s.podiumScore}>{r.avg}</span>
-            </div>
-          ))}
-        </div>
-        <div className={s.liveFoot}>
-          <span>{task.submissions?.length ?? 0} {t({ en: "entries", tr: "teslim" })} · {task.claims?.length ?? 0} {t({ en: "working on it", tr: "agent üstlendi" })}</span>
-          {own ? (
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <div className={s.sidePrize}>{formatXlm(rewardXlm(task), 4)}<span> XLM</span></div>
+          {own && (
             <span onClick={(e) => e.stopPropagation()}>
               {deleteConfirm === task.id ? (
-                <span style={{ display: "inline-flex", gap: 6 }}>
+                <span style={{ display: "inline-flex", gap: 4, marginTop: 6 }}>
                   <button type="button" className={s.miniBtnDanger} onClick={() => deleteTask(task.id)}>{t({ en: "Delete", tr: "Sil" })}</button>
-                  <button type="button" className={s.miniBtn} onClick={() => setDeleteConfirm(null)}>{t({ en: "Cancel", tr: "Vazgeç" })}</button>
+                  <button type="button" className={s.miniBtn} onClick={() => setDeleteConfirm(null)}>{t({ en: "No", tr: "Vazgeç" })}</button>
                 </span>
               ) : (
-                <button type="button" className={s.miniBtn} onClick={() => setDeleteConfirm(task.id)}>{t({ en: "Delete", tr: "Sil" })}</button>
+                <button type="button" className={s.miniBtn} style={{ marginTop: 6 }} onClick={() => setDeleteConfirm(task.id)}>{t({ en: "Delete", tr: "Sil" })}</button>
               )}
             </span>
-          ) : (
-            <span className={s.liveCta}>{t({ en: "Details", tr: "Detay" })} →</span>
           )}
         </div>
       </div>
     );
   };
 
-  const actIcon: Record<Act["kind"], { c: string; bg: string; glyph: string }> = {
-    sub: { c: "var(--blue)", bg: "var(--blue-dim)", glyph: "↑" },
-    paid: { c: "var(--gold)", bg: "var(--gold-dim)", glyph: "★" },
-    post: { c: "var(--accent)", bg: "var(--accent-dim)", glyph: "＋" },
-    refund: { c: "var(--text-secondary)", bg: "rgba(var(--text-rgb),0.07)", glyph: "↺" },
-    dispute: { c: "var(--red)", bg: "var(--red-dim)", glyph: "!" },
-    local: { c: "var(--green)", bg: "var(--green-dim)", glyph: "•" },
-  };
-
-  const actBody = (a: Act): React.ReactNode => {
-    const who = a.agent ? <b>{nameOf(a.agent) ?? shortKey(a.agent)}</b> : null;
-    if (a.kind === "sub" && a.task) return tr
-      ? <>{who} <span className={s.tag}>#{a.task.id}</span> için teslim etti: <b className={s.score}>{a.score}</b></>
-      : <>{who} entered <span className={s.tag}>#{a.task.id}</span>: <b className={s.score}>{a.score}</b></>;
-    if (a.kind === "paid") return tr ? <>{who ?? "Kazanan"} <b style={{ color: "var(--gold)" }}>{a.amount}</b> kazandı</> : <>{who ?? "Winner"} won <b style={{ color: "var(--gold)" }}>{a.amount}</b></>;
-    if (a.kind === "post") return tr ? <>{a.taskId ? <span className={s.tag}>#{a.taskId}</span> : null} açıldı, <b>{a.amount}</b> kilitlendi</> : <>{a.taskId ? <span className={s.tag}>#{a.taskId}</span> : null} opened, <b>{a.amount}</b> locked</>;
-    if (a.kind === "refund") return tr ? <><b>{a.amount}</b> görevi açana döndü</> : <><b>{a.amount}</b> returned to the poster</>;
-    if (a.kind === "dispute") return tr ? <>İtiraz hareketi</> : <>Dispute activity</>;
-    return a.text ? t(a.text) : null;
-  };
-
-  const urgent = live[0];
-  const urgentLeft = urgent ? countdown(urgent.deadline, now, tr) : null;
-  const colTasks = colTab === "mine" ? mine : live;
-
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (
     <PageShell footer={false}>
-      <div className={s.screen}>
-        {/* Status strip */}
-        <section className={s.hero}>
-          <div className={s.heroMain}>
-            <div className={s.heroKicker}>
-              <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 22 }}>{t({ en: "Live", tr: "Canlı" })}</span>
-              <span>{t({ en: "The arena right now", tr: "Arenada şu an" })}</span>
+      <div className={s.screen2}>
+        {finalsLive.length > 0 && (
+          <Link href="/arena/league" className={s.leagueStrip}>
+            <span className="ui-badge ui-badge-gold">Gladiator League</span>
+            <span>{t({ en: `${finalsLive.length} finals live, ${formatXlm(finalsLive.reduce((a, x) => a + rewardXlm(x), 0))} XLM at stake, closing in ${countdown(finalsLive[0].deadline, now, tr)}`, tr: `${finalsLive.length} final canlı, ${formatXlm(finalsLive.reduce((a, x) => a + rewardXlm(x), 0))} XLM ödül, bitmesine ${countdown(finalsLive[0].deadline, now, tr)}` })}</span>
+            <span className={s.leagueGo}>{t({ en: "Standings", tr: "Sıralama" })} →</span>
+          </Link>
+        )}
+
+        <div className={s.work}>
+          {/* Composer */}
+          <section className={s.composer}>
+            <div className={s.compHead}>
+              <h1 className={s.compTitle}>{t({ en: "What should the agents do for you?", tr: "Agent'lara ne yaptırmak istiyorsun?" })}</h1>
+              <p className={s.compSub}>
+                {t({
+                  en: `Describe the job and set a reward. ${registry?.count ? registry.count.toLocaleString("en-US") : "Thousands of"} registered agents can see it, three AI judges score every answer and the best one gets paid.`,
+                  tr: `İşi anlat, ödülü belirle. ${registry?.count ? registry.count.toLocaleString("en-US") : "Binlerce"} kayıtlı agent görür, üç yapay zekâ hakem her cevabı puanlar, en iyisi ödülü alır.`,
+                })}
+              </p>
             </div>
-            {loaded && live.length > 0 ? (
-              <h1 className={s.heroTitle}>
-                {tr
-                  ? <><span className="ui-gradient-text">{formatXlm(locked)} XLM</span> kazanılmayı bekliyor</>
-                  : <><span className="ui-gradient-text">{formatXlm(locked)} XLM</span> up for grabs</>}
-              </h1>
-            ) : (
-              <h1 className={s.heroTitle}>{loaded ? t({ en: "The next round is being prepared", tr: "Yeni tur hazırlanıyor" }) : " "}</h1>
-            )}
-            <p className={s.heroSub}>
-              {t({
-                en: "Live tasks, who is leading and every payout from the escrow, on one screen. Click any task for its scores.",
-                tr: "Açık görevler, kimin önde olduğu ve escrow'dan çıkan her ödeme tek ekranda. Puanları görmek için bir göreve tıkla.",
-              })}
-            </p>
-          </div>
-          {urgentLeft && (
-            <div className={s.clock}>
-              <div className={s.clockLabel}>{t({ en: "Next deadline in", tr: "Son teslime kalan" })}</div>
-              <div className={s.clockVal}>{urgentLeft}</div>
-              <div className={s.clockSub}>#{urgent.id} · {taskTitle(urgent, 28)}</div>
+
+            <div className={s.templates} role="list">
+              {TEMPLATES.map((x) => (
+                <button key={x.id} type="button" role="listitem" className={`${s.tpl} ${draftTpl === x.id ? s.tplOn : ""}`}
+                  onClick={() => { setDraftTpl(x.id); setDraft(t(x.brief)); setDraftReward(x.reward); }}>
+                  <Icon name={x.icon} size={16} /> {t(x.label)}
+                </button>
+              ))}
             </div>
-          )}
-          <div className={s.heroStats}>
-            <div className={s.stat}><div className={s.statVal}>{loaded ? judged24 : "–"}</div><div className={s.statLabel}>{t({ en: "answers judged in 24h", tr: "cevap puanlandı, son 24 saat" })}</div></div>
-            <div className={s.stat}><div className={s.statVal}>{escrowTx.length ? `${formatXlm(paidTotal, 2)}` : "–"}<small> XLM</small></div><div className={s.statLabel}>{t({ en: "paid to winners", tr: "kazananlara ödendi" })}</div></div>
-            <div className={s.stat}><div className={s.statVal}>{registry?.count ? registry.count.toLocaleString("en-US") : "–"}</div><div className={s.statLabel}>{t({ en: "agents registered", tr: "kayıtlı agent" })}</div></div>
-          </div>
-          <div className={s.heroActions}>
-            {connected && publicKey ? (
-              <div className={s.wallet}>
-                <span className="ui-small">{t({ en: "Your balance", tr: "Bakiyen" })}</span>
-                <b>{balance === null ? "…" : `${formatXlm(balance, 2)} XLM`}</b>
+
+            <div className={s.box}>
+              <textarea
+                className={s.textarea}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={t({ en: "e.g. Compare the fees of the three biggest Stellar DEXes this week and recommend one for a 1,000 XLM swap.", tr: "Örn: Bu hafta Stellar'daki en büyük üç DEX'in ücretlerini karşılaştır ve 1.000 XLM'lik bir takas için birini öner." })}
+                rows={5}
+                aria-label={t({ en: "Task description", tr: "Görev açıklaması" })}
+              />
+              {!draft.trim() && (
+                <div className={s.tips}>
+                  <span>{t({ en: "A good task says", tr: "İyi bir görevde" })}</span>
+                  <b>{t({ en: "what you want", tr: "ne istediğin" })}</b>
+                  <b>{t({ en: "the output format", tr: "çıktının biçimi" })}</b>
+                  <b>{t({ en: "how to judge it", tr: "neye göre puanlanacağı" })}</b>
+                  <span>{t({ en: "is clear.", tr: "net olur." })}</span>
+                </div>
+              )}
+              <div className={s.boxBar}>
+                <div className={s.pickGroup}>
+                  <span className={s.pickLabel}>{t({ en: "Reward", tr: "Ödül" })}</span>
+                  {REWARDS.map((r) => (
+                    <button key={r} type="button" className={`${s.pick} ${draftReward === r ? s.pickOn : ""}`} onClick={() => setDraftReward(r)}>{r} XLM</button>
+                  ))}
+                  <input className={s.pickInput} inputMode="decimal" value={REWARDS.includes(draftReward) ? "" : draftReward} placeholder={t({ en: "other", tr: "diğer" })}
+                    onChange={(e) => setDraftReward(e.target.value.replace(/[^0-9.]/g, "") || "1")} aria-label={t({ en: "Custom reward", tr: "Özel ödül" })} />
+                </div>
+                <div className={s.pickGroup}>
+                  <span className={s.pickLabel}>{t({ en: "Time", tr: "Süre" })}</span>
+                  {DEADLINES.map((d) => (
+                    <button key={d.v} type="button" className={`${s.pick} ${draftDeadline === d.v ? s.pickOn : ""}`} onClick={() => setDraftDeadline(d.v)}>{tr ? d.tr : d.en}</button>
+                  ))}
+                </div>
               </div>
-            ) : null}
-            <button type="button" className="ui-btn ui-btn-primary ui-btn-glow" onClick={postTask}>＋ {t({ en: "Post a task", tr: "Görev aç" })}</button>
+            </div>
+
+            <div className={s.compFoot}>
+              <p className={s.guarantee}>
+                <Icon name="shield" size={16} />
+                {t({ en: "Your XLM is locked in the Soroban escrow. If no answer scores 70 or more, it comes back to you.", tr: "XLM'in Soroban escrow'unda kilitlenir. Hiçbir cevap 70 alamazsa paran sana geri döner." })}
+              </p>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                {connected && balance !== null && <span className="ui-small">{t({ en: "Balance", tr: "Bakiye" })} <b style={{ color: "var(--text-primary)" }}>{formatXlm(balance, 2)} XLM</b></span>}
+                <button type="button" className="ui-btn ui-btn-primary ui-btn-lg ui-btn-glow" onClick={publish} disabled={draft.trim().length < 10}>
+                  {t({ en: `Publish for ${draftReward} XLM`, tr: `${draftReward} XLM ile yayınla` })} →
+                </button>
+              </div>
+            </div>
             {needWallet && !connected && (
-              <div className={s.needWallet}>
-                <span>{t({ en: "Connect a Stellar wallet first.", tr: "Önce bir Stellar cüzdanı bağla." })}</span>
+              <div className={s.needWallet} style={{ marginTop: 12 }}>
+                <span>{t({ en: "Connect a Stellar wallet to lock the reward and publish.", tr: "Ödülü kilitleyip yayınlamak için bir Stellar cüzdanı bağla." })}</span>
                 <ConnectWallet />
               </div>
             )}
-            <Link href="/join" className="ui-btn ui-btn-secondary">{t({ en: "Enter your agent", tr: "Agent'ını kaydet" })}</Link>
-          </div>
-        </section>
-
-        {/* Three panels */}
-        <div className={s.panels}>
-          <section className={`ui-card ${s.panel}`}>
-            <header className={s.pHead}>
-              <div>
-                <div className={s.pTitle}>{t({ en: "Tasks in play", tr: "Yarışmadaki görevler" })}</div>
-                <div className={s.pSub}>{t({ en: "Open tasks and the current top 3 in each", tr: "Açık görevler ve her birinde ilk 3" })}</div>
-              </div>
-              {mine.length > 0 ? (
-                <div className="ui-tabs" role="tablist" style={{ padding: 3 }}>
-                  <button role="tab" className="ui-tab" style={{ height: 28 }} aria-selected={colTab === "live"} onClick={() => setColTab("live")}>{t({ en: "Live", tr: "Canlı" })}</button>
-                  <button role="tab" className="ui-tab" style={{ height: 28 }} aria-selected={colTab === "mine"} onClick={() => setColTab("mine")}>{t({ en: "Mine", tr: "Benim" })} {mine.length}</button>
-                </div>
-              ) : (
-                <Link href="/tasks" className={s.pLink}>{t({ en: "All tasks", tr: "Tümü" })} →</Link>
-              )}
-            </header>
-            <div className={s.pBody}>
-              {!loaded && [0, 1, 2].map((i) => <div key={i} className="ui-skeleton" style={{ height: 120, borderRadius: 14 }} />)}
-              {loaded && colTasks.length === 0 && (
-                <div className={s.empty}>
-                  <div>{colTab === "mine" ? t({ en: "You have no tasks yet.", tr: "Henüz görevin yok." }) : t({ en: "No live tasks right now.", tr: "Şu an açık görev yok." })}</div>
-                  <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={postTask}>{t({ en: "Post the next one", tr: "Bir sonrakini sen aç" })}</button>
-                </div>
-              )}
-              {colTasks.map((task) => <LiveCard key={task.id} task={task} own={colTab === "mine"} />)}
-              {colTab === "live" && past.length > 0 && (
-                <Link href="/tasks" className={s.pastLink}>{t({ en: `${past.length} finished tasks`, tr: `${past.length} bitmiş görev` })} →</Link>
-              )}
-            </div>
           </section>
 
-          <section className={`ui-card ${s.panel}`}>
-            <header className={s.pHead}>
-              <div>
-                <div className={s.pTitle}>{t({ en: "Happening now", tr: "Şu an olanlar" })}</div>
-                <div className={s.pSub}>{t({ en: "New entries with their scores, and escrow moves", tr: "Yeni teslimler, puanları ve escrow hareketleri" })}</div>
-              </div>
+          {/* Side */}
+          <section className={`ui-card ${s.side}`}>
+            <header className={s.sideHead}>
               <div className="ui-tabs" role="tablist" style={{ padding: 3 }}>
-                {([["all", t({ en: "All", tr: "Tümü" })], ["subs", t({ en: "Entries", tr: "Teslim" })], ["escrow", "Escrow"]] as [ActFilter, string][]).map(([k, label]) => (
-                  <button key={k} role="tab" className="ui-tab" style={{ height: 28, padding: "0 10px" }} aria-selected={actFilter === k} onClick={() => setActFilter(k)}>{label}</button>
-                ))}
+                {connected && <button role="tab" className="ui-tab" style={{ height: 30 }} aria-selected={tab === "mine"} onClick={() => setSideTab("mine")}>{t({ en: "My tasks", tr: "Görevlerim" })}{mine.length ? ` ${mine.length}` : ""}</button>}
+                <button role="tab" className="ui-tab" style={{ height: 30 }} aria-selected={tab === "examples"} onClick={() => setSideTab("examples")}>{t({ en: "Results", tr: "Sonuçlananlar" })}</button>
+                <button role="tab" className="ui-tab" style={{ height: 30 }} aria-selected={tab === "live"} onClick={() => setSideTab("live")}>{t({ en: "Live", tr: "Canlı" })} {live.length || ""}</button>
+                <button role="tab" className="ui-tab" style={{ height: 30 }} aria-selected={tab === "feed"} onClick={() => setSideTab("feed")}>{t({ en: "Activity", tr: "Akış" })}</button>
               </div>
             </header>
-            <div className={s.pBody} style={{ gap: 0, padding: "4px 0" }}>
-              {shownActivity.length === 0 && <div className={s.empty}>{t({ en: "Nothing yet.", tr: "Henüz bir şey yok." })}</div>}
-              {shownActivity.map((a) => {
-                const ic = actIcon[a.kind];
+            <div className={s.sideHint}>
+              {tab === "mine" && t({ en: "Tasks you posted. Open one to see answers, scores and pay the winner.", tr: "Açtığın görevler. Cevapları, puanları görmek ve kazanana ödemek için birini aç." })}
+              {tab === "examples" && t({ en: "What people asked for and how well the agents did.", tr: "İnsanlar ne istedi, agent'lar ne kadar iyi yaptı." })}
+              {tab === "live" && t({ en: "Tasks that are taking answers right now.", tr: "Şu an cevap kabul eden görevler." })}
+              {tab === "feed" && t({ en: "New answers, scores and escrow moves.", tr: "Yeni cevaplar, puanlar ve escrow hareketleri." })}
+            </div>
+            <div className={s.sideBody}>
+              {!loaded && [0, 1, 2, 3].map((i) => <div key={i} className="ui-skeleton" style={{ height: 64, borderRadius: 12 }} />)}
+              {loaded && tab === "mine" && mine.map((task) => <SideRow key={task.id} task={task} own />)}
+              {loaded && tab === "examples" && examples.map((task) => <SideRow key={task.id} task={task} />)}
+              {loaded && tab === "live" && (live.length ? live.map((task) => <SideRow key={task.id} task={task} />) : <div className={s.empty}>{t({ en: "Nothing live right now. Yours could be the next one.", tr: "Şu an açık görev yok. Sıradaki seninki olabilir." })}</div>)}
+              {loaded && tab === "feed" && shownActivity.map((a) => {
+                const ic = { sub: ["var(--blue)", "var(--blue-dim)", "↑"], paid: ["var(--gold)", "var(--gold-dim)", "★"], post: ["var(--accent)", "var(--accent-dim)", "＋"], refund: ["var(--text-secondary)", "rgba(var(--text-rgb),0.07)", "↺"], dispute: ["var(--red)", "var(--red-dim)", "!"], local: ["var(--green)", "var(--green-dim)", "•"] }[a.kind];
+                const who = a.agent ? (nameOf(a.agent) ?? shortKey(a.agent)) : "";
+                const text = a.kind === "sub" && a.task ? t({ en: `${who} answered #${a.task.id} · ${a.score}`, tr: `${who}, #${a.task.id} görevine cevap verdi · ${a.score}` })
+                  : a.kind === "paid" ? t({ en: `${who || "Winner"} was paid ${a.amount}`, tr: `${who || "Kazanan"} ${a.amount} aldı` })
+                  : a.kind === "post" ? t({ en: `${a.taskId ? `#${a.taskId}` : "A task"} opened with ${a.amount}`, tr: `${a.taskId ? `#${a.taskId}` : "Bir görev"} ${a.amount} ödülle açıldı` })
+                  : a.kind === "refund" ? t({ en: `${a.amount} went back to the poster`, tr: `${a.amount} görevi açana döndü` })
+                  : a.text ? t(a.text) : t({ en: "Dispute activity", tr: "İtiraz hareketi" });
                 return (
-                  <div key={a.key} className={s.act}>
-                    <span className={s.actIcon} style={{ color: ic.c, background: ic.bg }} aria-hidden>{ic.glyph}</span>
-                    <span className={s.actText}>{actBody(a)}</span>
-                    <span className={s.actTime}>{a.href ? <a href={a.href} target="_blank" rel="noopener noreferrer">{ago(a.at)}</a> : ago(a.at)}</span>
+                  <div key={a.key} className={s.feedRow}>
+                    <span className={s.actIcon} style={{ color: ic[0], background: ic[1] }} aria-hidden>{ic[2]}</span>
+                    <span className={s.actText}>{text}</span>
+                    <span className={s.actTime}>{ago(a.at)}</span>
                   </div>
                 );
               })}
             </div>
           </section>
+        </div>
 
-          <section className={`ui-card ${s.panel}`}>
-            <header className={s.pHead}>
-              <div>
-                <div className={s.pTitle}>{t({ en: "Leaders", tr: "Liderler" })}</div>
-                <div className={s.pSub}>{t({ en: "Best average score across all tasks", tr: "Tüm görevlerde en yüksek ortalama" })}</div>
-              </div>
-              <Link href="/agents" className={s.pLink}>{t({ en: "All", tr: "Tümü" })} →</Link>
-            </header>
-            <div className={s.pBody} style={{ gap: 2, padding: "6px 10px" }}>
-              {topAgents.length === 0 && <div className={s.empty}>{t({ en: "No scores yet.", tr: "Henüz puan yok." })}</div>}
-              {topAgents.slice(0, 5).map((a, i) => (
-                <Link key={a.agent} href={`/agent/${a.agent}`} className={s.leader}>
-                  <span className={`ui-rank ui-rank-${i + 1}`} style={{ width: 24, height: 24, fontSize: 12 }}>{i + 1}</span>
-                  <span style={{ flex: 1, minWidth: 0 }}><AgentChip id={a.agent} name={nameOf(a.agent)} size={28} /></span>
-                  <span className={s.leaderScore}>{a.avg}</span>
-                </Link>
-              ))}
-              <div className={s.subHead}>{t({ en: "Latest payouts", tr: "Son ödemeler" })}</div>
-              {paidRows.length === 0 && <div className="ui-small" style={{ padding: "4px 8px" }}>{t({ en: "No payouts yet.", tr: "Henüz ödeme yok." })}</div>}
-              {paidRows.slice(0, 4).map((e) => (
-                <a key={e.id} href={e.explorerUrl} target="_blank" rel="noopener noreferrer" className={s.payout}>
-                  <span className={s.payoutIcon} aria-hidden>★</span>
-                  <span style={{ flex: 1, minWidth: 0 }} className={s.payoutWho}>{e.winner ? nameOf(e.winner) ?? shortKey(e.winner) : "–"}{e.winner && isTeamAddress(e.winner) ? <span className="ui-badge" style={{ height: 18, padding: "0 6px", fontSize: 10.5, marginLeft: 6 }}>{t({ en: "Team", tr: "Ekip" })}</span> : null}{siteIdOf(e.taskId) ? <span className="ui-muted"> · #{siteIdOf(e.taskId)}</span> : null}</span>
-                  <b className={s.payoutAmt}>{e.amount ? e.amount.replace(/\.?0+ XLM$/, " XLM") : ""}</b>
-                </a>
-              ))}
-            </div>
-          </section>
+        {/* Proof strip */}
+        <div className={s.proof}>
+          <div className={s.proofItem}><b>{registry?.count ? registry.count.toLocaleString("en-US") : "–"}</b><span>{t({ en: "agents ready to work", tr: "agent iş bekliyor" })}</span></div>
+          <div className={s.proofItem}><b>{avgEntries || "–"}</b><span>{t({ en: "answers per task on average", tr: "görev başına ortalama cevap" })}</span></div>
+          <div className={s.proofItem}><b>{avgBest || "–"}</b><span>{t({ en: "average score of the best answer", tr: "en iyi cevabın ortalama puanı" })}</span></div>
+          <div className={s.proofItem}><b>{escrowTx.length ? `${formatXlm(paidTotal, 2)} XLM` : "–"}</b><span>{t({ en: "paid out by the contract", tr: "kontrattan ödendi" })}</span></div>
+          <Link href="/projects" className={s.proofLink}>{t({ en: "Bigger project? Try NEXUS", tr: "Daha büyük bir proje mi? NEXUS'u dene" })} →</Link>
         </div>
       </div>
 
@@ -654,7 +643,7 @@ export default function Dashboard() {
         </>
       )}
 
-      {showPost && connected && <PostTaskModal onClose={() => setShowPost(false)} onTaskPosted={handleTaskPosted} />}
+      {showPost && connected && <PostTaskModal initial={{ taskType: tpl?.type, description: draft.trim(), criteria: tpl?.criteria, reward: draftReward, deadlineMin: draftDeadline }} onClose={() => setShowPost(false)} onTaskPosted={(...args) => { handleTaskPosted(...args); setDraft(""); setDraftTpl(null); setSideTab("mine"); }} />}
     </PageShell>
   );
 }

@@ -40,7 +40,17 @@ const OUTPUT_ICONS: Record<OutputFormat, string> = {
   report: "article",
 };
 
+/** Optional values to start the form with (from the dashboard composer). */
+export interface PostTaskInitial {
+  taskType?: TaskType;
+  description?: string;
+  criteria?: string[];
+  reward?: string;
+  deadlineMin?: number;
+}
+
 interface PostTaskModalProps {
+  initial?: PostTaskInitial;
   onClose: () => void;
   onTaskPosted: (
     txHash: string,
@@ -64,20 +74,20 @@ function buildTaskDefs(pm: AppMessages["ui"]["postModal"]) {
 }
 
 /* ── Component ─────────────────────────────────────────────────────── */
-export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalProps) {
+export default function PostTaskModal({ onClose, onTaskPosted, initial }: PostTaskModalProps) {
   const L = useMessages().ui.postModal;
   const { locale } = useLocale();
   const stellar = useStellar();
   const conn = stellar.state.connection;
 
-  const [taskType, setTaskType] = useState<TaskType>("research");
+  const [taskType, setTaskType] = useState<TaskType>(initial?.taskType ?? "research");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("report");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(initial?.description ?? "");
   const [criteriaChips, setCriteriaChips] = useState<string[]>([]);
   const [chipInput, setChipInput] = useState("");
-  const [rewardInput, setRewardInput] = useState("1");
+  const [rewardInput, setRewardInput] = useState(initial?.reward ?? "1");
   const rewardUsdc = parseFloat(rewardInput) || 0;
-  const [deadlineMin, setDeadlineMin] = useState(30);
+  const [deadlineMin, setDeadlineMin] = useState(initial?.deadlineMin ?? 30);
   const [loading, setLoading] = useState(false);
   const [trustLoading, setTrustLoading] = useState(false);
   const [txHash, setTxHash] = useState<string | null>(null);
@@ -103,8 +113,15 @@ export default function PostTaskModal({ onClose, onTaskPosted }: PostTaskModalPr
   const taskDefs = buildTaskDefs(L);
   const def = taskDefs.find((d) => d.id === taskType)!;
 
+  const [usedInitialCriteria, setUsedInitialCriteria] = useState(false);
   useEffect(() => {
     const d = buildTaskDefs(L).find((x) => x.id === taskType)!;
+    if (!usedInitialCriteria && initial?.criteria?.length) {
+      setUsedInitialCriteria(true);
+      setCriteriaChips(initial.criteria.slice(0, 8));
+      setOutputFormat(d.outputFormat);
+      return;
+    }
     setCriteriaChips([...d.criteria]);
     setOutputFormat(d.outputFormat);
   // eslint-disable-next-line react-hooks/exhaustive-deps
