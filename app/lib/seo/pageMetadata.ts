@@ -26,7 +26,7 @@ export interface PageMetaInput {
 async function resolveLocale(): Promise<AppLocale> {
   const jar = await cookies();
   const raw = jar.get(LOCALE_STORAGE_KEY)?.value;
-  return isAppLocale(raw) ? raw : "tr";
+  return isAppLocale(raw) ? raw : "en";
 }
 
 /** Build Metadata for a static route from i18n bundle. */

@@ -15,7 +15,7 @@ export function isAppLocale(s: string | null | undefined): s is AppLocale {
 }
 
 export function detectInitialLocale(): AppLocale {
-  if (typeof window === "undefined") return "tr";
+  if (typeof window === "undefined") return "en";
   try {
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
     if (isAppLocale(stored)) return stored;
@@ -29,5 +29,5 @@ export function detectInitialLocale(): AppLocale {
   } catch {
     // ignore
   }
-  return "tr";
+  return "en";
 }

@@ -19,7 +19,7 @@ type Ctx = {
 const LocaleContext = createContext<Ctx | null>(null);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<AppLocale>("tr");
+  const [locale, setLocaleState] = useState<AppLocale>("en");
   const [ready, setReady] = useState(false);
 
   useEffect(() => {

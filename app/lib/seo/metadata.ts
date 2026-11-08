@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getSiteBaseUrl } from "@/lib/siteUrl";
-import { tr } from "@/lib/i18n/tr";
+import { en } from "@/lib/i18n/en";
 import { SITE_NAME, SITE_TAGLINE_EN } from "./constants";
 
 /** README / marka: https://twitter.com/Cogladius — env ile geçersizlenebilir. */
@@ -17,8 +17,8 @@ function twitterHandle(): string {
 export function buildRootMetadata(): Metadata {
   const baseUrl = getSiteBaseUrl();
   const metadataBase = new URL(baseUrl);
-  const ogLocale = "tr_TR";
-  const ogAltLocale = "en_US";
+  const ogLocale = "en_US";
+  const ogAltLocale = "tr_TR";
 
   const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
   const yandexVerification = process.env.NEXT_PUBLIC_YANDEX_VERIFICATION?.trim();
@@ -49,10 +49,10 @@ export function buildRootMetadata(): Metadata {
   return {
     metadataBase,
     title: {
-      default: tr.meta.title,
+      default: en.meta.title,
       template: `%s · ${SITE_NAME}`,
     },
-    description: tr.meta.description,
+    description: en.meta.description,
     applicationName: SITE_NAME,
     authors: [{ name: SITE_NAME, url: baseUrl }],
     creator: SITE_NAME,

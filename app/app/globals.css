@@ -3026,3 +3026,25 @@ a.ui-feed-row:hover { background: rgba(var(--text-rgb),0.03); }
 [data-theme="light"] .ui-page { background: radial-gradient(900px 460px at 15% -10%, rgba(226,71,15,0.08), transparent 60%), radial-gradient(800px 400px at 95% -5%, rgba(253,218,36,0.10), transparent 60%), var(--bg-base); }
 [data-theme="light"] .ui-hero-scene { opacity: 1; }
 [data-theme="light"] .ui-hero-scene::before { background: radial-gradient(50% 55% at 55% 60%, rgba(255,150,80,0.20), transparent 70%); }
+
+/* Light mode polish */
+[data-theme="light"] .nx { border-color: rgba(91,71,214,0.18); background: radial-gradient(700px 380px at 85% 30%, rgba(122,92,240,0.12), transparent 65%), radial-gradient(500px 300px at 0% 100%, rgba(226,71,15,0.07), transparent 70%), #ffffff; box-shadow: var(--shadow-card); }
+[data-theme="light"] .nx::before { background-image: radial-gradient(rgba(60,40,20,0.10) 1px, transparent 1px); }
+[data-theme="light"] .nx-brief, [data-theme="light"] .nx-part { background: #fffdfa; border-color: rgba(60,40,20,0.12); box-shadow: 0 10px 30px -18px rgba(60,40,20,0.35); }
+[data-theme="light"] .nx-part.on { border-color: rgba(91,71,214,0.35); }
+[data-theme="light"] .nx-core { background: radial-gradient(circle at 50% 35%, #ffffff, #efeaff); border-color: rgba(91,71,214,0.35); }
+[data-theme="light"] .nx-core.on { box-shadow: 0 0 50px -8px rgba(122,92,240,0.55); }
+[data-theme="light"] .nx-core-ring { border-color: rgba(91,71,214,0.35); }
+[data-theme="light"] .nx-wire { stroke: rgba(60,40,20,0.14); }
+[data-theme="light"] .nx-example { background: #fff; }
+[data-theme="light"] .ui-stellar { background: radial-gradient(560px 300px at 100% 0%, rgba(253,218,36,0.22), transparent 65%), #ffffff; border-color: rgba(200,160,0,0.30); box-shadow: var(--shadow-card); }
+[data-theme="light"] .ui-stellar-rail, [data-theme="light"] .ui-stellar-facts div { background: #fbf8f4; }
+[data-theme="light"] .ui-num-label { color: var(--text-muted); }
+[data-theme="light"] .ui-pipe-vis { background: #fbf8f4; }
+[data-theme="light"] .ui-pipe-card.cur { background: radial-gradient(260px 140px at 50% 0%, rgba(226,71,15,0.08), transparent 70%), #fff; }
+[data-theme="light"] .ui-window, [data-theme="light"] .ui-join, [data-theme="light"] .ui-mq { background: #ffffff; }
+[data-theme="light"] .ui-window-bar { background: #fbf8f4; }
+[data-theme="light"] .ui-use-q { background: #fbf8f4; }
+[data-theme="light"] .ui-cta-band { background: radial-gradient(500px 220px at 50% 0%, rgba(226,71,15,0.12), transparent 70%), #ffffff; }
+[data-theme="light"] .ui-join-hero { background: radial-gradient(640px 320px at 100% 0%, rgba(253,218,36,0.22), transparent 65%), radial-gradient(520px 280px at 0% 100%, rgba(226,71,15,0.07), transparent 70%), #ffffff; box-shadow: var(--shadow-card); }
+[data-theme="light"] .ui-gradient-text { background: linear-gradient(100deg, #e2470f 0%, #f07a2a 55%, #c98500 100%); -webkit-background-clip: text; background-clip: text; }
