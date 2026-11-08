@@ -69,7 +69,7 @@ export default function Dashboard() {
   const [drawerTab, setDrawerTab] = useState<DrawerTab>("summary");
   const [showPost, setShowPost] = useState(false);
   const [actFilter, setActFilter] = useState<ActFilter>("all");
-  const [showPast, setShowPast] = useState(false);
+  const [mineTab, setMineTab] = useState<"live" | "mine">("live");
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [settling, setSettling] = useState(false);
   const [courtData, setCourtData] = useState<{ agentResult: string; disputeReason: string } | null>(null);
@@ -257,7 +257,7 @@ export default function Dashboard() {
     return out.sort((a, b) => b.at - a.at);
   }, [tasks, escrowTx, events]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shownActivity = activity.filter((a) => actFilter === "all" || (actFilter === "subs" ? a.kind === "sub" : a.kind !== "sub")).slice(0, 40);
+  const shownActivity = activity.filter((a) => actFilter === "all" || (actFilter === "subs" ? a.kind === "sub" : a.kind !== "sub")).slice(0, 14);
 
   const topAgents = useMemo(() => {
     const by = new Map<string, { scores: number[]; wins: number }>();
@@ -292,44 +292,57 @@ export default function Dashboard() {
     return () => window.removeEventListener("keydown", onKey);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const postTask = () => { if (connected) setShowPost(true); else document.getElementById("dash-connect")?.scrollIntoView({ behavior: "smooth", block: "center" }); };
+  const [needWallet, setNeedWallet] = useState(false);
+  const postTask = () => { if (connected) setShowPost(true); else setNeedWallet(true); };
 
   /* ── Pieces ──────────────────────────────────────────────────────────── */
-  const TaskRow = ({ task, own }: { task: Task; own?: boolean }) => {
-    const top = standings(task)[0];
+  const [colTab, setColTab] = [mineTab, setMineTab];
+
+  const LiveCard = ({ task, own }: { task: Task; own?: boolean }) => {
+    const podium = standings(task).slice(0, 3);
     const isLive = isAcceptingSubmissions(task);
     const left = isLive ? countdown(task.deadline, now, tr) : null;
     return (
-      <div className={s.taskRow} role="button" tabIndex={0} onClick={() => openTask(task)} onKeyDown={(e) => { if (e.key === "Enter") openTask(task); }} aria-label={taskTitle(task, 80)}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span className="ui-mono ui-muted" style={{ fontSize: 12 }}>#{task.id}</span>
-            <TaskStatusBadge task={task} />
-            {task.gladiatorOnly && <span className="ui-badge ui-badge-gold">{t({ en: "League final", tr: "Lig finali" })}</span>}
+      <div className={s.liveCard} role="button" tabIndex={0} onClick={() => openTask(task)} onKeyDown={(e) => { if (e.key === "Enter") openTask(task); }}>
+        <div className={s.liveTop}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+              <span className="ui-mono ui-muted" style={{ fontSize: 12 }}>#{task.id}</span>
+              <TaskStatusBadge task={task} />
+              {task.gladiatorOnly && <span className="ui-badge ui-badge-gold">{t({ en: "Final", tr: "Final" })}</span>}
+            </div>
+            <div className={s.liveTitle}>{taskTitle(task, 64)}</div>
           </div>
-          <div className={s.taskTitle}>{taskTitle(task, 90)}</div>
-          <div className="ui-small" style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6 }}>
-            <span>{task.submissions?.length ?? 0} {t({ en: "entries", tr: "teslim" })}</span>
-            <span>{task.claims?.length ?? 0} {t({ en: "working on it", tr: "üstlenen" })}</span>
-            {top && <span>{t({ en: "leader", tr: "lider" })} <b style={{ color: "var(--text-primary)" }}>{nameOf(top.agent) ?? shortKey(top.agent)}</b> <b style={{ color: "var(--gold)" }}>{top.avg}</b></span>}
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div className={s.livePrize}>{formatXlm(rewardXlm(task), 4)}<span> XLM</span></div>
+            {left && <div className="ui-mono" style={{ fontSize: 12, color: "var(--accent)" }}>{left}</div>}
           </div>
         </div>
-        <div className={s.taskSide}>
-          <div className="ui-num" style={{ fontFamily: "var(--font-head)", fontWeight: 700, fontSize: 18, color: "var(--text-primary)" }}>
-            {formatXlm(rewardXlm(task), 4)} <span style={{ fontSize: 12, color: "var(--text-muted)" }}>XLM</span>
-          </div>
-          {left && <div className="ui-mono ui-num" style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 3 }}>{t({ en: `${left} left`, tr: `${left} kaldı` })}</div>}
-          {own && (
-            <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
+        <div className={s.podium}>
+          {podium.length === 0 && <span className="ui-small">{t({ en: "No entries yet. The first one takes the lead.", tr: "Henüz teslim yok. İlk gelen lider olur." })}</span>}
+          {podium.map((r, i) => (
+            <div key={r.agent} className={`${s.podiumItem} ${i === 0 ? s.podiumFirst : ""}`}>
+              <span className={`ui-rank ui-rank-${i + 1}`} style={{ width: 20, height: 20, fontSize: 11 }}>{i + 1}</span>
+              <span className={s.podiumName}>{nameOf(r.agent) ?? shortKey(r.agent)}</span>
+              <span className={s.podiumScore}>{r.avg}</span>
+            </div>
+          ))}
+        </div>
+        <div className={s.liveFoot}>
+          <span>{task.submissions?.length ?? 0} {t({ en: "entries", tr: "teslim" })} · {task.claims?.length ?? 0} {t({ en: "working on it", tr: "agent üstlendi" })}</span>
+          {own ? (
+            <span onClick={(e) => e.stopPropagation()}>
               {deleteConfirm === task.id ? (
                 <span style={{ display: "inline-flex", gap: 6 }}>
-                  <button type="button" className="ui-btn ui-btn-sm" style={{ background: "var(--red-dim)", color: "var(--red)" }} onClick={() => deleteTask(task.id)}>{t({ en: "Delete", tr: "Sil" })}</button>
-                  <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => setDeleteConfirm(null)}>{t({ en: "Cancel", tr: "Vazgeç" })}</button>
+                  <button type="button" className={s.miniBtnDanger} onClick={() => deleteTask(task.id)}>{t({ en: "Delete", tr: "Sil" })}</button>
+                  <button type="button" className={s.miniBtn} onClick={() => setDeleteConfirm(null)}>{t({ en: "Cancel", tr: "Vazgeç" })}</button>
                 </span>
               ) : (
-                <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => setDeleteConfirm(task.id)}>{t({ en: "Delete", tr: "Sil" })}</button>
+                <button type="button" className={s.miniBtn} onClick={() => setDeleteConfirm(task.id)}>{t({ en: "Delete", tr: "Sil" })}</button>
               )}
-            </div>
+            </span>
+          ) : (
+            <span className={s.liveCta}>{t({ en: "Details", tr: "Detay" })} →</span>
           )}
         </div>
       </div>
@@ -345,203 +358,166 @@ export default function Dashboard() {
     local: { c: "var(--green)", bg: "var(--green-dim)", glyph: "•" },
   };
 
-  const ActRow = ({ a }: { a: Act }) => {
-    const ic = actIcon[a.kind];
+  const actBody = (a: Act): React.ReactNode => {
     const who = a.agent ? <b>{nameOf(a.agent) ?? shortKey(a.agent)}</b> : null;
-    let body: React.ReactNode;
-    if (a.kind === "sub" && a.task) {
-      body = tr
-        ? <>{who}, <Link href={`/task/${a.task.id}`} className={s.inlineLink}>#{a.task.id}</Link> görevine teslim etti ve <b style={{ color: "var(--text-primary)" }}>{a.score}</b> puan aldı</>
-        : <>{who} submitted to <Link href={`/task/${a.task.id}`} className={s.inlineLink}>#{a.task.id}</Link> and scored <b style={{ color: "var(--text-primary)" }}>{a.score}</b></>;
-    } else if (a.kind === "paid") {
-      body = tr ? <>{who ?? "Kazanan"} <b style={{ color: "var(--gold)" }}>{a.amount}</b> kazandı{a.taskId ? <> · #{a.taskId}</> : null}</> : <>{who ?? "The winner"} won <b style={{ color: "var(--gold)" }}>{a.amount}</b>{a.taskId ? <> · #{a.taskId}</> : null}</>;
-    } else if (a.kind === "post") {
-      body = tr ? <>{a.taskId ? <>#{a.taskId} açıldı, </> : "Yeni görev, "}<b>{a.amount}</b> escrow&apos;a kilitlendi</> : <>{a.taskId ? <>#{a.taskId} opened, </> : "New task, "}<b>{a.amount}</b> locked in escrow</>;
-    } else if (a.kind === "refund") {
-      body = tr ? <>{a.taskId ? <>#{a.taskId}: </> : null}<b>{a.amount}</b> görevi açana iade edildi</> : <>{a.taskId ? <>#{a.taskId}: </> : null}<b>{a.amount}</b> refunded to the poster</>;
-    } else if (a.kind === "dispute") {
-      body = tr ? <>{a.taskId ? <>#{a.taskId} için </> : null}itiraz hareketi</> : <>Dispute activity{a.taskId ? <> on #{a.taskId}</> : null}</>;
-    } else {
-      body = a.text ? t(a.text) : null;
-    }
-    return (
-      <div className={s.actRow}>
-        <span className={s.actIcon} style={{ color: ic.c, background: ic.bg }} aria-hidden>{ic.glyph}</span>
-        <div className={s.actText}>{body}</div>
-        <div className={s.actTime}>
-          {a.href ? <a href={a.href} target="_blank" rel="noopener noreferrer" className={s.inlineLink}>{ago(a.at)} ↗</a> : ago(a.at)}
-        </div>
-      </div>
-    );
+    if (a.kind === "sub" && a.task) return tr
+      ? <>{who} <span className={s.tag}>#{a.task.id}</span> için teslim etti: <b className={s.score}>{a.score}</b></>
+      : <>{who} entered <span className={s.tag}>#{a.task.id}</span>: <b className={s.score}>{a.score}</b></>;
+    if (a.kind === "paid") return tr ? <>{who ?? "Kazanan"} <b style={{ color: "var(--gold)" }}>{a.amount}</b> kazandı</> : <>{who ?? "Winner"} won <b style={{ color: "var(--gold)" }}>{a.amount}</b></>;
+    if (a.kind === "post") return tr ? <>{a.taskId ? <span className={s.tag}>#{a.taskId}</span> : null} açıldı, <b>{a.amount}</b> kilitlendi</> : <>{a.taskId ? <span className={s.tag}>#{a.taskId}</span> : null} opened, <b>{a.amount}</b> locked</>;
+    if (a.kind === "refund") return tr ? <><b>{a.amount}</b> görevi açana döndü</> : <><b>{a.amount}</b> returned to the poster</>;
+    if (a.kind === "dispute") return tr ? <>İtiraz hareketi</> : <>Dispute activity</>;
+    return a.text ? t(a.text) : null;
   };
+
+  const urgent = live[0];
+  const urgentLeft = urgent ? countdown(urgent.deadline, now, tr) : null;
+  const colTasks = colTab === "mine" ? mine : live;
 
   /* ── Render ──────────────────────────────────────────────────────────── */
   return (
-    <PageShell>
-      <div className="ui-container" style={{ maxWidth: 1280, paddingTop: 40 }}>
-        {/* Head */}
-        <div className={s.head}>
-          <div>
-            <h1 className="ui-page-title">{t({ en: "Dashboard", tr: "Panel" })}</h1>
-            <p className="ui-small" style={{ marginTop: 8, fontSize: 15 }}>
-              {t({ en: "Everything happening in the arena, live.", tr: "Arenada olan her şey, canlı olarak." })}
+    <PageShell footer={false}>
+      <div className={s.screen}>
+        {/* Status strip */}
+        <section className={s.hero}>
+          <div className={s.heroMain}>
+            <div className={s.heroKicker}>
+              <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 22 }}>{t({ en: "Live", tr: "Canlı" })}</span>
+              <span>{t({ en: "The arena right now", tr: "Arenada şu an" })}</span>
+            </div>
+            {loaded && live.length > 0 ? (
+              <h1 className={s.heroTitle}>
+                {tr
+                  ? <><span className="ui-gradient-text">{formatXlm(locked)} XLM</span> kazanılmayı bekliyor</>
+                  : <><span className="ui-gradient-text">{formatXlm(locked)} XLM</span> up for grabs</>}
+              </h1>
+            ) : (
+              <h1 className={s.heroTitle}>{loaded ? t({ en: "The next round is being prepared", tr: "Yeni tur hazırlanıyor" }) : " "}</h1>
+            )}
+            <p className={s.heroSub}>
+              {t({
+                en: "Live tasks, who is leading and every payout from the escrow, on one screen. Click any task for its scores.",
+                tr: "Açık görevler, kimin önde olduğu ve escrow'dan çıkan her ödeme tek ekranda. Puanları görmek için bir göreve tıkla.",
+              })}
             </p>
           </div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link href="/projects" className="ui-btn ui-btn-secondary">{t({ en: "NEXUS projects", tr: "NEXUS projeleri" })}</Link>
-            <button type="button" className="ui-btn ui-btn-primary ui-btn-glow" onClick={postTask}>
-              <span aria-hidden style={{ fontSize: 18, lineHeight: 1 }}>＋</span> {t({ en: "Post a task", tr: "Görev aç" })}
-            </button>
-          </div>
-        </div>
-
-        {/* Account */}
-        {connected && publicKey ? (
-          <div className={`ui-card ${s.account}`}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-              <AgentChip id={publicKey.toString()} name={t({ en: "Your wallet", tr: "Cüzdanın" })} size={40} />
+          {urgentLeft && (
+            <div className={s.clock}>
+              <div className={s.clockLabel}>{t({ en: "Next deadline in", tr: "Son teslime kalan" })}</div>
+              <div className={s.clockVal}>{urgentLeft}</div>
+              <div className={s.clockSub}>#{urgent.id} · {taskTitle(urgent, 28)}</div>
             </div>
-            <div className={s.accountStats}>
-              <div><div className="ui-small">{t({ en: "Balance", tr: "Bakiye" })}</div><div className={s.accountVal}>{balance === null ? "…" : `${formatXlm(balance, 2)} XLM`}</div></div>
-              <div><div className="ui-small">{t({ en: "Your tasks", tr: "Görevlerin" })}</div><div className={s.accountVal}>{mine.length}</div></div>
-              <div><div className="ui-small">{t({ en: "Live now", tr: "Şu an canlı" })}</div><div className={s.accountVal}>{mine.filter(isAcceptingSubmissions).length}</div></div>
-            </div>
+          )}
+          <div className={s.heroStats}>
+            <div className={s.stat}><div className={s.statVal}>{loaded ? judged24 : "–"}</div><div className={s.statLabel}>{t({ en: "answers judged in 24h", tr: "cevap puanlandı, son 24 saat" })}</div></div>
+            <div className={s.stat}><div className={s.statVal}>{escrowTx.length ? `${formatXlm(paidTotal, 2)}` : "–"}<small> XLM</small></div><div className={s.statLabel}>{t({ en: "paid to winners", tr: "kazananlara ödendi" })}</div></div>
+            <div className={s.stat}><div className={s.statVal}>{registry?.count ? registry.count.toLocaleString("en-US") : "–"}</div><div className={s.statLabel}>{t({ en: "agents registered", tr: "kayıtlı agent" })}</div></div>
           </div>
-        ) : (
-          <div id="dash-connect" className={`ui-card ${s.connect}`}>
-            <FeatureIcon name="coins" />
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{t({ en: "Want to post a task?", tr: "Görev mi açmak istiyorsun?" })}</div>
-              <div className="ui-small" style={{ marginTop: 2 }}>{t({ en: "Connect a Stellar wallet such as Freighter. The reward you set is locked in the Soroban escrow until a winner is chosen.", tr: "Freighter gibi bir Stellar cüzdanı bağla. Belirlediğin ödül, kazanan seçilene kadar Soroban escrow'unda kilitli kalır." })}</div>
-            </div>
-            <ConnectWallet />
-          </div>
-        )}
-
-        {/* KPIs */}
-        <div className={s.kpis}>
-          {[
-            { icon: "bolt" as const, tone: "green" as const, v: loaded ? String(live.length) : "–", l: t({ en: "Live tasks", tr: "Canlı görev" }), sub: loaded && locked > 0 ? t({ en: `${formatXlm(locked)} XLM at stake`, tr: `${formatXlm(locked)} XLM ödül` }) : "" },
-            { icon: "scale" as const, tone: "blue" as const, v: loaded ? String(judged24) : "–", l: t({ en: "Answers judged, 24h", tr: "Son 24 saatte puanlanan" }), sub: "" },
-            { icon: "trophy" as const, tone: "gold" as const, v: escrowTx.length ? `${formatXlm(paidTotal, 2)} XLM` : "–", l: t({ en: "Paid out from escrow", tr: "Escrow'dan ödenen" }), sub: escrowTx.length ? t({ en: `${paidRows.length} payouts`, tr: `${paidRows.length} ödeme` }) : "" },
-            { icon: "users" as const, tone: "accent" as const, v: registry?.count ? registry.count.toLocaleString("en-US") : "–", l: t({ en: "Registered agents", tr: "Kayıtlı agent" }), sub: "" },
-          ].map((k, i) => (
-            <div key={i} className={`ui-card ${s.kpi}`}>
-              <FeatureIcon name={k.icon} tone={k.tone} />
-              <div style={{ minWidth: 0 }}>
-                <div className={s.kpiVal}>{k.v}</div>
-                <div className="ui-small">{k.l}</div>
-                {k.sub && <div className="ui-small" style={{ color: "var(--text-secondary)", marginTop: 2 }}>{k.sub}</div>}
+          <div className={s.heroActions}>
+            {connected && publicKey ? (
+              <div className={s.wallet}>
+                <span className="ui-small">{t({ en: "Your balance", tr: "Bakiyen" })}</span>
+                <b>{balance === null ? "…" : `${formatXlm(balance, 2)} XLM`}</b>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Main grid */}
-        <div className={s.grid}>
-          <div className={s.mainCol}>
-            {mine.length > 0 && (
-              <section className="ui-card" style={{ overflow: "hidden" }}>
-                <div className={s.panelHead}>
-                  <div className="ui-h3">{t({ en: "Your tasks", tr: "Görevlerin" })}</div>
-                  <span className="ui-badge">{mine.length}</span>
-                </div>
-                {mine.map((task) => <TaskRow key={task.id} task={task} own />)}
-              </section>
+            ) : null}
+            <button type="button" className="ui-btn ui-btn-primary ui-btn-glow" onClick={postTask}>＋ {t({ en: "Post a task", tr: "Görev aç" })}</button>
+            {needWallet && !connected && (
+              <div className={s.needWallet}>
+                <span>{t({ en: "Connect a Stellar wallet first.", tr: "Önce bir Stellar cüzdanı bağla." })}</span>
+                <ConnectWallet />
+              </div>
             )}
-
-            <section className="ui-card" style={{ overflow: "hidden" }}>
-              <div className={s.panelHead}>
-                <div>
-                  <div className="ui-h3">{t({ en: "Live tasks", tr: "Canlı görevler" })}</div>
-                  <div className="ui-small" style={{ marginTop: 2 }}>{t({ en: "Click a task for scores, entries and actions", tr: "Puanlar, teslimler ve işlemler için bir göreve tıkla" })}</div>
-                </div>
-                <Link href="/tasks" className="ui-link" style={{ fontSize: 14 }}>{t({ en: "All tasks", tr: "Tümü" })} →</Link>
-              </div>
-              {!loaded && [0, 1, 2].map((i) => <div key={i} style={{ padding: 20 }}><div className="ui-skeleton" style={{ height: 52 }} /></div>)}
-              {loaded && live.length === 0 && (
-                <div className="ui-empty">
-                  {t({ en: "No live tasks right now.", tr: "Şu an canlı görev yok." })}{" "}
-                  <button type="button" className="ui-link" style={{ background: "none", border: 0, cursor: "pointer", font: "inherit" }} onClick={postTask}>{t({ en: "Open the next one", tr: "Bir sonrakini sen aç" })}</button>
-                </div>
-              )}
-              {live.map((task) => <TaskRow key={task.id} task={task} />)}
-              {past.length > 0 && (
-                <>
-                  <button type="button" className={s.pastToggle} onClick={() => setShowPast((v) => !v)} aria-expanded={showPast}>
-                    {showPast ? t({ en: "Hide past tasks", tr: "Geçmiş görevleri gizle" }) : t({ en: `Show ${past.length} past tasks`, tr: `${past.length} geçmiş görevi göster` })}
-                    <span aria-hidden style={{ transform: showPast ? "rotate(180deg)" : "none", transition: "transform .15s" }}>⌄</span>
-                  </button>
-                  {showPast && past.map((task) => <TaskRow key={task.id} task={task} />)}
-                </>
-              )}
-            </section>
-
-            <section className="ui-card" style={{ overflow: "hidden" }}>
-              <div className={s.panelHead}>
-                <div className="ui-h3" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  {t({ en: "Activity", tr: "Akış" })}
-                  <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 22 }}>{t({ en: "live", tr: "canlı" })}</span>
-                </div>
-                <div className="ui-tabs" role="tablist">
-                  {([["all", t({ en: "All", tr: "Tümü" })], ["subs", t({ en: "Entries", tr: "Teslimler" })], ["escrow", t({ en: "Escrow", tr: "Escrow" })]] as [ActFilter, string][]).map(([k, label]) => (
-                    <button key={k} role="tab" className="ui-tab" aria-selected={actFilter === k} onClick={() => setActFilter(k)}>{label}</button>
-                  ))}
-                </div>
-              </div>
-              {shownActivity.length === 0 && <div className="ui-empty">{t({ en: "Nothing here yet.", tr: "Burada henüz bir şey yok." })}</div>}
-              <div className={s.actList}>{shownActivity.map((a) => <ActRow key={a.key} a={a} />)}</div>
-            </section>
+            <Link href="/join" className="ui-btn ui-btn-secondary">{t({ en: "Enter your agent", tr: "Agent'ını kaydet" })}</Link>
           </div>
+        </section>
 
-          <aside className={s.sideCol}>
-            <section className="ui-card" style={{ overflow: "hidden" }}>
-              <div className={s.panelHead}>
-                <div>
-                  <div className="ui-h3">{t({ en: "Escrow", tr: "Escrow hareketleri" })}</div>
-                  <div className="ui-small" style={{ marginTop: 2 }}>{t({ en: "Straight from the contract", tr: "Doğrudan kontrattan" })}</div>
-                </div>
+        {/* Three panels */}
+        <div className={s.panels}>
+          <section className={`ui-card ${s.panel}`}>
+            <header className={s.pHead}>
+              <div>
+                <div className={s.pTitle}>{t({ en: "Tasks in play", tr: "Yarışmadaki görevler" })}</div>
+                <div className={s.pSub}>{t({ en: "Open tasks and the current top 3 in each", tr: "Açık görevler ve her birinde ilk 3" })}</div>
               </div>
-              {escrowTx.length === 0 && [0, 1, 2, 3].map((i) => <div key={i} style={{ padding: "14px 20px" }}><div className="ui-skeleton" style={{ height: 34 }} /></div>)}
-              {escrowTx.slice(0, 12).map((e) => {
-                const k = txKind(e.type);
-                const tone = k.key === "paid" ? "var(--gold)" : k.key === "post" ? "var(--accent)" : k.key === "refund" ? "var(--text-secondary)" : "var(--red)";
-                const site = siteIdOf(e.taskId);
+              {mine.length > 0 ? (
+                <div className="ui-tabs" role="tablist" style={{ padding: 3 }}>
+                  <button role="tab" className="ui-tab" style={{ height: 28 }} aria-selected={colTab === "live"} onClick={() => setColTab("live")}>{t({ en: "Live", tr: "Canlı" })}</button>
+                  <button role="tab" className="ui-tab" style={{ height: 28 }} aria-selected={colTab === "mine"} onClick={() => setColTab("mine")}>{t({ en: "Mine", tr: "Benim" })} {mine.length}</button>
+                </div>
+              ) : (
+                <Link href="/tasks" className={s.pLink}>{t({ en: "All tasks", tr: "Tümü" })} →</Link>
+              )}
+            </header>
+            <div className={s.pBody}>
+              {!loaded && [0, 1, 2].map((i) => <div key={i} className="ui-skeleton" style={{ height: 120, borderRadius: 14 }} />)}
+              {loaded && colTasks.length === 0 && (
+                <div className={s.empty}>
+                  <div>{colTab === "mine" ? t({ en: "You have no tasks yet.", tr: "Henüz görevin yok." }) : t({ en: "No live tasks right now.", tr: "Şu an açık görev yok." })}</div>
+                  <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={postTask}>{t({ en: "Post the next one", tr: "Bir sonrakini sen aç" })}</button>
+                </div>
+              )}
+              {colTasks.map((task) => <LiveCard key={task.id} task={task} own={colTab === "mine"} />)}
+              {colTab === "live" && past.length > 0 && (
+                <Link href="/tasks" className={s.pastLink}>{t({ en: `${past.length} finished tasks`, tr: `${past.length} bitmiş görev` })} →</Link>
+              )}
+            </div>
+          </section>
+
+          <section className={`ui-card ${s.panel}`}>
+            <header className={s.pHead}>
+              <div>
+                <div className={s.pTitle}>{t({ en: "Happening now", tr: "Şu an olanlar" })}</div>
+                <div className={s.pSub}>{t({ en: "New entries with their scores, and escrow moves", tr: "Yeni teslimler, puanları ve escrow hareketleri" })}</div>
+              </div>
+              <div className="ui-tabs" role="tablist" style={{ padding: 3 }}>
+                {([["all", t({ en: "All", tr: "Tümü" })], ["subs", t({ en: "Entries", tr: "Teslim" })], ["escrow", "Escrow"]] as [ActFilter, string][]).map(([k, label]) => (
+                  <button key={k} role="tab" className="ui-tab" style={{ height: 28, padding: "0 10px" }} aria-selected={actFilter === k} onClick={() => setActFilter(k)}>{label}</button>
+                ))}
+              </div>
+            </header>
+            <div className={s.pBody} style={{ gap: 0, padding: "4px 0" }}>
+              {shownActivity.length === 0 && <div className={s.empty}>{t({ en: "Nothing yet.", tr: "Henüz bir şey yok." })}</div>}
+              {shownActivity.map((a) => {
+                const ic = actIcon[a.kind];
                 return (
-                  <a key={e.id} href={e.explorerUrl} target="_blank" rel="noopener noreferrer" className={s.txRow}>
-                    <span className={s.txDot} style={{ background: tone }} aria-hidden />
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ color: "var(--text-primary)", fontWeight: 600, fontSize: 14 }}>{t(k)}{site ? <span className="ui-muted" style={{ fontWeight: 500 }}> · #{site}</span> : null}</div>
-                      <div className="ui-small" style={{ fontSize: 12.5 }}>
-                        {[e.winner ? `→ ${nameOf(e.winner) ?? shortKey(e.winner)}` : "", e.time ? ago(Math.floor(new Date(e.time).getTime() / 1000)) : ""].filter(Boolean).join(" · ")}
-                      </div>
-                    </div>
-                    <div className="ui-num" style={{ fontWeight: 700, color: k.key === "paid" ? "var(--gold)" : "var(--text-primary)", fontSize: 14, whiteSpace: "nowrap" }}>
-                      {e.amount ? e.amount.replace(/\.?0+ XLM$/, " XLM") : ""}
-                    </div>
-                  </a>
+                  <div key={a.key} className={s.act}>
+                    <span className={s.actIcon} style={{ color: ic.c, background: ic.bg }} aria-hidden>{ic.glyph}</span>
+                    <span className={s.actText}>{actBody(a)}</span>
+                    <span className={s.actTime}>{a.href ? <a href={a.href} target="_blank" rel="noopener noreferrer">{ago(a.at)}</a> : ago(a.at)}</span>
+                  </div>
                 );
               })}
-            </section>
+            </div>
+          </section>
 
-            <section className="ui-card" style={{ overflow: "hidden" }}>
-              <div className={s.panelHead}>
-                <div className="ui-h3">{t({ en: "Top agents", tr: "En iyi agent'lar" })}</div>
-                <Link href="/agents" className="ui-link" style={{ fontSize: 14 }}>{t({ en: "All", tr: "Tümü" })} →</Link>
+          <section className={`ui-card ${s.panel}`}>
+            <header className={s.pHead}>
+              <div>
+                <div className={s.pTitle}>{t({ en: "Leaders", tr: "Liderler" })}</div>
+                <div className={s.pSub}>{t({ en: "Best average score across all tasks", tr: "Tüm görevlerde en yüksek ortalama" })}</div>
               </div>
-              {topAgents.length === 0 && <div className="ui-empty">{t({ en: "No judged answers yet.", tr: "Henüz puanlanan cevap yok." })}</div>}
-              {topAgents.map((a, i) => (
-                <Link key={a.agent} href={`/agent/${a.agent}`} className={s.txRow}>
+              <Link href="/agents" className={s.pLink}>{t({ en: "All", tr: "Tümü" })} →</Link>
+            </header>
+            <div className={s.pBody} style={{ gap: 2, padding: "6px 10px" }}>
+              {topAgents.length === 0 && <div className={s.empty}>{t({ en: "No scores yet.", tr: "Henüz puan yok." })}</div>}
+              {topAgents.slice(0, 5).map((a, i) => (
+                <Link key={a.agent} href={`/agent/${a.agent}`} className={s.leader}>
                   <span className={`ui-rank ui-rank-${i + 1}`} style={{ width: 24, height: 24, fontSize: 12 }}>{i + 1}</span>
                   <span style={{ flex: 1, minWidth: 0 }}><AgentChip id={a.agent} name={nameOf(a.agent)} size={28} /></span>
-                  <span style={{ textAlign: "right" }}>
-                    <span className="ui-num" style={{ fontWeight: 700, color: "var(--text-primary)" }}>{a.avg}</span>
-                    <span className="ui-small" style={{ display: "block", fontSize: 11.5 }}>{a.n} {t({ en: "entries", tr: "teslim" })}</span>
-                  </span>
+                  <span className={s.leaderScore}>{a.avg}</span>
                 </Link>
               ))}
-            </section>
-          </aside>
+              <div className={s.subHead}>{t({ en: "Latest payouts", tr: "Son ödemeler" })}</div>
+              {paidRows.length === 0 && <div className="ui-small" style={{ padding: "4px 8px" }}>{t({ en: "No payouts yet.", tr: "Henüz ödeme yok." })}</div>}
+              {paidRows.slice(0, 4).map((e) => (
+                <a key={e.id} href={e.explorerUrl} target="_blank" rel="noopener noreferrer" className={s.payout}>
+                  <span className={s.payoutIcon} aria-hidden>★</span>
+                  <span style={{ flex: 1, minWidth: 0 }} className={s.payoutWho}>{e.winner ? nameOf(e.winner) ?? shortKey(e.winner) : "–"}{e.winner && isTeamAddress(e.winner) ? <span className="ui-badge" style={{ height: 18, padding: "0 6px", fontSize: 10.5, marginLeft: 6 }}>{t({ en: "Team", tr: "Ekip" })}</span> : null}{siteIdOf(e.taskId) ? <span className="ui-muted"> · #{siteIdOf(e.taskId)}</span> : null}</span>
+                  <b className={s.payoutAmt}>{e.amount ? e.amount.replace(/\.?0+ XLM$/, " XLM") : ""}</b>
+                </a>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
 
