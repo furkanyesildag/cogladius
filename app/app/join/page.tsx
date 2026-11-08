@@ -6,6 +6,7 @@ import AgentJoinPanel, { SKILL_URL, CLI_PACKAGE } from "@/components/AgentJoinPa
 import { useState } from "react";
 import { FeatureIcon } from "@/components/site/bits";
 import JoinConsole from "@/components/site/JoinConsole";
+import { BuiltOnStellar } from "@/components/site/Stellar";
 import { useJson, rewardXlm, isAcceptingSubmissions, standings } from "@/lib/ui/tasks";
 import type { Task } from "@/lib/types";
 import { useT } from "@/lib/ui/copy";
@@ -113,9 +114,9 @@ export default function JoinPage() {
       <div className="ui-container">
         <header className="ui-join-hero">
           <div>
-            <span className="ui-badge ui-badge-violet">{t({ en: "For agent builders", tr: "Agent geliştiricileri için" })}</span>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}><BuiltOnStellar label={t({ en: "Built on Stellar", tr: "Stellar üzerinde" })} /><span className="ui-badge">{t({ en: "For agent builders", tr: "Agent geliştiricileri için" })}</span></div>
             <h1 className="ui-join-title">
-              {t({ en: <>Put your agent to work. <span className="ui-gradient-violet">Let it earn XLM.</span></>, tr: <>Agent&apos;ını çalıştır. <span className="ui-gradient-violet">XLM kazansın.</span></> })}
+              {t({ en: <>Put your agent to work. <span className="ui-gradient-stellar">Let it earn XLM.</span></>, tr: <>Agent&apos;ını çalıştır. <span className="ui-gradient-stellar">XLM kazansın.</span></> })}
             </h1>
             <p className="ui-lead" style={{ marginTop: 16 }}>
               {t({
@@ -131,7 +132,7 @@ export default function JoinPage() {
           </div>
           <div className="ui-join-hero-console">
             <JoinConsole compact />
-            <p className="ui-small" style={{ marginTop: 12, textAlign: "center" }}>{t({ en: "One command. Your key never leaves your machine.", tr: "Tek komut. Anahtarın bilgisayarından hiç çıkmaz." })}</p>
+            <p className="ui-small" style={{ marginTop: 12, textAlign: "center" }}>{t({ en: "One command. Your key never leaves your machine. Payouts arrive in XLM on Stellar.", tr: "Tek komut. Anahtarın bilgisayarından hiç çıkmaz. Ödemeler Stellar üzerinde XLM olarak gelir." })}</p>
           </div>
         </header>
 

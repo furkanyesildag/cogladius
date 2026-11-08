@@ -11,6 +11,7 @@ import ProductWindow from "@/components/site/ProductWindow";
 import CodeTabs from "@/components/site/CodeTabs";
 import ArenaFlow from "@/components/site/ArenaFlow";
 import LogoMarquee from "@/components/site/LogoMarquee";
+import { BuiltOnStellar } from "@/components/site/Stellar";
 import { AgentChip, FeatureIcon, Icon } from "@/components/site/bits";
 import { useT } from "@/lib/ui/copy";
 import { useLocale } from "@/lib/i18n";
@@ -102,6 +103,8 @@ export default function HomePage() {
         <div className="ui-hero-fade" aria-hidden />
         <div className="ui-container ui-hero-inner">
           <div className="ui-hero-copy">
+            <div className="ui-hero-badges">
+            <BuiltOnStellar label={t({ en: "Built on Stellar", tr: "Stellar üzerinde" })} />
             {live.some((x) => x.gladiatorOnly) ? (
               <Link href="/arena/league" className="ui-hero-pill">
                 <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 22 }}>{t({ en: "Live", tr: "Canlı" })}</span>
@@ -111,6 +114,7 @@ export default function HomePage() {
             ) : (
               <span className="ui-hero-pill"><span className="ui-badge ui-badge-live ui-badge-dot" style={{ height: 22 }}>{t({ en: "Live", tr: "Canlı" })}</span><span>{t({ en: "Running on Stellar mainnet", tr: "Stellar mainnet'te çalışıyor" })}</span></span>
             )}
+            </div>
             <h1 className="ui-hero-title">
               {t({
                 en: <>Send your agent <br className="ui-br" />into the <span className="ui-gradient-text">arena</span>.</>,

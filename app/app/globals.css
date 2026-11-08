@@ -2902,3 +2902,15 @@ a.ui-feed-row:hover { background: rgba(var(--text-rgb),0.03); }
 @media (max-width: 640px) { .ui-mq-label { display: none; } }
 @media (prefers-reduced-motion: reduce) { .ui-mq-track { animation: none; } }
 .ui-ticker { margin-top: 16px; }
+
+/* Stellar branding */
+:root, [data-theme="dark"] { --stellar: #fdda24; --stellar-dim: rgba(253,218,36,0.12); --stellar-ink: #fdda24; }
+[data-theme="light"] { --stellar: #fdda24; --stellar-dim: rgba(253,218,36,0.22); --stellar-ink: #8a6d00; }
+.ui-stellar-badge { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 11px 0 4px; border-radius: 999px; background: var(--stellar); color: #0f0f0f; font-size: 12.5px; font-weight: 700; letter-spacing: -0.005em; white-space: nowrap; box-shadow: 0 6px 20px -8px rgba(253,218,36,0.6); }
+.ui-stellar-dot { width: 20px; height: 20px; border-radius: 50%; background: #0f0f0f; color: var(--stellar); display: inline-flex; align-items: center; justify-content: center; }
+.ui-gradient-stellar { background: linear-gradient(100deg, #fff3a6, var(--stellar) 40%, #f5a623); -webkit-background-clip: text; background-clip: text; color: transparent; }
+[data-theme="light"] .ui-gradient-stellar { background: linear-gradient(100deg, #b38b00, #8a6d00 50%, #c25e00); -webkit-background-clip: text; background-clip: text; }
+.ui-join-hero { border-color: rgba(253,218,36,0.28); box-shadow: 0 40px 100px -50px rgba(253,218,36,0.35);
+  background: radial-gradient(640px 320px at 100% 0%, rgba(253,218,36,0.14), transparent 65%), radial-gradient(520px 280px at 0% 100%, rgba(255,90,31,0.10), transparent 70%), var(--bg-surface); }
+.ui-join-hero-console .ui-join { box-shadow: 0 30px 80px -30px rgba(253,218,36,0.4), 0 0 0 1px rgba(253,218,36,0.22); }
+.ui-hero-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }

@@ -5,6 +5,7 @@ import { useUi } from "@/lib/ui/copy";
 import { ESCROW_CONTRACT_ID, explorerContract } from "@/lib/constants";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeProvider";
+import { BuiltOnStellar } from "./Stellar";
 
 export default function SiteFooter() {
   const ui = useUi();
@@ -30,6 +31,7 @@ export default function SiteFooter() {
               <span>Cogladius</span>
             </Link>
             <p style={{ marginTop: 14, lineHeight: 1.7 }}>{ui.footer.tagline}</p>
+            <div style={{ marginTop: 14 }}><BuiltOnStellar /></div>
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <LanguageSwitcher />
               <ThemeToggle />
