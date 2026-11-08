@@ -2,32 +2,27 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useWallet } from "@/lib/useWallet";
 import ConnectWallet from "@/components/ConnectWallet";
 import PageShell from "@/components/site/PageShell";
 import PostTaskModal from "@/components/PostTaskModal";
-import JudgePanel from "@/components/JudgePanel";
 import CourtRoom from "@/components/CourtRoom";
 import AgentWorkPanel, { AgentPanelSavedState } from "@/components/AgentWorkPanel";
-import { useMessages, useLocale } from "@/lib/i18n";
+import { AgentChip, FeatureIcon, TaskStatusBadge } from "@/components/site/bits";
+import { useLocale } from "@/lib/i18n";
 import { useT } from "@/lib/ui/copy";
-
-import { Task, AgentState, JudgeState, FeedEntry, TxEntry } from "@/lib/types";
-import { AGENT_API_POLL_MS, POLL_INTERVAL_MS, shortenAddress, explorerTx, usdcToStroops } from "@/lib/constants";
+import type { Task, TxEntry } from "@/lib/types";
+import { POLL_INTERVAL_MS, usdcToStroops } from "@/lib/constants";
 import { fetchUsdcBalance, EXPLORER_TX } from "@/lib/stellar";
 import { settleAsPoster, signTaskDelete } from "@/lib/sorobanEscrow";
-import { activityFromTasks, displayStatus, isAcceptingSubmissions, isEnded, sortForPool, txFromEscrowEvents } from "@/lib/dashboardData";
+import { isAcceptingSubmissions, txFromEscrowEvents } from "@/lib/dashboardData";
+import {
+  countdown, formatXlm, rewardXlm, shortKey, standings, taskBody, taskTitle, useJson, useNow,
+} from "@/lib/ui/tasks";
+import { isTeamAddress } from "@/lib/ui/team";
 import s from "./dashboard.module.css";
 
-// Real registered agents are loaded from /api/agents/list; no demo agents.
-const DEFAULT_AGENTS: AgentState[] = [];
-const AGENT_COLORS = ["#3dd68c", "#8ab4ff", "#f5b83d", "#ff8a5c", "#b98cff", "#5fd4c8"];
-const DEFAULT_JUDGES: JudgeState = {
-  TeknikHakem: "READY", KullanılabilirlikHakemi: "READY", KapsamHakemi: "READY",
-};
-
-/** Submitter with the best average judge score, or undefined if nobody was judged. */
+/** Submitter with the best average judge score (same rule the poster settle has always used). */
 function bestJudgedSubmitter(task: Task): string | undefined {
   let best: { agent: string; avg: number } | undefined;
   for (const sub of task.submissions || []) {
@@ -39,106 +34,121 @@ function bestJudgedSubmitter(task: Task): string | undefined {
   return best?.agent;
 }
 
-type LogFilterKey = "all" | "net" | "sys";
-function logEntryMatchesFilter(entry: FeedEntry, f: LogFilterKey): boolean {
-  if (f === "all") return true;
-  const ic = (entry.icon || "").toLowerCase();
-  const ag = (entry.agent || "").toLowerCase();
-  if (f === "sys") return ["tx", "sys", "judge"].includes(ic) || ag.includes("hakem") || ag === "judge" || ag === "tx";
-  if (f === "net") return ic === "net" || ag.includes("network") || ic === "alpha" || ic === "beta";
-  return true;
+type LocalEvent = { id: number; at: number; text: { en: string; tr: string }; kind: "post" | "paid" | "court" | "error" };
+type ActFilter = "all" | "subs" | "escrow";
+type DrawerTab = "summary" | "agents" | "court";
+
+const JUDGE = [
+  { en: "Technical", tr: "Teknik" },
+  { en: "Usability", tr: "Kullanılabilirlik" },
+  { en: "Completeness", tr: "Kapsam" },
+];
+
+function txKind(type: string): { key: "post" | "paid" | "refund" | "dispute" | "other"; en: string; tr: string } {
+  const t = type.toLowerCase();
+  if (t.startsWith("post")) return { key: "post", en: "Reward locked", tr: "Ödül kilitlendi" };
+  if (t.includes("settle") || t.includes("release") || t.includes("reward")) return { key: "paid", en: "Paid to winner", tr: "Kazanana ödendi" };
+  if (t.includes("refund")) return { key: "refund", en: "Refunded", tr: "İade edildi" };
+  if (t.includes("dispute") || t.includes("resolve") || t.includes("rule")) return { key: "dispute", en: "Dispute", tr: "İtiraz" };
+  return { key: "other", en: type.replace("()", ""), tr: type.replace("()", "") };
 }
 
-/** Badge class and label key for a task status in the new UI kit. */
-function statusBadge(status: string): string {
-  if (status === "Open") return "ui-badge ui-badge-live ui-badge-dot";
-  if (status === "UnderReview") return "ui-badge ui-badge-gold";
-  if (status === "AwaitingDecision") return "ui-badge ui-badge-blue";
-  if (status === "Settled" || status === "Resolved") return "ui-badge ui-badge-gold";
-  if (status === "Disputed") return "ui-badge ui-badge-red";
-  return "ui-badge";
-}
-
-const STATUS_LABEL: Record<string, { en: string; tr: string }> = {
-  Open: { en: "Live", tr: "Canlı" },
-  UnderReview: { en: "Under review", tr: "İnceleniyor" },
-  AwaitingDecision: { en: "Awaiting decision", tr: "Karar bekliyor" },
-  Settled: { en: "Paid", tr: "Ödendi" },
-  Disputed: { en: "In dispute", tr: "İtirazda" },
-  Resolved: { en: "Resolved", tr: "Çözüldü" },
-  Stopped: { en: "Stopped", tr: "Durduruldu" },
-  Refunded: { en: "Refunded", tr: "İade edildi" },
-  Expired: { en: "Ended", tr: "Bitti" },
-};
-
-function Countdown({ deadline }: { deadline: number }) {
-  const { locale } = useLocale();
-  const ended = locale === "tr" ? "Bitti" : "Ended";
-  const [rem, setRem] = useState("");
-  const [urgent, setUrgent] = useState(false);
-  useEffect(() => {
-    const tick = () => {
-      const d = deadline - Math.floor(Date.now() / 1000);
-      if (d <= 0) { setRem(ended); setUrgent(false); return; }
-      setUrgent(d < 3600);
-      const days = Math.floor(d / 86400);
-      const h = Math.floor((d % 86400) / 3600); const m = Math.floor((d % 3600) / 60); const sec = d % 60;
-      setRem(days > 0 ? `${days}d ${h}h` : h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m ${String(sec).padStart(2, "0")}s`);
-    };
-    tick(); const id = setInterval(tick, 1000); return () => clearInterval(id);
-  }, [deadline, ended]);
-  return <span className="ui-mono ui-num" style={{ fontSize: 12, color: urgent ? "var(--yellow)" : "var(--text-muted)" }}>{rem}</span>;
-}
-
-function txColor(type: string): string {
-  if (type.includes("release") || type.includes("settle") || type.includes("reward")) return "var(--green)";
-  if (type.includes("dispute") || type.includes("resolve") || type.includes("refund")) return "var(--red)";
-  return "var(--accent)";
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   DASHBOARD
-═══════════════════════════════════════════════════════════════════════════ */
 export default function Dashboard() {
-  const ui = useMessages().ui;
-  const pl = ui.panels;
-  const sf = ui.sidebarFleet;
+  const t = useT();
   const { locale } = useLocale();
+  const tr = locale === "tr";
+  const now = useNow(1000);
   const { publicKey, connected } = useWallet();
-  const router = useRouter();
 
-  const [tasks, setTasks]               = useState<Task[]>([]);
-  const [agents, setAgents]             = useState<AgentState[]>(DEFAULT_AGENTS);
-  const [judges, setJudges]             = useState<JudgeState>(DEFAULT_JUDGES);
-  const [feed, setFeed]                 = useState<FeedEntry[]>([]);
-  const [txLog, setTxLog]               = useState<TxEntry[]>([]);
-  const [escrowTx, setEscrowTx]         = useState<TxEntry[]>([]);
-  const [agentTotal, setAgentTotal]     = useState(0);
-  const [showEnded, setShowEnded]       = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [showPostModal, setShowPostModal] = useState(false);
-  const [centerTab, setCenterTab]       = useState<"detail" | "agent" | "court">("detail");
-  const [usdcBalance, setUsdcBalance]     = useState<number | null>(null);
-  const [courtData, setCourtData]       = useState<{ agentResult: string; disputeReason: string } | null>(null);
-  const [agentPanelTaskId, setAgentPanelTaskId] = useState<number | null>(null);
-  const [agentPanelStates, setAgentPanelStates] = useState<Record<number, AgentPanelSavedState>>({});
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [escrowTx, setEscrowTx] = useState<TxEntry[]>([]);
+  const [events, setEvents] = useState<LocalEvent[]>([]);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [selected, setSelected] = useState<Task | null>(null);
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>("summary");
+  const [showPost, setShowPost] = useState(false);
+  const [actFilter, setActFilter] = useState<ActFilter>("all");
+  const [showPast, setShowPast] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
-  const [editingTask, setEditingTask]   = useState<Task | null>(null);
+  const [settling, setSettling] = useState(false);
+  const [courtData, setCourtData] = useState<{ agentResult: string; disputeReason: string } | null>(null);
+  const [agentPanelStates, setAgentPanelStates] = useState<Record<number, AgentPanelSavedState>>({});
 
-  const [logFilter, setLogFilter]       = useState<LogFilterKey>("all");
-  const [mobileTab, setMobileTab]       = useState<"tasks" | "live" | "tx">("live");
+  const { data: league } = useJson<{ entries?: { agent: string; agentKey: string }[] }>("/api/league/leaderboard", 60000);
+  const { data: registry } = useJson<{ count?: number; agents?: { pubkey: string; name: string }[] }>("/api/agents/list", 60000);
 
+  const names = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const a of registry?.agents ?? []) m.set(shortKey(a.pubkey), a.name);
+    for (const e of league?.entries ?? []) m.set(e.agentKey, e.agent);
+    return m;
+  }, [registry, league]);
+  const nameOf = (k: string) => names.get(shortKey(k));
+
+  // Tasks
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await fetch("/api/tasks", { cache: "no-store" });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (alive && Array.isArray(d.tasks)) { setTasks(d.tasks); setLoaded(true); }
+      } catch { /* keep last */ }
+    };
+    load();
+    const id = setInterval(load, POLL_INTERVAL_MS);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  // Keep the open drawer in sync with fresh task data
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = tasks.find((x) => x.id === selected.id);
+    if (fresh && fresh !== selected && fresh.status === selected.status) setSelected(fresh);
+  }, [tasks]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Escrow events
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      try {
+        const r = await fetch("/api/reputation/events");
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!Array.isArray(d.events)) return;
+        const rows = await txFromEscrowEvents(d.events, 60);
+        if (alive) setEscrowTx(rows);
+      } catch { /* ignore */ }
+    };
+    load();
+    const id = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  // Wallet balance
+  useEffect(() => {
+    if (!publicKey) { setBalance(null); return; }
+    const load = async () => {
+      try { const { usdc } = await fetchUsdcBalance(publicKey); setBalance(parseFloat(usdc)); } catch { /* ignore */ }
+    };
+    load();
+    const id = setInterval(load, 15000);
+    return () => clearInterval(id);
+  }, [publicKey]);
+
+  const pushEvent = (kind: LocalEvent["kind"], text: LocalEvent["text"]) =>
+    setEvents((p) => [{ id: Date.now() + Math.random(), at: Math.floor(Date.now() / 1000), kind, text }, ...p].slice(0, 30));
+
+  /* ── Actions (logic unchanged from the previous dashboard) ───────────── */
   async function deleteTask(id: number) {
-    // Drop it locally first so the UI responds immediately, then delete the
-    // record server-side. Without the server call the task simply reappeared on
-    // the next poll, which is what made "delete" look broken.
     const previous = tasks;
-    const target = tasks.find((t) => t.id === id);
-    setTasks((p) => p.filter((t) => t.id !== id));
-    if (selectedTask?.id === id) setSelectedTask(null);
+    const target = tasks.find((x) => x.id === id);
+    setTasks((p) => p.filter((x) => x.id !== id));
+    if (selected?.id === id) setSelected(null);
     setDeleteConfirm(null);
     try {
-      // A gated task (Gladiator-only or a League entry mark) needs the poster's signature.
       const gated = target?.contractTaskId !== undefined && (target.gladiatorOnly === true || target.minQualifierScore !== undefined);
       const proof = gated && publicKey ? await signTaskDelete(target!.contractTaskId!, publicKey) : {};
       const res = await fetch(`/api/tasks/${id}`, {
@@ -148,7 +158,7 @@ export default function Dashboard() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.success) {
-        setTasks(previous); // server refused: put it back rather than lie
+        setTasks(previous);
         alert(data?.error || "Task could not be deleted.");
       }
     } catch {
@@ -157,613 +167,518 @@ export default function Dashboard() {
     }
   }
 
-  // Load real registered agents from the registry (no demo data). The feed
-  // stays empty until real platform events (task posted / settled) occur.
-  useEffect(() => {
-    let cancelled = false;
-    const loadAgents = async () => {
-      try {
-        // Registered agents and the built-in demo agents are merged here, in one
-        // place, so the list is deterministic. Doing the merge in two separate
-        // pollers is what previously made it flip-flop between the two sets.
-        const [regRes, stateRes] = await Promise.all([
-          fetch("/api/agents/list"),
-          fetch("/api/state").catch(() => null),
-        ]);
-        if (!regRes.ok) return;
-        const data = await regRes.json();
-        if (cancelled || !Array.isArray(data.agents)) return;
-        if (Number.isFinite(Number(data.count))) setAgentTotal(Number(data.count));
-
-        const registered: AgentState[] = data.agents.map((a: any) => ({
-          name: a.name,
-          pubkey: a.pubkey,
-          status: a.isOnline ? "SCANNING" : "IDLE",
-          tasksCompleted: a.stats?.tasksCompleted ?? 0,
-          totalScore: a.stats?.totalScore ?? 0,
-          x402Spending: a.stats?.x402Spent ?? 0,
-          currentTaskId: null,
-          color: "",
-        }));
-
-        // Demo agents keep the fleet populated while real adoption is early.
-        let demo: AgentState[] = [];
-        if (stateRes?.ok) {
-          const s = await stateRes.json().catch(() => null);
-          if (Array.isArray(s?.agents)) {
-            const known = new Set(registered.map((a) => a.pubkey));
-            demo = s.agents
-              .filter((a: any) => a?.pubkey && !known.has(a.pubkey))
-              .map((a: any) => ({ ...a, color: "" } as AgentState));
-          }
-        }
-
-        if (cancelled) return;
-        setAgents(
-          [...registered, ...demo].map((a, i) => ({
-            ...a,
-            color: AGENT_COLORS[i % AGENT_COLORS.length],
-          }))
-        );
-      } catch { /* registry empty / offline */ }
-    };
-    loadAgents();
-    const id = setInterval(loadAgents, 15000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
-
-
-  // The dashboard is a public live view: it never redirects. Posting needs a connected wallet.
-
-
-  // API polls
-  useEffect(() => {
-    async function poll() {
-      try {
-        const res = await fetch("/api/state"); if (!res.ok) return;
-        const data = await res.json();
-        // Agents come solely from /api/agents/list (the real registry). Do not
-        // let the /api/state simulator overwrite them, or the list flip-flops
-        // between real agents and demo agents on every poll.
-        if (data.judges) setJudges(data.judges);
-        if (data.feed?.length) setFeed((prev) => {
-          const ne = data.feed.filter((e: FeedEntry) => !prev.some((p) => p.id === e.id));
-          return ne.length ? [...ne, ...prev].slice(0, 120) : prev;
-        });
-        if (data.txLog?.length) setTxLog((prev) => {
-          const nt = data.txLog.filter((t: TxEntry) => !prev.some((p) => p.id === t.id));
-          return nt.length ? [...nt, ...prev].slice(0, 60) : prev;
-        });
-      } catch (_) {}
-    }
-    poll(); const id = setInterval(poll, AGENT_API_POLL_MS); return () => clearInterval(id);
-  }, []);
-
-  // The TX column shows the escrow's own on-chain events, newest first.
-  useEffect(() => {
-    let cancelled = false;
-    async function loadEscrow() {
-      try {
-        const res = await fetch("/api/reputation/events");
-        if (!res.ok) return;
-        const d = await res.json();
-        if (!Array.isArray(d.events)) return;
-        const rows = await txFromEscrowEvents(d.events);
-        if (!cancelled) setEscrowTx(rows);
-      } catch (_) {}
-    }
-    loadEscrow();
-    const id = setInterval(loadEscrow, 60000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, []);
-
-  useEffect(() => {
-    async function pollTasks() {
-      try {
-        const res = await fetch("/api/tasks");
-        if (res.ok) {
-          const d = await res.json();
-          if (d.tasks?.length) setTasks(d.tasks);
-        }
-      } catch (_) {}
-    }
-    pollTasks();
-    const id = setInterval(pollTasks, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    if (!publicKey) { setUsdcBalance(null); return; }
-    const bal = async () => {
-      try {
-        const { usdc } = await fetchUsdcBalance(publicKey);
-        setUsdcBalance(parseFloat(usdc));
-      } catch (_) {}
-    };
-    bal(); const id = setInterval(bal, 12000); return () => clearInterval(id);
-  }, [publicKey]);
-
   function handleTaskPosted(txHash: string, taskId: number, description: string, criteria: string, rewardUsdc: number, deadlineMinutes: number, taskType?: import("@/lib/types").TaskType, outputFormat?: import("@/lib/types").OutputFormat, meta?: import("@/components/PostTaskModal").PostTaskMeta) {
-    const now = new Date();
-    const tloc = locale === "tr" ? "tr-TR" : "en-US";
-    const explorerUrl = EXPLORER_TX(txHash);
-    setTasks((prev) => [{ id: taskId, poster: publicKey?.toString() || "Demo", description, criteria, reward: Number(usdcToStroops(rewardUsdc)), rewardUsdc, deadline: Math.floor(Date.now() / 1000) + deadlineMinutes * 60, status: "Open", submissions: [], verdicts: [], taskType, outputFormat, contractTaskId: meta?.contractTaskId, escrowContractId: meta?.escrowContractId, postTxHash: txHash }, ...prev]);
-    setFeed((prev) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.taskPosted(taskId, rewardUsdc.toFixed(4)), icon: "tx", agent: "tx" }, ...prev]);
-    setTxLog((prev) => [{ id: Date.now(), type: "post_task()", hash: txHash, taskId, amount: `${rewardUsdc.toFixed(4)} XLM`, time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...prev]);
-    setShowPostModal(false);
+    setTasks((prev) => [{
+      id: taskId, poster: publicKey?.toString() || "", description, criteria, reward: Number(usdcToStroops(rewardUsdc)), rewardUsdc,
+      deadline: Math.floor(Date.now() / 1000) + deadlineMinutes * 60, status: "Open", submissions: [], verdicts: [], taskType, outputFormat,
+      contractTaskId: meta?.contractTaskId, escrowContractId: meta?.escrowContractId, postTxHash: txHash,
+    }, ...prev]);
+    pushEvent("post", { en: `You opened task #${taskId} and locked ${formatXlm(rewardUsdc, 4)} XLM`, tr: `#${taskId} görevini açtın, ${formatXlm(rewardUsdc, 4)} XLM kilitlendi` });
+    setShowPost(false);
   }
 
   function handleAssignTask(task: Task) {
-    const now = new Date();
-    const tloc = locale === "tr" ? "tr-TR" : "en-US";
-    setTasks((p) => p.map((tk) => tk.id === task.id ? { ...tk, status: "UnderReview" } : tk));
-    setSelectedTask((p) => p?.id === task.id ? { ...p, status: "UnderReview" } : p);
-    setAgentPanelTaskId(task.id); setCenterTab("agent");
-    setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.assigned(task.id), icon: "alpha", agent: "Nova" }, ...p]);
+    setTasks((p) => p.map((x) => (x.id === task.id ? { ...x, status: "UnderReview" } : x)));
+    setSelected((p) => (p?.id === task.id ? { ...p, status: "UnderReview" } : p));
+    setDrawerTab("agents");
   }
 
   function handleJudgesComplete(taskId: number) {
-    setTasks((p) => p.map((t) => t.id === taskId ? { ...t, status: "AwaitingDecision" } : t));
-    setSelectedTask((p) => p?.id === taskId ? { ...p, status: "AwaitingDecision" } : p);
+    setTasks((p) => p.map((x) => (x.id === taskId ? { ...x, status: "AwaitingDecision" } : x)));
+    setSelected((p) => (p?.id === taskId ? { ...p, status: "AwaitingDecision" } : p));
   }
 
-  async function handleAgentApprove(_agentResult: string, _txHash: string) {
-    if (!selectedTask) return;
-    const now = new Date();
-    const tloc = locale === "tr" ? "tr-TR" : "en-US";
-    const reward = (selectedTask.rewardUsdc ?? 0).toFixed(4);
-    const stamp = { id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }) };
-
-    // Release the XLM reward from the Soroban escrow contract to the best
-    // judged submitter: the settle route pays only an agent that submitted and
-    // was judged, and the contract re-checks the score.
-    const winner = bestJudgedSubmitter(selectedTask);
+  async function releaseReward() {
+    if (!selected) return;
+    const task = selected;
+    const winner = bestJudgedSubmitter(task);
+    setSettling(true);
     let data: any = null;
     let error = "";
     try {
-      if (!publicKey || selectedTask.contractTaskId === undefined) {
-        throw new Error("poster wallet and escrowed task are required");
-      }
+      if (!publicKey || task.contractTaskId === undefined) throw new Error("poster wallet and escrowed task are required");
       if (!winner) throw new Error("no judged submission to pay");
-      // The poster authorizes the release with a SEP-53 signature.
-      data = await settleAsPoster({
-        taskId: selectedTask.id,
-        contractTaskId: selectedTask.contractTaskId,
-        posterAddress: publicKey.toString(),
-        winnerAddress: winner,
-      });
+      data = await settleAsPoster({ taskId: task.id, contractTaskId: task.contractTaskId, posterAddress: publicKey.toString(), winnerAddress: winner });
       if (!data?.success) error = data?.error || "settlement failed";
     } catch (e: any) {
       error = e?.message || "settlement failed";
     }
+    setSettling(false);
     if (error) {
-      // Nothing moved on chain, so nothing is shown as settled.
-      setFeed((p) => [{ ...stamp, message: ui.feedDyn.settleFailed(selectedTask.id, error), icon: "tx", agent: "tx" }, ...p]);
+      pushEvent("error", { en: `Payment for #${task.id} failed: ${error}`, tr: `#${task.id} için ödeme yapılamadı: ${error}` });
       return;
     }
-
-    const finalHash: string = data.hash;
-    const explorerUrl: string = data.explorerUrl || EXPLORER_TX(data.hash);
+    const hash: string = data.hash;
     const winnerStellar: string | undefined = data.winnerAddress;
-    const winnerName = agents.find((a) => a.pubkey === winner)?.name || shortenAddress(winnerStellar ?? winner ?? "");
-    setTasks((p) => p.map((t) => t.id === selectedTask.id ? { ...t, status: "Settled", settleTxHash: finalHash, winnerStellarAddress: winnerStellar ?? t.winnerStellarAddress } : t));
-    setSelectedTask((p) => p?.id === selectedTask.id ? { ...p, status: "Settled", settleTxHash: finalHash, winnerStellarAddress: winnerStellar ?? p.winnerStellarAddress } : p);
-    setFeed((p) => [{ ...stamp, message: ui.feedDyn.approved(selectedTask.id, reward), icon: "tx", agent: "tx" }, ...p]);
-    setTxLog((p) => [{ id: Date.now(), type: "release_to_winner()", hash: finalHash, taskId: selectedTask.id, amount: `+${reward} XLM`, winner: winnerName.toLowerCase(), time: now.toISOString(), explorerUrl, slot: 0, ms: 0, highlight: true }, ...p]);
+    setTasks((p) => p.map((x) => (x.id === task.id ? { ...x, status: "Settled", settleTxHash: hash, winnerStellarAddress: winnerStellar ?? x.winnerStellarAddress } : x)));
+    setSelected((p) => (p?.id === task.id ? { ...p, status: "Settled", settleTxHash: hash, winnerStellarAddress: winnerStellar ?? p.winnerStellarAddress } : p));
+    pushEvent("paid", { en: `#${task.id} paid: ${formatXlm(rewardXlm(task), 4)} XLM to the winner`, tr: `#${task.id} ödendi: ${formatXlm(rewardXlm(task), 4)} XLM kazanana gitti` });
   }
 
   function handleAgentReject(agentResult: string, reason: string) {
-    if (!selectedTask) return;
-    const now = new Date();
-    const tloc = locale === "tr" ? "tr-TR" : "en-US";
-    setTasks((p) => p.map((t) => t.id === selectedTask.id ? { ...t, status: "Disputed" } : t));
-    setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.court(selectedTask.id), icon: "judge", agent: "judge" }, ...p]);
-    setCourtData({ agentResult, disputeReason: reason }); setCenterTab("court");
+    if (!selected) return;
+    setTasks((p) => p.map((x) => (x.id === selected.id ? { ...x, status: "Disputed" } : x)));
+    setCourtData({ agentResult, disputeReason: reason });
+    setDrawerTab("court");
   }
 
+  /* ── Derived data ────────────────────────────────────────────────────── */
+  const live = useMemo(() => tasks.filter(isAcceptingSubmissions).sort((a, b) => a.deadline - b.deadline), [tasks]);
+  const past = useMemo(() => tasks.filter((x) => !isAcceptingSubmissions(x)).sort((a, b) => b.id - a.id), [tasks]);
+  const mine = useMemo(() => (publicKey ? tasks.filter((x) => x.poster === publicKey.toString()).sort((a, b) => b.id - a.id) : []), [tasks, publicKey]);
+  const locked = live.reduce((acc, x) => acc + rewardXlm(x), 0);
+  const day = Math.floor(now / 1000) - 86400;
+  const judged24 = tasks.reduce((acc, x) => acc + standings(x).filter((r) => r.submittedAt >= day && r.submittedAt !== Number.MAX_SAFE_INTEGER).length, 0);
+  const paidRows = escrowTx.filter((e) => txKind(e.type).key === "paid");
+  const paidTotal = paidRows.reduce((acc, e) => acc + (parseFloat(String(e.amount || "0")) || 0), 0);
 
-  const t = useT();
-  const dash = ui.dashboard;
-  const JUDGE_NAMES = ["TeknikHakem", "KullanılabilirlikHakemi", "KapsamHakemi"] as const;
-  const JUDGE_LABELS = ui.judgeNames;
+  const siteIdOf = (contractTaskId?: number) => {
+    if (contractTaskId === undefined) return undefined;
+    const site = tasks.find((x) => x.contractTaskId === contractTaskId);
+    return site ? site.id : contractTaskId > 1e6 ? undefined : contractTaskId;
+  };
 
-  const openCount = tasks.filter(isAcceptingSubmissions).length;
-  const settledCount = tasks.filter((x) => x.status === "Settled" || x.status === "Resolved").length;
-  const endedCount = tasks.filter(isEnded).length;
-  const poolTasks = sortForPool(tasks).filter((x) => showEnded || !isEnded(x));
+  type Act = { key: string; at: number; kind: "sub" | "paid" | "post" | "refund" | "dispute" | "local"; agent?: string; task?: Task; taskId?: number; score?: number; amount?: string; text?: { en: string; tr: string }; href?: string };
+  const activity: Act[] = useMemo(() => {
+    const out: Act[] = [];
+    for (const task of tasks) {
+      for (const r of standings(task)) {
+        if (r.submittedAt === Number.MAX_SAFE_INTEGER) continue;
+        out.push({ key: `s-${task.id}-${r.agent}`, at: r.submittedAt, kind: "sub", agent: r.agent, task, score: r.avg });
+      }
+    }
+    for (const e of escrowTx) {
+      const k = txKind(e.type).key;
+      const at = e.time ? Math.floor(new Date(e.time).getTime() / 1000) : 0;
+      if (!at || k === "other") continue;
+      out.push({ key: `e-${e.id}`, at, kind: k, agent: e.winner, taskId: siteIdOf(e.taskId), amount: e.amount, href: e.explorerUrl });
+    }
+    for (const ev of events) out.push({ key: `l-${ev.id}`, at: ev.at, kind: "local", text: ev.text });
+    return out.sort((a, b) => b.at - a.at);
+  }, [tasks, escrowTx, events]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const activity = feed.length ? feed : activityFromTasks(tasks);
-  const shownActivity = useMemo(() => activity.filter((e) => logEntryMatchesFilter(e, logFilter)), [activity, logFilter]);
+  const shownActivity = activity.filter((a) => actFilter === "all" || (actFilter === "subs" ? a.kind === "sub" : a.kind !== "sub")).slice(0, 40);
 
-  // Agents competing right now first (they may be missing from the paged registry list).
-  const activeKeys = useMemo(
-    () => new Set(tasks.filter(isAcceptingSubmissions).flatMap((x) => [...(x.submissions ?? []).map((sub) => sub.agent), ...(x.claims ?? []).map((c) => c.agent)])),
-    [tasks]
-  );
-  const activeAgents = useMemo(() => {
-    const known = new Map(agents.map((a) => [a.pubkey, a]));
-    return Array.from(activeKeys).map((k, i) => known.get(k) ?? ({
-      name: `${k.slice(0, 4)}…${k.slice(-4)}`, pubkey: k, status: "WORKING", tasksCompleted: 0, totalScore: 0, x402Spending: 0, currentTaskId: null,
-      color: AGENT_COLORS[i % AGENT_COLORS.length],
-    } as AgentState));
-  }, [agents, activeKeys]);
+  const topAgents = useMemo(() => {
+    const by = new Map<string, { scores: number[]; wins: number }>();
+    for (const task of tasks) {
+      for (const r of standings(task)) {
+        if (!by.has(r.agent)) by.set(r.agent, { scores: [], wins: 0 });
+        by.get(r.agent)!.scores.push(r.avg);
+      }
+      const w = task.winnerStellarAddress || task.winner;
+      if ((task.status === "Settled" || task.status === "Resolved") && w && by.has(w)) by.get(w)!.wins++;
+    }
+    return Array.from(by.entries())
+      .filter(([k]) => !isTeamAddress(k))
+      .map(([k, v]) => ({ agent: k, avg: Math.round(v.scores.reduce((a, b) => a + b, 0) / v.scores.length), n: v.scores.length, wins: v.wins }))
+      .sort((a, b) => b.avg - a.avg || b.n - a.n)
+      .slice(0, 6);
+  }, [tasks]);
 
-  const txRows = [...txLog, ...escrowTx.filter((e) => !txLog.some((x) => x.hash === e.hash))].map((e) => {
-    const site = tasks.find((x) => x.contractTaskId !== undefined && x.contractTaskId === e.taskId);
-    return site ? { ...e, taskId: site.id } : e.taskId !== undefined && e.taskId > 1e6 ? { ...e, taskId: undefined } : e;
-  });
+  const ago = (sec: number) => {
+    const d = Math.max(0, Math.floor(now / 1000 - sec));
+    if (d < 60) return tr ? "az önce" : "just now";
+    if (d < 3600) return tr ? `${Math.floor(d / 60)} dk önce` : `${Math.floor(d / 60)}m ago`;
+    if (d < 86400) return tr ? `${Math.floor(d / 3600)} sa önce` : `${Math.floor(d / 3600)}h ago`;
+    return tr ? `${Math.floor(d / 86400)} gün önce` : `${Math.floor(d / 86400)}d ago`;
+  };
 
-  const openPost = () => { if (connected) setShowPostModal(true); };
+  const openTask = (task: Task) => { setSelected(task); setDrawerTab("summary"); };
+  const closeDrawer = () => { setSelected(null); setDrawerTab("summary"); setCourtData(null); };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") closeDrawer(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Columns ─────────────────────────────────────────────────────────── */
-  const tasksColumn = (
-    <section className={`ui-card ${s.col}`} aria-label={t({ en: "Task pool", tr: "Görev havuzu" })}>
-      <header className={s.colHead}>
-        <div>
-          <div className="ui-h3" style={{ fontSize: 16 }}>{t({ en: "Task pool", tr: "Görev havuzu" })}</div>
-          <div className="ui-small">{t({ en: `${openCount} live, ${tasks.length} total`, tr: `${openCount} canlı, toplam ${tasks.length}` })}</div>
+  const postTask = () => { if (connected) setShowPost(true); else document.getElementById("dash-connect")?.scrollIntoView({ behavior: "smooth", block: "center" }); };
+
+  /* ── Pieces ──────────────────────────────────────────────────────────── */
+  const TaskRow = ({ task, own }: { task: Task; own?: boolean }) => {
+    const top = standings(task)[0];
+    const isLive = isAcceptingSubmissions(task);
+    const left = isLive ? countdown(task.deadline, now, tr) : null;
+    return (
+      <div className={s.taskRow} role="button" tabIndex={0} onClick={() => openTask(task)} onKeyDown={(e) => { if (e.key === "Enter") openTask(task); }} aria-label={taskTitle(task, 80)}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span className="ui-mono ui-muted" style={{ fontSize: 12 }}>#{task.id}</span>
+            <TaskStatusBadge task={task} />
+            {task.gladiatorOnly && <span className="ui-badge ui-badge-gold">{t({ en: "League final", tr: "Lig finali" })}</span>}
+          </div>
+          <div className={s.taskTitle}>{taskTitle(task, 90)}</div>
+          <div className="ui-small" style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6 }}>
+            <span>{task.submissions?.length ?? 0} {t({ en: "entries", tr: "teslim" })}</span>
+            <span>{task.claims?.length ?? 0} {t({ en: "working on it", tr: "üstlenen" })}</span>
+            {top && <span>{t({ en: "leader", tr: "lider" })} <b style={{ color: "var(--text-primary)" }}>{nameOf(top.agent) ?? shortKey(top.agent)}</b> <b style={{ color: "var(--gold)" }}>{top.avg}</b></span>}
+          </div>
         </div>
-        {connected && (
-          <button type="button" className="ui-btn ui-btn-primary ui-btn-sm" onClick={openPost}>+ {t({ en: "Post", tr: "Görev aç" })}</button>
-        )}
-      </header>
-      <div className={s.colBody}>
-        {tasks.length === 0 ? (
-          <div className="ui-empty">{pl.emptyMissions}</div>
-        ) : poolTasks.map((task) => {
-          const rew = (task.rewardUsdc ?? task.reward / 1e7);
-          const isSelected = selectedTask?.id === task.id;
-          const shownStatus = displayStatus(task);
-          const isPoster = !!publicKey && task.poster === publicKey.toString();
-          return (
-            <div key={task.id}>
-              <div
-                role="button"
-                tabIndex={0}
-                className={`${s.taskRow}${isSelected ? ` ${s.taskRowOn}` : ""}`}
-                onClick={() => { setSelectedTask(task); setCenterTab("detail"); setMobileTab("live"); }}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedTask(task); setCenterTab("detail"); setMobileTab("live"); } }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span className={statusBadge(shownStatus)}>{t(STATUS_LABEL[shownStatus] ?? { en: shownStatus, tr: shownStatus })}</span>
-                  <span className="ui-mono ui-muted" style={{ fontSize: 12 }}>#{task.id}</span>
-                  {isPoster && (
-                    <button
-                      type="button"
-                      className={s.iconGhost}
-                      onClick={(e) => { e.stopPropagation(); setDeleteConfirm(deleteConfirm === task.id ? null : task.id); }}
-                      title={ui.sidebar.removeTitle}
-                      aria-label={ui.sidebar.removeTitle}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>
-                    </button>
-                  )}
-                </div>
-                <div className={s.taskText}>{task.description}</div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
-                  <span className="ui-num" style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: 14 }}>{rew.toLocaleString("en-US", { maximumFractionDigits: 4 })} XLM</span>
-                  <Countdown deadline={task.deadline} />
-                </div>
-              </div>
-              {deleteConfirm === task.id && (
-                <div className={s.confirm} onClick={(e) => e.stopPropagation()}>
-                  <div className="ui-small" style={{ marginBottom: 10 }}>{ui.sidebar.removeConfirm}</div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button type="button" className="ui-btn ui-btn-sm" style={{ flex: 1, background: "var(--red-dim)", color: "var(--red)" }} onClick={() => deleteTask(task.id)}>{dash.remove}</button>
-                    <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" style={{ flex: 1 }} onClick={() => setDeleteConfirm(null)}>{dash.cancel}</button>
-                  </div>
-                </div>
+        <div className={s.taskSide}>
+          <div className="ui-num" style={{ fontFamily: "var(--font-head)", fontWeight: 700, fontSize: 18, color: "var(--text-primary)" }}>
+            {formatXlm(rewardXlm(task), 4)} <span style={{ fontSize: 12, color: "var(--text-muted)" }}>XLM</span>
+          </div>
+          {left && <div className="ui-mono ui-num" style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 3 }}>{t({ en: `${left} left`, tr: `${left} kaldı` })}</div>}
+          {own && (
+            <div style={{ marginTop: 8 }} onClick={(e) => e.stopPropagation()}>
+              {deleteConfirm === task.id ? (
+                <span style={{ display: "inline-flex", gap: 6 }}>
+                  <button type="button" className="ui-btn ui-btn-sm" style={{ background: "var(--red-dim)", color: "var(--red)" }} onClick={() => deleteTask(task.id)}>{t({ en: "Delete", tr: "Sil" })}</button>
+                  <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => setDeleteConfirm(null)}>{t({ en: "Cancel", tr: "Vazgeç" })}</button>
+                </span>
+              ) : (
+                <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => setDeleteConfirm(task.id)}>{t({ en: "Delete", tr: "Sil" })}</button>
               )}
             </div>
-          );
-        })}
-        {endedCount > 0 && (
-          <button type="button" className={s.endedToggle} onClick={() => setShowEnded((v) => !v)}>
-            {showEnded ? t({ en: "Hide ended tasks", tr: "Biten görevleri gizle" }) : t({ en: `Show ${endedCount} ended tasks`, tr: `Biten ${endedCount} görevi göster` })}
-          </button>
-        )}
-      </div>
-    </section>
-  );
-
-  const liveColumn = !selectedTask ? (
-    <section className={`ui-card ${s.col}`} aria-label={t({ en: "Live activity", tr: "Canlı akış" })}>
-      <header className={s.colHead}>
-        <div>
-          <div className="ui-h3" style={{ fontSize: 16, display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 20, padding: "0 8px", fontSize: 11 }}>{t({ en: "Live", tr: "Canlı" })}</span>
-            {t({ en: "Activity", tr: "Akış" })}
-          </div>
-          <div className="ui-small">{t({ en: "Submissions, judge scores and escrow events", tr: "Teslimler, hakem puanları ve escrow hareketleri" })}</div>
-        </div>
-        <div className="ui-tabs" role="tablist">
-          {([["all", t({ en: "All", tr: "Tümü" })], ["net", t({ en: "Agents", tr: "Agent'lar" })], ["sys", t({ en: "System", tr: "Sistem" })]] as [LogFilterKey, string][]).map(([k, label]) => (
-            <button key={k} type="button" role="tab" className="ui-tab" aria-selected={logFilter === k} onClick={() => setLogFilter(k)} style={{ height: 28, padding: "0 10px", fontSize: 12 }}>{label}</button>
-          ))}
-        </div>
-      </header>
-
-      {/* Agents in play + judges */}
-      <div className={s.strip}>
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="ui-small" style={{ marginBottom: 8 }}>{t({ en: "Agents in live tasks", tr: "Canlı görevlerdeki agent'lar" })}</div>
-          {activeAgents.length === 0 ? (
-            <div className="ui-small">{t({ en: "No agent is working on a live task right now.", tr: "Şu an canlı görevlerde çalışan agent yok." })}</div>
-          ) : (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {activeAgents.slice(0, 10).map((a, i) => (
-                <Link key={a.pubkey} href={`/agent/${a.pubkey}`} className={s.agentPill}>
-                  <span className={s.agentDot} style={{ background: a.color || AGENT_COLORS[i % AGENT_COLORS.length] }} />
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>{a.name}</span>
-                </Link>
-              ))}
-              {activeAgents.length > 10 && <span className="ui-small" style={{ alignSelf: "center" }}>+{activeAgents.length - 10}</span>}
-            </div>
           )}
-        </div>
-        <div className={s.judges}>
-          <div className="ui-small" style={{ marginBottom: 8 }}>{t({ en: "Judge panel", tr: "Hakem paneli" })}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {JUDGE_NAMES.map((name) => {
-              const busy = judges[name] === "EVALUATING";
-              return (
-                <div key={name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, fontSize: 13 }}>
-                  <span style={{ color: "var(--text-secondary)" }}>{JUDGE_LABELS[name]}</span>
-                  <span className={busy ? "ui-badge ui-badge-blue ui-badge-dot ui-pulse" : "ui-badge ui-badge-live"} style={{ height: 20, fontSize: 11, padding: "0 8px" }}>
-                    {busy ? sf.evaluating : sf.ready}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
+    );
+  };
 
-      <div className={s.colBody} style={{ padding: 0 }}>
-        {shownActivity.length === 0 ? (
-          <div className="ui-empty">{activity.length === 0 ? t({ en: "Waiting for the first submission or escrow event.", tr: "Henüz teslim ya da escrow hareketi yok." }) : dash.logFilterEmpty}</div>
-        ) : shownActivity.map((e, i) => (
-          <div key={e.id || i} className={s.feedRow}>
-            <span suppressHydrationWarning className="ui-mono ui-muted" style={{ fontSize: 12, flexShrink: 0, minWidth: 64 }}>
-              {e.timeStr && e.timeStr !== "--:--:--" ? e.timeStr : new Date(e.time).toLocaleTimeString(undefined, { hour12: false })}
-            </span>
-            <span className={e.icon === "tx" ? "ui-badge ui-badge-accent" : e.icon === "judge" ? "ui-badge ui-badge-blue" : "ui-badge"} style={{ height: 20, fontSize: 11, padding: "0 8px", flexShrink: 0 }}>
-              {e.icon === "tx" ? t({ en: "Escrow", tr: "Escrow" }) : e.icon === "judge" ? t({ en: "Judges", tr: "Hakem" }) : t({ en: "Agent", tr: "Agent" })}
-            </span>
-            <span style={{ fontSize: 13.5, color: "var(--text-primary)", lineHeight: 1.5, minWidth: 0, wordBreak: "break-word" }}>{e.message}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  ) : (
-    <section className={`ui-card ${s.col}`} aria-label={t({ en: "Task detail", tr: "Görev detayı" })}>
-      <header className={s.detailHead}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span className={statusBadge(displayStatus(selectedTask))}>{t(STATUS_LABEL[displayStatus(selectedTask)] ?? { en: selectedTask.status, tr: selectedTask.status })}</span>
-          <span className="ui-mono ui-muted" style={{ fontSize: 12 }}>#{selectedTask.id}</span>
-          <span className="ui-num" style={{ marginLeft: "auto", fontWeight: 700, fontSize: 18, color: "var(--text-primary)" }}>
-            {(selectedTask.rewardUsdc ?? selectedTask.reward / 1e7).toLocaleString("en-US", { maximumFractionDigits: 4 })} <span className="ui-muted" style={{ fontSize: 13, fontWeight: 500 }}>XLM</span>
-          </span>
-          <button type="button" className="ui-icon-btn" style={{ width: 32, height: 32 }} title={pl.close} aria-label={pl.close} onClick={() => { setSelectedTask(null); setCenterTab("detail"); }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
-          </button>
-        </div>
-        <p className={s.detailText}>{selectedTask.description}</p>
-        {selectedTask.criteria && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12, alignItems: "center" }}>
-            <span className="ui-small" style={{ marginRight: 2 }}>{t({ en: "Criteria", tr: "Kriterler" })}</span>
-            {selectedTask.criteria.split(/[;,]/).map((c) => c.trim()).filter(Boolean).slice(0, 8).map((chip) => (
-              <span key={chip} className="ui-badge" style={{ height: "auto", padding: "3px 10px", whiteSpace: "normal", fontWeight: 500 }}>{chip}</span>
-            ))}
-          </div>
-        )}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
-          <div className="ui-tabs" role="tablist">
-            {(["detail", "agent", "court"] as const).map((tab) => (
-              <button key={tab} type="button" role="tab" className="ui-tab" aria-selected={centerTab === tab} onClick={() => setCenterTab(tab)}>
-                {tab === "detail" ? t({ en: "Scores", tr: "Puanlar" }) : tab === "agent" ? t({ en: "Agent run", tr: "Agent çalışması" }) : t({ en: "Dispute court", tr: "İtiraz mahkemesi" })}
-              </button>
-            ))}
-          </div>
-          <div style={{ flex: 1 }} />
-          <Link href={`/task/${selectedTask.id}`} className="ui-btn ui-btn-ghost ui-btn-sm">{t({ en: "Open task page", tr: "Görev sayfası" })} →</Link>
-          {selectedTask.status === "Open" && agentPanelTaskId !== selectedTask.id && (
-            <button type="button" onClick={() => handleAssignTask(selectedTask)} className="ui-btn ui-btn-secondary ui-btn-sm">{ui.taskDetail.assign}</button>
-          )}
-          {selectedTask.status === "AwaitingDecision" && (
-            <button type="button" onClick={() => setCenterTab("agent")} className="ui-btn ui-btn-primary ui-btn-sm">{dash.decisionFlow}</button>
-          )}
-          {(selectedTask.status === "Disputed" || selectedTask.status === "Resolved") && (
-            <button type="button" onClick={() => setCenterTab("court")} className="ui-btn ui-btn-sm" style={{ background: "var(--red-dim)", color: "var(--red)" }}>{ui.taskDetail.court}</button>
-          )}
-        </div>
-      </header>
+  const actIcon: Record<Act["kind"], { c: string; bg: string; glyph: string }> = {
+    sub: { c: "var(--blue)", bg: "var(--blue-dim)", glyph: "↑" },
+    paid: { c: "var(--gold)", bg: "var(--gold-dim)", glyph: "★" },
+    post: { c: "var(--accent)", bg: "var(--accent-dim)", glyph: "＋" },
+    refund: { c: "var(--text-secondary)", bg: "rgba(var(--text-rgb),0.07)", glyph: "↺" },
+    dispute: { c: "var(--red)", bg: "var(--red-dim)", glyph: "!" },
+    local: { c: "var(--green)", bg: "var(--green-dim)", glyph: "•" },
+  };
 
-      <div style={{ flex: 1, minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        <div style={{ display: centerTab === "detail" ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, overflowY: "auto", padding: 16, gap: 14 }}>
-          {(() => {
-            const ps = agentPanelStates[selectedTask.id]?.judgeScores ?? [];
-            const dv = ps.map((js, i) => ({ judgeId: i + 1, judgeName: js.name, agent: agents[0]?.pubkey || "", score: js.score, reasoning: js.comment }));
-            const verdicts = dv.length > 0 ? dv : (selectedTask.verdicts ?? []);
-            const isEval = selectedTask.status === "UnderReview" && verdicts.length < 3;
-            return <JudgePanel verdicts={verdicts} taskId={selectedTask.id} isEvaluating={isEval} />;
-          })()}
-          {selectedTask.submissions.length > 0 ? (
-            <div className="ui-card" style={{ boxShadow: "none", background: "var(--bg-surface-low)", overflow: "hidden" }}>
-              <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--bg-border)", fontWeight: 600, fontSize: 14, color: "var(--text-primary)" }}>
-                {dash.submissions(selectedTask.submissions.length)}
-              </div>
-              <div className="ui-table-wrap">
-                <table className="ui-table">
-                  <thead><tr><th>{t({ en: "Agent", tr: "Agent" })}</th><th>{t({ en: "Time", tr: "Süre" })}</th><th>{t({ en: "Result hash", tr: "Cevap hash'i" })}</th></tr></thead>
-                  <tbody>
-                    {selectedTask.submissions.map((sub, i) => (
-                      <tr key={i}>
-                        <td><Link href={`/agent/${sub.agent}`} className="ui-mono" style={{ color: "var(--text-primary)", textDecoration: "none" }}>{shortenAddress(sub.agent)}</Link></td>
-                        <td className="ui-num">{dash.seconds(sub.timeTakenSeconds)}</td>
-                        <td className="ui-mono ui-muted" style={{ fontSize: 12 }}>{sub.resultHash.substring(0, 16)}…</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div className="ui-empty">{selectedTask.status === "Open" ? ui.taskDetail.noSubmissions : ui.taskDetail.taskStopped}</div>
-          )}
-        </div>
-
-        <div style={{ display: centerTab === "agent" ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-          {agentPanelTaskId === selectedTask.id || selectedTask.status === "UnderReview" || selectedTask.status === "AwaitingDecision" ? (
-            <AgentWorkPanel
-              key={`panel-${agentPanelTaskId ?? selectedTask.id}`}
-              task={selectedTask}
-              agentA={{ name: agents[0]?.name?.toLowerCase() || "nova", pubkey: agents[0]?.pubkey || "" }}
-              agentB={{ name: agents[1]?.name?.toLowerCase() || "vega", pubkey: agents[1]?.pubkey || "" }}
-              onClose={() => setCenterTab("detail")}
-              onApprove={handleAgentApprove}
-              onReject={handleAgentReject}
-              onJudgesComplete={() => handleJudgesComplete(selectedTask.id)}
-              savedState={agentPanelStates[selectedTask.id] ?? null}
-              onSaveState={(st) => setAgentPanelStates((p) => ({ ...p, [selectedTask.id]: st }))}
-            />
-          ) : (
-            <div className="ui-empty">{ui.taskDetail.assignHint}</div>
-          )}
-        </div>
-
-        <div style={{ display: centerTab === "court" ? "flex" : "none", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-          <CourtRoom
-            key={`court-${selectedTask.id}`}
-            task={selectedTask}
-            onClose={() => setCenterTab("detail")}
-            prefillAgentResult={courtData?.agentResult ?? agentPanelStates[selectedTask.id]?.agentResult}
-            prefillDisputeReason={courtData?.disputeReason}
-            onVerdict={() => {
-              // Agent Court is an off-chain AI roleplay (on-chain resolution
-              // is a deferred deliverable): record the ruling in the feed,
-              // never a fabricated on-chain transaction.
-              const now = new Date(); const taskId = selectedTask.id;
-              const tloc = locale === "tr" ? "tr-TR" : "en-US";
-              setTasks((p) => p.map((x) => x.id === taskId ? { ...x, status: "Resolved" } : x));
-              setSelectedTask((p) => p?.id === taskId ? { ...p, status: "Resolved" } : p);
-              setFeed((p) => [{ id: Date.now(), time: now.toISOString(), timeStr: now.toLocaleTimeString(tloc, { hour12: false }), message: ui.feedDyn.court(taskId), icon: "judge", agent: "judge" }, ...p]);
-            }}
-          />
+  const ActRow = ({ a }: { a: Act }) => {
+    const ic = actIcon[a.kind];
+    const who = a.agent ? <b>{nameOf(a.agent) ?? shortKey(a.agent)}</b> : null;
+    let body: React.ReactNode;
+    if (a.kind === "sub" && a.task) {
+      body = tr
+        ? <>{who}, <Link href={`/task/${a.task.id}`} className={s.inlineLink}>#{a.task.id}</Link> görevine teslim etti ve <b style={{ color: "var(--text-primary)" }}>{a.score}</b> puan aldı</>
+        : <>{who} submitted to <Link href={`/task/${a.task.id}`} className={s.inlineLink}>#{a.task.id}</Link> and scored <b style={{ color: "var(--text-primary)" }}>{a.score}</b></>;
+    } else if (a.kind === "paid") {
+      body = tr ? <>{who ?? "Kazanan"} <b style={{ color: "var(--gold)" }}>{a.amount}</b> kazandı{a.taskId ? <> · #{a.taskId}</> : null}</> : <>{who ?? "The winner"} won <b style={{ color: "var(--gold)" }}>{a.amount}</b>{a.taskId ? <> · #{a.taskId}</> : null}</>;
+    } else if (a.kind === "post") {
+      body = tr ? <>{a.taskId ? <>#{a.taskId} açıldı, </> : "Yeni görev, "}<b>{a.amount}</b> escrow&apos;a kilitlendi</> : <>{a.taskId ? <>#{a.taskId} opened, </> : "New task, "}<b>{a.amount}</b> locked in escrow</>;
+    } else if (a.kind === "refund") {
+      body = tr ? <>{a.taskId ? <>#{a.taskId}: </> : null}<b>{a.amount}</b> görevi açana iade edildi</> : <>{a.taskId ? <>#{a.taskId}: </> : null}<b>{a.amount}</b> refunded to the poster</>;
+    } else if (a.kind === "dispute") {
+      body = tr ? <>{a.taskId ? <>#{a.taskId} için </> : null}itiraz hareketi</> : <>Dispute activity{a.taskId ? <> on #{a.taskId}</> : null}</>;
+    } else {
+      body = a.text ? t(a.text) : null;
+    }
+    return (
+      <div className={s.actRow}>
+        <span className={s.actIcon} style={{ color: ic.c, background: ic.bg }} aria-hidden>{ic.glyph}</span>
+        <div className={s.actText}>{body}</div>
+        <div className={s.actTime}>
+          {a.href ? <a href={a.href} target="_blank" rel="noopener noreferrer" className={s.inlineLink}>{ago(a.at)} ↗</a> : ago(a.at)}
         </div>
       </div>
-    </section>
-  );
+    );
+  };
 
-  const txColumn = (
-    <section className={`ui-card ${s.col}`} aria-label={t({ en: "Escrow transactions", tr: "Escrow işlemleri" })}>
-      <header className={s.colHead}>
-        <div>
-          <div className="ui-h3" style={{ fontSize: 16 }}>{t({ en: "Escrow transactions", tr: "Escrow işlemleri" })}</div>
-          <div className="ui-small">{t({ en: "Read from the contract's own events", tr: "Doğrudan kontratın olaylarından" })}</div>
-        </div>
-      </header>
-      <div className={s.colBody} style={{ padding: 0 }}>
-        {txRows.length === 0 ? (
-          <div className="ui-empty">{ui.tx.emptyLine1}</div>
-        ) : txRows.map((tx, i) => (
-          <a key={tx.id || i} href={explorerTx(tx.hash)} target="_blank" rel="noopener noreferrer" className={`${s.txRow}${tx.highlight ? ` ${s.txNew}` : ""}`}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <span className="ui-mono" style={{ fontSize: 13, fontWeight: 600, color: txColor(tx.type) }}>{tx.type}</span>
-              <span className="ui-num" style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{tx.amount || (tx.score !== undefined ? `${tx.score}/100` : "")}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 6 }}>
-              <span className="ui-small" style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {tx.winner ? <span style={{ color: "var(--green)" }}>→ {tx.winner.length > 10 ? shortenAddress(tx.winner) : tx.winner}</span>
-                  : tx.agent ? tx.agent : tx.judge ? tx.judge : null}
-                {tx.taskId ? <span style={{ marginLeft: 8 }}>{t({ en: "task", tr: "görev" })} #{tx.taskId}</span> : null}
-              </span>
-              <span className="ui-mono ui-muted" style={{ fontSize: 11, flexShrink: 0 }}>{tx.hash ? `${tx.hash.slice(0, 6)}… ↗` : ""}</span>
-            </div>
-          </a>
-        ))}
-      </div>
-    </section>
-  );
-
+  /* ── Render ──────────────────────────────────────────────────────────── */
   return (
-    <PageShell footer={false}>
-      <div className={s.wrap}>
-        {/* Page head */}
+    <PageShell>
+      <div className="ui-container" style={{ maxWidth: 1280, paddingTop: 40 }}>
+        {/* Head */}
         <div className={s.head}>
           <div>
-            <h1 className="ui-page-title" style={{ fontSize: "clamp(26px, 3vw, 34px)" }}>{t({ en: "Dashboard", tr: "Panel" })}</h1>
-            <p className="ui-small" style={{ marginTop: 6, fontSize: 14 }}>
-              {t({ en: "The live task pool, judging and escrow activity on Stellar mainnet.", tr: "Stellar mainnet'teki canlı görevler, puanlar ve escrow hareketleri tek ekranda." })}
+            <h1 className="ui-page-title">{t({ en: "Dashboard", tr: "Panel" })}</h1>
+            <p className="ui-small" style={{ marginTop: 8, fontSize: 15 }}>
+              {t({ en: "Everything happening in the arena, live.", tr: "Arenada olan her şey, canlı olarak." })}
             </p>
           </div>
-          <div className={s.headActions}>
-            {connected && publicKey ? (
-              <>
-                {usdcBalance !== null && (
-                  <span className="ui-badge" style={{ height: 32, padding: "0 12px", fontSize: 13 }}>
-                    {t({ en: "Balance", tr: "Bakiye" })} <b className="ui-num" style={{ color: "var(--text-primary)" }}>{usdcBalance.toFixed(2)} XLM</b>
-                  </span>
-                )}
-                <button type="button" className="ui-btn ui-btn-secondary" onClick={() => router.push(`/agent/${publicKey.toString()}`)}>{t({ en: "My profile", tr: "Profilim" })}</button>
-                <button type="button" className="ui-btn ui-btn-ghost" onClick={() => router.push("/projects")}>{t({ en: "NEXUS projects", tr: "NEXUS projeleri" })}</button>
-                <button type="button" className="ui-btn ui-btn-primary" onClick={openPost}>{sf.postTask}</button>
-              </>
-            ) : (
-              <button type="button" className="ui-btn ui-btn-ghost" onClick={() => router.push("/projects")}>{t({ en: "NEXUS projects", tr: "NEXUS projeleri" })}</button>
-            )}
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link href="/projects" className="ui-btn ui-btn-secondary">{t({ en: "NEXUS projects", tr: "NEXUS projeleri" })}</Link>
+            <button type="button" className="ui-btn ui-btn-primary ui-btn-glow" onClick={postTask}>
+              <span aria-hidden style={{ fontSize: 18, lineHeight: 1 }}>＋</span> {t({ en: "Post a task", tr: "Görev aç" })}
+            </button>
           </div>
         </div>
 
-        {!connected && (
-          <div className={`ui-card ${s.connect}`}>
+        {/* Account */}
+        {connected && publicKey ? (
+          <div className={`ui-card ${s.account}`}>
             <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-              <span className={s.connectIcon} aria-hidden>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="13" rx="3" /><path d="M16 12.5h2M3 10h18" /></svg>
-              </span>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: 15 }}>{t({ en: "Connect a wallet to post a task", tr: "Görev açmak için cüzdanını bağla" })}</div>
-                <div className="ui-small" style={{ marginTop: 2 }}>
-                  {t({ en: "Everything below is public. Posting locks your XLM reward in the Soroban escrow and needs a Stellar wallet such as Freighter.", tr: "Buradaki her şey herkese açık. Görev açmak için Freighter gibi bir Stellar cüzdanı gerekir; açtığın görevin XLM ödülü Soroban escrow'una kilitlenir." })}
-                </div>
-              </div>
+              <AgentChip id={publicKey.toString()} name={t({ en: "Your wallet", tr: "Cüzdanın" })} size={40} />
+            </div>
+            <div className={s.accountStats}>
+              <div><div className="ui-small">{t({ en: "Balance", tr: "Bakiye" })}</div><div className={s.accountVal}>{balance === null ? "…" : `${formatXlm(balance, 2)} XLM`}</div></div>
+              <div><div className="ui-small">{t({ en: "Your tasks", tr: "Görevlerin" })}</div><div className={s.accountVal}>{mine.length}</div></div>
+              <div><div className="ui-small">{t({ en: "Live now", tr: "Şu an canlı" })}</div><div className={s.accountVal}>{mine.filter(isAcceptingSubmissions).length}</div></div>
+            </div>
+          </div>
+        ) : (
+          <div id="dash-connect" className={`ui-card ${s.connect}`}>
+            <FeatureIcon name="coins" />
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{t({ en: "Want to post a task?", tr: "Görev mi açmak istiyorsun?" })}</div>
+              <div className="ui-small" style={{ marginTop: 2 }}>{t({ en: "Connect a Stellar wallet such as Freighter. The reward you set is locked in the Soroban escrow until a winner is chosen.", tr: "Freighter gibi bir Stellar cüzdanı bağla. Belirlediğin ödül, kazanan seçilene kadar Soroban escrow'unda kilitli kalır." })}</div>
             </div>
             <ConnectWallet />
           </div>
         )}
 
-        {/* Stats */}
-        <div className={s.stats}>
+        {/* KPIs */}
+        <div className={s.kpis}>
           {[
-            { v: openCount.toLocaleString("en-US"), l: t({ en: "Live tasks", tr: "Canlı görev" }) },
-            { v: settledCount.toLocaleString("en-US"), l: t({ en: "Paid out", tr: "Ödenen" }) },
-            { v: agentTotal ? agentTotal.toLocaleString("en-US") : "…", l: t({ en: "Registered agents", tr: "Kayıtlı agent" }) },
-            { v: `${tasks.filter(isAcceptingSubmissions).reduce((sum, x) => sum + (x.rewardUsdc ?? x.reward / 1e7), 0).toLocaleString("en-US", { maximumFractionDigits: 2 })} XLM`, l: t({ en: "Locked in live tasks", tr: "Canlı görevlerde kilitli" }) },
-          ].map((st) => (
-            <div key={st.l} className={`ui-card ${s.stat}`}>
-              <div className="ui-stat-value" style={{ fontSize: 24 }}>{st.v}</div>
-              <div className="ui-stat-label">{st.l}</div>
+            { icon: "bolt" as const, tone: "green" as const, v: loaded ? String(live.length) : "–", l: t({ en: "Live tasks", tr: "Canlı görev" }), sub: loaded && locked > 0 ? t({ en: `${formatXlm(locked)} XLM at stake`, tr: `${formatXlm(locked)} XLM ödül` }) : "" },
+            { icon: "scale" as const, tone: "blue" as const, v: loaded ? String(judged24) : "–", l: t({ en: "Answers judged, 24h", tr: "Son 24 saatte puanlanan" }), sub: "" },
+            { icon: "trophy" as const, tone: "gold" as const, v: escrowTx.length ? `${formatXlm(paidTotal, 2)} XLM` : "–", l: t({ en: "Paid out from escrow", tr: "Escrow'dan ödenen" }), sub: escrowTx.length ? t({ en: `${paidRows.length} payouts`, tr: `${paidRows.length} ödeme` }) : "" },
+            { icon: "users" as const, tone: "accent" as const, v: registry?.count ? registry.count.toLocaleString("en-US") : "–", l: t({ en: "Registered agents", tr: "Kayıtlı agent" }), sub: "" },
+          ].map((k, i) => (
+            <div key={i} className={`ui-card ${s.kpi}`}>
+              <FeatureIcon name={k.icon} tone={k.tone} />
+              <div style={{ minWidth: 0 }}>
+                <div className={s.kpiVal}>{k.v}</div>
+                <div className="ui-small">{k.l}</div>
+                {k.sub && <div className="ui-small" style={{ color: "var(--text-secondary)", marginTop: 2 }}>{k.sub}</div>}
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Mobile switcher */}
-        <div className={s.mobileTabs}>
-          <div className="ui-tabs" role="tablist" style={{ width: "100%", justifyContent: "space-between" }}>
-            {([["tasks", t({ en: "Tasks", tr: "Görevler" })], ["live", selectedTask ? t({ en: "Detail", tr: "Detay" }) : t({ en: "Activity", tr: "Akış" })], ["tx", t({ en: "Escrow", tr: "Escrow" })]] as ["tasks" | "live" | "tx", string][]).map(([k, label]) => (
-              <button key={k} type="button" role="tab" className="ui-tab" aria-selected={mobileTab === k} onClick={() => setMobileTab(k)} style={{ flex: 1 }}>{label}</button>
-            ))}
-          </div>
-        </div>
-
+        {/* Main grid */}
         <div className={s.grid}>
-          <div className={s.area} data-show={mobileTab === "tasks"}>{tasksColumn}</div>
-          <div className={s.area} data-show={mobileTab === "live"}>{liveColumn}</div>
-          <div className={s.area} data-show={mobileTab === "tx"}>{txColumn}</div>
+          <div className={s.mainCol}>
+            {mine.length > 0 && (
+              <section className="ui-card" style={{ overflow: "hidden" }}>
+                <div className={s.panelHead}>
+                  <div className="ui-h3">{t({ en: "Your tasks", tr: "Görevlerin" })}</div>
+                  <span className="ui-badge">{mine.length}</span>
+                </div>
+                {mine.map((task) => <TaskRow key={task.id} task={task} own />)}
+              </section>
+            )}
+
+            <section className="ui-card" style={{ overflow: "hidden" }}>
+              <div className={s.panelHead}>
+                <div>
+                  <div className="ui-h3">{t({ en: "Live tasks", tr: "Canlı görevler" })}</div>
+                  <div className="ui-small" style={{ marginTop: 2 }}>{t({ en: "Click a task for scores, entries and actions", tr: "Puanlar, teslimler ve işlemler için bir göreve tıkla" })}</div>
+                </div>
+                <Link href="/tasks" className="ui-link" style={{ fontSize: 14 }}>{t({ en: "All tasks", tr: "Tümü" })} →</Link>
+              </div>
+              {!loaded && [0, 1, 2].map((i) => <div key={i} style={{ padding: 20 }}><div className="ui-skeleton" style={{ height: 52 }} /></div>)}
+              {loaded && live.length === 0 && (
+                <div className="ui-empty">
+                  {t({ en: "No live tasks right now.", tr: "Şu an canlı görev yok." })}{" "}
+                  <button type="button" className="ui-link" style={{ background: "none", border: 0, cursor: "pointer", font: "inherit" }} onClick={postTask}>{t({ en: "Open the next one", tr: "Bir sonrakini sen aç" })}</button>
+                </div>
+              )}
+              {live.map((task) => <TaskRow key={task.id} task={task} />)}
+              {past.length > 0 && (
+                <>
+                  <button type="button" className={s.pastToggle} onClick={() => setShowPast((v) => !v)} aria-expanded={showPast}>
+                    {showPast ? t({ en: "Hide past tasks", tr: "Geçmiş görevleri gizle" }) : t({ en: `Show ${past.length} past tasks`, tr: `${past.length} geçmiş görevi göster` })}
+                    <span aria-hidden style={{ transform: showPast ? "rotate(180deg)" : "none", transition: "transform .15s" }}>⌄</span>
+                  </button>
+                  {showPast && past.map((task) => <TaskRow key={task.id} task={task} />)}
+                </>
+              )}
+            </section>
+
+            <section className="ui-card" style={{ overflow: "hidden" }}>
+              <div className={s.panelHead}>
+                <div className="ui-h3" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  {t({ en: "Activity", tr: "Akış" })}
+                  <span className="ui-badge ui-badge-live ui-badge-dot ui-pulse" style={{ height: 22 }}>{t({ en: "live", tr: "canlı" })}</span>
+                </div>
+                <div className="ui-tabs" role="tablist">
+                  {([["all", t({ en: "All", tr: "Tümü" })], ["subs", t({ en: "Entries", tr: "Teslimler" })], ["escrow", t({ en: "Escrow", tr: "Escrow" })]] as [ActFilter, string][]).map(([k, label]) => (
+                    <button key={k} role="tab" className="ui-tab" aria-selected={actFilter === k} onClick={() => setActFilter(k)}>{label}</button>
+                  ))}
+                </div>
+              </div>
+              {shownActivity.length === 0 && <div className="ui-empty">{t({ en: "Nothing here yet.", tr: "Burada henüz bir şey yok." })}</div>}
+              <div className={s.actList}>{shownActivity.map((a) => <ActRow key={a.key} a={a} />)}</div>
+            </section>
+          </div>
+
+          <aside className={s.sideCol}>
+            <section className="ui-card" style={{ overflow: "hidden" }}>
+              <div className={s.panelHead}>
+                <div>
+                  <div className="ui-h3">{t({ en: "Escrow", tr: "Escrow hareketleri" })}</div>
+                  <div className="ui-small" style={{ marginTop: 2 }}>{t({ en: "Straight from the contract", tr: "Doğrudan kontrattan" })}</div>
+                </div>
+              </div>
+              {escrowTx.length === 0 && [0, 1, 2, 3].map((i) => <div key={i} style={{ padding: "14px 20px" }}><div className="ui-skeleton" style={{ height: 34 }} /></div>)}
+              {escrowTx.slice(0, 12).map((e) => {
+                const k = txKind(e.type);
+                const tone = k.key === "paid" ? "var(--gold)" : k.key === "post" ? "var(--accent)" : k.key === "refund" ? "var(--text-secondary)" : "var(--red)";
+                const site = siteIdOf(e.taskId);
+                return (
+                  <a key={e.id} href={e.explorerUrl} target="_blank" rel="noopener noreferrer" className={s.txRow}>
+                    <span className={s.txDot} style={{ background: tone }} aria-hidden />
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ color: "var(--text-primary)", fontWeight: 600, fontSize: 14 }}>{t(k)}{site ? <span className="ui-muted" style={{ fontWeight: 500 }}> · #{site}</span> : null}</div>
+                      <div className="ui-small" style={{ fontSize: 12.5 }}>
+                        {[e.winner ? `→ ${nameOf(e.winner) ?? shortKey(e.winner)}` : "", e.time ? ago(Math.floor(new Date(e.time).getTime() / 1000)) : ""].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                    <div className="ui-num" style={{ fontWeight: 700, color: k.key === "paid" ? "var(--gold)" : "var(--text-primary)", fontSize: 14, whiteSpace: "nowrap" }}>
+                      {e.amount ? e.amount.replace(/\.?0+ XLM$/, " XLM") : ""}
+                    </div>
+                  </a>
+                );
+              })}
+            </section>
+
+            <section className="ui-card" style={{ overflow: "hidden" }}>
+              <div className={s.panelHead}>
+                <div className="ui-h3">{t({ en: "Top agents", tr: "En iyi agent'lar" })}</div>
+                <Link href="/agents" className="ui-link" style={{ fontSize: 14 }}>{t({ en: "All", tr: "Tümü" })} →</Link>
+              </div>
+              {topAgents.length === 0 && <div className="ui-empty">{t({ en: "No judged answers yet.", tr: "Henüz puanlanan cevap yok." })}</div>}
+              {topAgents.map((a, i) => (
+                <Link key={a.agent} href={`/agent/${a.agent}`} className={s.txRow}>
+                  <span className={`ui-rank ui-rank-${i + 1}`} style={{ width: 24, height: 24, fontSize: 12 }}>{i + 1}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}><AgentChip id={a.agent} name={nameOf(a.agent)} size={28} /></span>
+                  <span style={{ textAlign: "right" }}>
+                    <span className="ui-num" style={{ fontWeight: 700, color: "var(--text-primary)" }}>{a.avg}</span>
+                    <span className="ui-small" style={{ display: "block", fontSize: 11.5 }}>{a.n} {t({ en: "entries", tr: "teslim" })}</span>
+                  </span>
+                </Link>
+              ))}
+            </section>
+          </aside>
         </div>
       </div>
 
-      {showPostModal && connected && <PostTaskModal onClose={() => setShowPostModal(false)} onTaskPosted={handleTaskPosted} />}
+      {/* Drawer */}
+      {selected && (
+        <>
+          <div className={s.scrim} onClick={closeDrawer} aria-hidden />
+          <aside className={s.drawer} role="dialog" aria-modal="true" aria-label={taskTitle(selected, 80)}>
+            <header className={s.drawerHead}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <span className="ui-mono ui-muted" style={{ fontSize: 12 }}>#{selected.id}</span>
+                  <TaskStatusBadge task={selected} />
+                  {selected.gladiatorOnly && <span className="ui-badge ui-badge-gold">{t({ en: "League final", tr: "Lig finali" })}</span>}
+                </div>
+                <div className="ui-h3" style={{ marginTop: 8, fontSize: 19 }}>{taskTitle(selected, 120)}</div>
+              </div>
+              <button type="button" className="ui-icon-btn" aria-label={t({ en: "Close", tr: "Kapat" })} onClick={closeDrawer}>×</button>
+            </header>
+
+            <div className={s.drawerMeta}>
+              <div><div className="ui-small">{t({ en: "Reward", tr: "Ödül" })}</div><div className={s.accountVal}>{formatXlm(rewardXlm(selected), 4)} XLM</div></div>
+              <div><div className="ui-small">{isAcceptingSubmissions(selected) ? t({ en: "Closes in", tr: "Kapanışa" }) : t({ en: "Deadline", tr: "Son tarih" })}</div>
+                <div className={s.accountVal} style={{ color: isAcceptingSubmissions(selected) ? "var(--accent)" : undefined }}>
+                  {isAcceptingSubmissions(selected) ? countdown(selected.deadline, now, tr) : new Date(selected.deadline * 1000).toLocaleDateString(tr ? "tr-TR" : "en-US")}
+                </div></div>
+              <div><div className="ui-small">{t({ en: "Entries", tr: "Teslim" })}</div><div className={s.accountVal}>{selected.submissions?.length ?? 0}</div></div>
+            </div>
+
+            <div style={{ padding: "0 22px" }}>
+              <div className="ui-tabs" role="tablist">
+                <button role="tab" className="ui-tab" aria-selected={drawerTab === "summary"} onClick={() => setDrawerTab("summary")}>{t({ en: "Summary", tr: "Özet" })}</button>
+                <button role="tab" className="ui-tab" aria-selected={drawerTab === "agents"} onClick={() => setDrawerTab("agents")}>{t({ en: "Try with agents", tr: "Agent'larla dene" })}</button>
+                {(selected.status === "Disputed" || selected.status === "Resolved" || courtData) && (
+                  <button role="tab" className="ui-tab" aria-selected={drawerTab === "court"} onClick={() => setDrawerTab("court")}>{t({ en: "Court", tr: "Mahkeme" })}</button>
+                )}
+              </div>
+            </div>
+
+            <div className={s.drawerBody}>
+              <div style={{ display: drawerTab === "summary" ? "grid" : "none", gap: 18 }}>
+                <div>
+                  <div className={s.label}>{t({ en: "Brief", tr: "Görev" })}</div>
+                  <div className="ui-prose" style={{ fontSize: 14.5, maxHeight: 220, overflowY: "auto" }}>{taskBody(selected) || selected.description}</div>
+                </div>
+                {selected.criteria && (
+                  <div>
+                    <div className={s.label}>{t({ en: "Judged on", tr: "Puanlama ölçütü" })}</div>
+                    <div className="ui-prose" style={{ fontSize: 14 }}>{selected.criteria}</div>
+                  </div>
+                )}
+                <div>
+                  <div className={s.label}>{t({ en: "Results", tr: "Sonuçlar" })}</div>
+                  {standings(selected).length === 0 && <div className="ui-small">{t({ en: "No judged entries yet.", tr: "Henüz puanlanmış teslim yok." })}</div>}
+                  <div style={{ display: "grid", gap: 8 }}>
+                    {standings(selected).map((r, i) => {
+                      const vs = (selected.verdicts ?? []).filter((v) => v.agent === r.agent).slice(-3);
+                      return (
+                        <div key={r.agent} className={s.resultCard}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <span className={`ui-rank ui-rank-${i + 1}`} style={{ width: 24, height: 24, fontSize: 12 }}>{i + 1}</span>
+                            <span style={{ flex: 1, minWidth: 0 }}><AgentChip id={r.agent} name={nameOf(r.agent)} size={28} /></span>
+                            <span className="ui-num" style={{ fontFamily: "var(--font-head)", fontWeight: 700, fontSize: 20, color: "var(--text-primary)" }}>{r.avg}</span>
+                          </div>
+                          <div style={{ display: "flex", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
+                            {vs.map((v, k) => (
+                              <span key={k} className="ui-small">{t(JUDGE[(v.judgeId - 1) % 3] ?? JUDGE[0])} <b style={{ color: "var(--text-primary)" }}>{v.score}</b></span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {selected.postTxHash && (
+                  <a href={EXPLORER_TX(selected.postTxHash)} target="_blank" rel="noopener noreferrer" className="ui-link" style={{ fontSize: 14 }}>
+                    {t({ en: "Funding transaction", tr: "Ödülü yatırma işlemi" })} ↗
+                  </a>
+                )}
+              </div>
+
+              <div style={{ display: drawerTab === "agents" ? "flex" : "none", flexDirection: "column", minHeight: 420 }}>
+                {selected.status === "UnderReview" || selected.status === "AwaitingDecision" ? (
+                  <AgentWorkPanel
+                    key={`panel-${selected.id}`}
+                    task={selected}
+                    agentA={{ name: "nova", pubkey: "" }}
+                    agentB={{ name: "vega", pubkey: "" }}
+                    onClose={() => setDrawerTab("summary")}
+                    onApprove={() => releaseReward()}
+                    onReject={handleAgentReject}
+                    onJudgesComplete={() => handleJudgesComplete(selected.id)}
+                    savedState={agentPanelStates[selected.id] ?? null}
+                    onSaveState={(st) => setAgentPanelStates((p) => ({ ...p, [selected.id]: st }))}
+                  />
+                ) : (
+                  <div className="ui-empty" style={{ display: "grid", gap: 14, justifyItems: "center" }}>
+                    <div>{t({ en: "Watch two demo agents solve this task and the judges score them, right here.", tr: "İki demo agent'ın bu görevi çözmesini ve hakemlerin puanlamasını burada izle." })}</div>
+                    {selected.status === "Open" && (
+                      <button type="button" className="ui-btn ui-btn-primary" onClick={() => handleAssignTask(selected)}>{t({ en: "Start the demo", tr: "Demoyu başlat" })}</button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: drawerTab === "court" ? "flex" : "none", flexDirection: "column", minHeight: 420 }}>
+                {(selected.status === "Disputed" || selected.status === "Resolved" || courtData) && (
+                  <CourtRoom
+                    key={`court-${selected.id}`}
+                    task={selected}
+                    onClose={() => setDrawerTab("summary")}
+                    prefillAgentResult={courtData?.agentResult ?? agentPanelStates[selected.id]?.agentResult}
+                    prefillDisputeReason={courtData?.disputeReason}
+                    onVerdict={() => {
+                      const id = selected.id;
+                      setTasks((p) => p.map((x) => (x.id === id ? { ...x, status: "Resolved" } : x)));
+                      setSelected((p) => (p?.id === id ? { ...p, status: "Resolved" } : p));
+                      pushEvent("court", { en: `The AI court ruled on #${id}`, tr: `AI mahkemesi #${id} için kararını verdi` });
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            <footer className={s.drawerFoot}>
+              <Link href={`/task/${selected.id}`} className="ui-btn ui-btn-secondary">{t({ en: "Open task page", tr: "Görev sayfasına git" })} →</Link>
+              {publicKey && selected.poster === publicKey.toString() && selected.status !== "Settled" && selected.status !== "Resolved" && standings(selected).length > 0 && (
+                <button type="button" className="ui-btn ui-btn-primary" disabled={settling} onClick={releaseReward}>
+                  {settling ? t({ en: "Paying…", tr: "Ödeniyor…" }) : t({ en: "Pay the winner", tr: "Kazanana öde" })}
+                </button>
+              )}
+            </footer>
+          </aside>
+        </>
+      )}
+
+      {showPost && connected && <PostTaskModal onClose={() => setShowPost(false)} onTaskPosted={handleTaskPosted} />}
     </PageShell>
   );
 }
