@@ -83,6 +83,8 @@ async function mutateTasks<T>(fn: (tasks: Record<number, Task>) => T | Promise<T
     const tasks: Record<number, Task> = r ? ((await r.get<Record<number, Task>>(REDIS_KEY)) ?? {}) : localLoad();
     const out = await fn(tasks);
     await saveTasks(tasks);
+    readCache = null;
+    listCache = null;
     return out;
   });
 }
@@ -103,6 +105,28 @@ export async function getAllTasksCached(): Promise<Task[]> {
   const tasks = await getAllTasks();
   listCache = { at: Date.now(), tasks };
   return tasks;
+}
+
+// Pages poll a task every 15 s and the whole store is one value, so public reads share a short
+// per-instance copy. Writes always read fresh (mutateTasks) and clear it on this instance.
+let readCache: { at: number; tasks: Record<number, Task> } | null = null;
+const READ_CACHE_MS = 20 * 1000;
+
+async function loadTasksCached(): Promise<Record<number, Task>> {
+  if (readCache && Date.now() - readCache.at < READ_CACHE_MS) return readCache.tasks;
+  const tasks = await loadTasks();
+  readCache = { at: Date.now(), tasks };
+  return tasks;
+}
+
+/** For public read-only views: may be up to 20 s old. Never use before a write. */
+export async function getTaskCached(id: number): Promise<Task | null> {
+  return (await loadTasksCached())[id] ?? null;
+}
+
+/** For public read-only views: may be up to 20 s old. Never use before a write. */
+export async function getAllTasksRecent(): Promise<Task[]> {
+  return Object.values(await loadTasksCached()).sort((a, b) => b.id - a.id);
 }
 
 export async function getAllTasks(): Promise<Task[]> {

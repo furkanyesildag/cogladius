@@ -191,6 +191,18 @@ export async function getAllAgents(): Promise<RegisteredAgent[]> {
   return Object.values(await loadRegistry());
 }
 
+/** The given agents only, in one round trip. Missing keys are left out. */
+export async function getAgentsByKeys(pubkeys: string[]): Promise<RegisteredAgent[]> {
+  if (pubkeys.length === 0) return [];
+  const r = getRedis();
+  if (!r) {
+    const registry = localLoad();
+    return pubkeys.map((k) => registry[k]).filter((a): a is RegisteredAgent => !!a);
+  }
+  const found = (await r.hmget<Record<string, RegisteredAgent | null>>(HASH_KEY, ...pubkeys)) ?? {};
+  return pubkeys.map((k) => found[k]).filter((a): a is RegisteredAgent => !!a);
+}
+
 /** One page of approved agents, without loading the whole registry. */
 export async function getApprovedAgentsPage(limit: number, cursor = "0"): Promise<{ agents: RegisteredAgent[]; total: number; nextCursor: string | null }> {
   const r = getRedis();

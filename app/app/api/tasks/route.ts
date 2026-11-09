@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAllTasks, createTask, seedIfEmpty } from "@/lib/taskStore";
+import { getAllTasks, getAllTasksRecent, createTask, seedIfEmpty } from "@/lib/taskStore";
 import { getOnchainTask } from "@/lib/sorobanServer";
 import { ESCROW_CONTRACT_ID } from "@/lib/constants";
 import { withDisplayStatus } from "@/lib/escrowOutcomes";
@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   // Statuses come from the escrow where it has spoken (settled, refunded), so a
   // task whose reward already moved is never listed as open.
-  let tasks = await withDisplayStatus(await getAllTasks());
+  let tasks = await withDisplayStatus(await getAllTasksRecent());
 
   if (status === "open") {
     tasks = tasks.filter((t) => t.status === "Open" || t.status === "UnderReview");
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     { tasks: redacted },
-    { headers: { "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30" } }
+    { headers: { "Cache-Control": "public, s-maxage=20, stale-while-revalidate=60" } }
   );
 }
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMockTasks } from "@/lib/sampleTasks";
-import { getTask, deleteTask } from "@/lib/taskStore";
+import { getTask, getTaskCached, deleteTask } from "@/lib/taskStore";
 import { withDisplayStatus } from "@/lib/escrowOutcomes";
 import { verifySep53 } from "@/lib/sep53";
 import { deleteTaskMessage, isFresh } from "@/lib/actionMessages";
@@ -15,7 +15,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const taskId = parseInt(params.id);
-  const stored = (await getTask(taskId)) ?? getMockTasks().find((t) => t.id === taskId);
+  const stored = (await getTaskCached(taskId)) ?? getMockTasks().find((t) => t.id === taskId);
 
   if (!stored) {
     return NextResponse.json({ error: "Task not found" }, { status: 404 });

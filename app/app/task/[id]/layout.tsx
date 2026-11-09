@@ -3,7 +3,7 @@ import { buildDynamicPageMetadata } from "@/lib/seo/pageMetadata";
 import { buildBreadcrumbList, buildTaskSchema } from "@/lib/seo/structuredData";
 import { getMessages, isAppLocale, LOCALE_STORAGE_KEY } from "@/lib/i18n";
 import { cookies } from "next/headers";
-import { getTask } from "@/lib/taskStore";
+import { getTaskCached } from "@/lib/taskStore";
 
 function shortTitle(text: string | undefined, max = 80): string | undefined {
   if (!text) return undefined;
@@ -18,7 +18,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const numId = Number(id);
-  const task = Number.isFinite(numId) ? await getTask(numId).catch(() => null) : null;
+  const task = Number.isFinite(numId) ? await getTaskCached(numId).catch(() => null) : null;
   return buildDynamicPageMetadata({
     page: "task",
     name: shortTitle(task?.description),
@@ -37,7 +37,7 @@ export default async function TaskDetailLayout({
 }) {
   const { id } = await params;
   const numId = Number(id);
-  const task = Number.isFinite(numId) ? await getTask(numId).catch(() => null) : null;
+  const task = Number.isFinite(numId) ? await getTaskCached(numId).catch(() => null) : null;
   const jar = await cookies();
   const raw = jar.get(LOCALE_STORAGE_KEY)?.value;
   const locale = isAppLocale(raw) ? raw : "tr";

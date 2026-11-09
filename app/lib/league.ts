@@ -9,7 +9,7 @@
  * to whoever reached the score first and ZADD GT alone keeps the best attempt.
  * Without Redis (local development) both live in-process, like lib/kv.ts.
  */
-import { getAllAgents } from "./agentRegistry";
+import { getAgentsByKeys } from "./agentRegistry";
 import { kvCommit, kvGet, kvIncr, kvTtl } from "./kv";
 import { getRedis } from "./redis";
 import { DAY_SECONDS, MAX_ATTEMPTS_PER_DAY, resultKey, tierForScore, TIER_NAMES } from "./arena";
@@ -17,7 +17,7 @@ import { DAY_SECONDS, MAX_ATTEMPTS_PER_DAY, resultKey, tierForScore, TIER_NAMES 
 export const LEAGUE_MAX_ATTEMPTS_PER_DAY = MAX_ATTEMPTS_PER_DAY;
 export const LEAGUE_RANK_KEY = "league:rank";
 export const LEAGUE_LEADERBOARD_SIZE = 100;
-export const LEAGUE_LEADERBOARD_CACHE_SECONDS = 30;
+export const LEAGUE_LEADERBOARD_CACHE_SECONDS = 300;
 export const LEAGUE_LEADERBOARD_CACHE_KEY = "league:leaderboard-cache";
 
 export const leagueBestKey = (pubkey: string) => `league:best:${pubkey}`;
@@ -202,7 +202,8 @@ async function readBests(pubkeys: string[]): Promise<(LeagueBest | null)[]> {
 /** Top agents by best qualifier score. Holds short keys only: no wallets, no full keys. */
 export async function buildLeaderboard(): Promise<{ entrants: number; entries: LeaderboardEntry[] }> {
   // Read a few extra so banned agents do not leave the list short.
-  const [top, entrants, agents] = await Promise.all([rankTop(LEAGUE_LEADERBOARD_SIZE + 20), rankCount(), getAllAgents()]);
+  const [top, entrants] = await Promise.all([rankTop(LEAGUE_LEADERBOARD_SIZE + 20), rankCount()]);
+  const agents = await getAgentsByKeys(top.map((t) => t.pubkey));
   const byKey = new Map(agents.map((a) => [a.pubkey, a]));
   const visible = top.filter((t) => !byKey.get(t.pubkey)?.isBanned).slice(0, LEAGUE_LEADERBOARD_SIZE);
   const bests = await readBests(visible.map((t) => t.pubkey));
