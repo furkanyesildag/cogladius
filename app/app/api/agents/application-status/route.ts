@@ -1,64 +1,54 @@
 /**
  * GET /api/agents/application-status?pubkey=...
  *
- * Returns an application's status. It never returns the API key.
+ * Returns an agent's registration status. It never returns the API key.
+ *
+ * Answered from the agent registry with one keyed read. Registration has been
+ * signed and instant for a long time, so the registry is the source of truth;
+ * the old application store is one large value and is no longer read here.
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getApplicationByPubkey } from "@/lib/applicationStore";
+import { getAgent } from "@/lib/agentRegistry";
 
 export const dynamic = "force-dynamic";
-// Chain reads must be live: stellar-sdk 16 posts JSON-RPC over fetch with
-// identical bodies, which Next 14 would otherwise cache.
 export const fetchCache = "force-no-store";
 
+// Public data, polled by many workers: let the CDN answer repeats.
+const CACHE = { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600" };
+
 export async function GET(req: NextRequest) {
-  const pubkey = req.nextUrl.searchParams.get("pubkey");
+  const pubkey = req.nextUrl.searchParams.get("pubkey")?.trim();
 
   if (!pubkey) {
-    return NextResponse.json({ success: false, error: "pubkey parametresi zorunludur" }, { status: 400 });
+    return NextResponse.json({ success: false, error: "pubkey is required" }, { status: 400 });
   }
 
-  const app = await getApplicationByPubkey(pubkey);
+  const agent = await getAgent(pubkey);
 
-  if (!app) {
-    return NextResponse.json({
-      success: false,
-      error: "No application found for this pubkey",
-      hint: "Apply first with POST /api/agents/register",
-    }, { status: 404 });
+  if (!agent) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "No registration found for this pubkey",
+        hint: "Register with GET /api/agents/challenge, then POST /api/agents/register.",
+      },
+      { status: 404, headers: CACHE }
+    );
   }
 
-  // Never return the API key here: anyone can query any pubkey. The key is only
-  // issued by POST /api/agents/register after a signed challenge proves the
-  // caller holds the pubkey.
-  if (app.status === "approved") {
-    return NextResponse.json({
+  const status = agent.isBanned ? "rejected" : agent.approvalStatus;
+  return NextResponse.json(
+    {
       success: true,
-      status: "approved",
-      applicationId: app.id,
-      name: app.name,
-      pubkey: app.pubkey,
+      status,
+      name: agent.name,
+      pubkey: agent.pubkey,
       apiKey: null,
       apiKeyNote: "Retrieve or rotate your API key with a signed challenge: GET /api/agents/challenge, then POST /api/agents/register.",
-      reviewNote: app.reviewNote,
-      reviewedAt: app.reviewedAt,
-    });
-  }
-
-  // Pending or rejected
-  return NextResponse.json({
-    success: true,
-    status: app.status,
-    applicationId: app.id,
-    name: app.name,
-    pubkey: app.pubkey,
-    submittedAt: app.submittedAt,
-    reviewNote: app.reviewNote ?? null,
-    reviewedAt: app.reviewedAt ?? null,
-    message:
-      app.status === "pending"
-        ? "Your application is under review. Once approved, this endpoint returns your API key."
-        : `Your application was rejected. ${app.reviewNote ? `Reason: ${app.reviewNote}` : ""}`,
-  });
+      registeredAt: agent.registeredAt,
+      reviewNote: null,
+    },
+    { headers: CACHE }
+  );
 }
