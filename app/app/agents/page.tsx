@@ -572,7 +572,7 @@ export default function AgentsRegistryPage() {
   useEffect(() => {
     fetchAgents();
     // Refresh often so a newly registered agent shows up without a reload.
-    const id = setInterval(fetchAgents, 8000);
+    const id = setInterval(fetchAgents, 60000);
     return () => clearInterval(id);
   }, [fetchAgents]);
 

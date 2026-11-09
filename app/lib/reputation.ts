@@ -31,10 +31,18 @@ let lastRefresh = 0;
 let latestLedger = 0;
 let refreshing: Promise<void> | null = null;
 
+// The stored copy is read once per instance; after that memory is current, since every
+// refresh merges into it and writes it back.
+let loadedFromStore = false;
+
 async function loadArchive(): Promise<RawEvent[]> {
   const r = getRedis();
-  if (!r) return memArchive;
-  return ((await r.get<RawEvent[]>(ARCHIVE_KEY)) ?? []) as RawEvent[];
+  if (!r || loadedFromStore) return memArchive;
+  const stored = ((await r.get<RawEvent[]>(ARCHIVE_KEY)) ?? []) as RawEvent[];
+  memArchive = merge(memArchive, stored);
+  g.__cogRepArchive = memArchive;
+  loadedFromStore = true;
+  return memArchive;
 }
 
 async function saveArchive(events: RawEvent[]) {
@@ -53,6 +61,7 @@ function merge(a: RawEvent[], b: RawEvent[]): RawEvent[] {
 async function refresh(): Promise<void> {
   const net = mppNet();
   let archive = await loadArchive();
+  const loaded = archive.length;
   const last = archive.length ? archive[archive.length - 1].ledger : 0;
   const recent = await fetchEscrowEvents(net, { fromLedger: last ? last + 1 : undefined });
   latestLedger = recent.toLedger;
@@ -61,7 +70,8 @@ async function refresh(): Promise<void> {
     archive = merge(archive, await fetchArchivedEvents(net, { beforeLedger: recent.fromLedger }));
   }
   archive = merge(archive, recent.raw);
-  await saveArchive(archive);
+  // Only write when something new arrived: an unchanged archive costs nothing.
+  if (archive.length !== loaded) await saveArchive(archive);
   lastRefresh = Date.now();
 }
 

@@ -39,36 +39,42 @@ function localSave(tasks: Record<number, Task>) {
 }
 
 // ── Redis helpers ─────────────────────────────────────────────────────────────
+//
+// The whole store is one value (~200 KB) and workers poll all day, so reads keep
+// a copy in memory and only fetch the value again when its version changed.
+// Every write bumps VER_KEY, a few bytes, in the same transaction as the value.
+
+const VER_KEY = "cogladius:tasks:ver";
+const g = globalThis as unknown as { __cogTasks?: { ver: string; tasks: Record<number, Task>; checkedAt: number } };
 
 // A failed read must throw: treating it as empty would let the next save wipe the store.
-async function redisLoad(): Promise<Record<number, Task> | null> {
-  const r = getRedis();
-  if (!r) return null;
-  const data = await r.get<Record<number, Task>>(REDIS_KEY);
-  return data ?? {};
+async function redisLoadFresh(): Promise<Record<number, Task>> {
+  const r = getRedis()!;
+  return (await r.get<Record<number, Task>>(REDIS_KEY)) ?? {};
 }
 
-async function redisSave(tasks: Record<number, Task>) {
-  const r = getRedis();
-  if (!r) return;
-  await r.set(REDIS_KEY, tasks);
+/** The stored value, from memory when its version is unchanged. `maxAgeMs` skips even the version check. */
+async function redisLoad(maxAgeMs = 0): Promise<Record<number, Task>> {
+  const r = getRedis()!;
+  const mem = g.__cogTasks;
+  if (mem && maxAgeMs > 0 && Date.now() - mem.checkedAt < maxAgeMs) return mem.tasks;
+  // Version first, then the value: a write landing in between leaves a newer value under an older
+  // version, which the next check simply reloads.
+  const ver = String((await r.get<number | string>(VER_KEY)) ?? "0");
+  if (mem && mem.ver === ver) {
+    mem.checkedAt = Date.now();
+    return mem.tasks;
+  }
+  const tasks = await redisLoadFresh();
+  g.__cogTasks = { ver, tasks, checkedAt: Date.now() };
+  return tasks;
 }
 
 // ── Unified load/save ─────────────────────────────────────────────────────────
 
-async function loadTasks(): Promise<Record<number, Task>> {
-  const fromRedis = await redisLoad();
-  if (fromRedis !== null) return fromRedis;
-  return localLoad();
-}
-
-async function saveTasks(tasks: Record<number, Task>) {
-  const r = getRedis();
-  if (r) {
-    await redisSave(tasks);
-  } else {
-    localSave(tasks);
-  }
+/** Callers get their own copy, so changing a returned task can never alter the shared one. */
+async function loadTasks(maxAgeMs = 0): Promise<Record<number, Task>> {
+  return getRedis() ? structuredClone(await redisLoad(maxAgeMs)) : localLoad();
 }
 
 /**
@@ -80,11 +86,19 @@ async function saveTasks(tasks: Record<number, Task>) {
 async function mutateTasks<T>(fn: (tasks: Record<number, Task>) => T | Promise<T>): Promise<T> {
   return withRedisLock("tasks", async () => {
     const r = getRedis();
-    const tasks: Record<number, Task> = r ? ((await r.get<Record<number, Task>>(REDIS_KEY)) ?? {}) : localLoad();
+    if (!r) {
+      const tasks = localLoad();
+      const out = await fn(tasks);
+      localSave(tasks);
+      return out;
+    }
+    const tasks = await redisLoadFresh();
     const out = await fn(tasks);
-    await saveTasks(tasks);
-    readCache = null;
-    listCache = null;
+    const p = r.multi();
+    p.set(REDIS_KEY, tasks);
+    p.incr(VER_KEY);
+    const [, ver] = await p.exec();
+    g.__cogTasks = { ver: String(ver), tasks: structuredClone(tasks), checkedAt: Date.now() };
     return out;
   });
 }
@@ -96,39 +110,22 @@ function nextId(tasks: Record<number, Task>): number {
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
-let listCache: { at: number; tasks: Task[] } | null = null;
-const LIST_CACHE_MS = 5 * 60 * 1000;
+/** Public read-only views and polling workers: may be up to 30 s old. Never use before a write. */
+const VIEW_MAX_AGE_MS = 30 * 1000;
 
-/** The task list for agents polling at scale. May be a few minutes old; never use it before a write. */
 export async function getAllTasksCached(): Promise<Task[]> {
-  if (listCache && Date.now() - listCache.at < LIST_CACHE_MS) return listCache.tasks;
-  const tasks = await getAllTasks();
-  listCache = { at: Date.now(), tasks };
-  return tasks;
+  return Object.values(await loadTasks(VIEW_MAX_AGE_MS)).sort((a, b) => b.id - a.id);
 }
 
-// Pages poll a task every 15 s and the whole store is one value, so public reads share a short
-// per-instance copy. Writes always read fresh (mutateTasks) and clear it on this instance.
-let readCache: { at: number; tasks: Record<number, Task> } | null = null;
-const READ_CACHE_MS = 20 * 1000;
-
-async function loadTasksCached(): Promise<Record<number, Task>> {
-  if (readCache && Date.now() - readCache.at < READ_CACHE_MS) return readCache.tasks;
-  const tasks = await loadTasks();
-  readCache = { at: Date.now(), tasks };
-  return tasks;
-}
-
-/** For public read-only views: may be up to 20 s old. Never use before a write. */
+/** For public read-only views: may be up to 30 s old. Never use before a write. */
 export async function getTaskCached(id: number): Promise<Task | null> {
-  return (await loadTasksCached())[id] ?? null;
+  return (await loadTasks(VIEW_MAX_AGE_MS))[id] ?? null;
 }
 
-/** For public read-only views: may be up to 20 s old. Never use before a write. */
-export async function getAllTasksRecent(): Promise<Task[]> {
-  return Object.values(await loadTasksCached()).sort((a, b) => b.id - a.id);
-}
+/** For public read-only views: may be up to 30 s old. Never use before a write. */
+export const getAllTasksRecent = getAllTasksCached;
 
+/** Current tasks: checks the stored version every call, reloads the value only when it changed. */
 export async function getAllTasks(): Promise<Task[]> {
   const tasks = await loadTasks();
   return Object.values(tasks).sort((a, b) => b.id - a.id);

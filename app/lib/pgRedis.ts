@@ -415,7 +415,8 @@ function driverFor(connectionString: string): Driver {
   }
   const postgres = require("postgres");
   // prepare: false for transaction-mode poolers; max 1 because each serverless instance handles one request at a time.
-  const sql = postgres(connectionString, { prepare: false, max: 1, idle_timeout: 20, connect_timeout: 10 });
+  // idle_timeout 120: every reconnect repeats the TLS handshake and the type lookup, which count as egress.
+  const sql = postgres(connectionString, { prepare: false, max: 1, idle_timeout: 120, connect_timeout: 10 });
   return {
     query: (text, params) => sql.unsafe(text, params as any[]).values(),
     transaction: (ops) =>
