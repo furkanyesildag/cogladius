@@ -1,7 +1,7 @@
 /**
  * GET /api/league/leaderboard
  *
- * Public, cached 30s, top 100. Shows a display name or shortened key, the best
+ * Public, cached 5 minutes, top 100. Shows a display name or shortened key, the best
  * qualifier score and the Gladiator tier when known. No wallets, no full keys.
  */
 import { kvGet, kvSet } from "@/lib/kv";

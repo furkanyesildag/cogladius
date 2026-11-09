@@ -191,6 +191,20 @@ function makeBuilders(parse: (v: any) => any, parseHashResult: (flat: string[]) 
       map: (rows) => Number(rows[0][0]),
     }),
 
+    /** Like Upstash: an object with every requested field (null when missing), or null when none exists. */
+    hmget: (key: string, ...fields: string[]): Op => {
+      if (fields.length === 0) throw new Error("ERR wrong number of arguments for 'hmget' command");
+      return {
+        text: "SELECT field, value FROM kv_hashes WHERE key = $1 AND field = ANY($2::text[])",
+        params: [name(key), fields.map(name)],
+        map: (rows) => {
+          if (rows.length === 0) return null;
+          const found = (parseHashResult(rows.flat()) ?? {}) as Record<string, unknown>;
+          return Object.fromEntries(fields.map((f) => [f, found[name(f)] ?? null]));
+        },
+      };
+    },
+
     hgetall: (key: string): Op => ({
       text: "SELECT field, value FROM kv_hashes WHERE key = $1",
       params: [name(key)],
